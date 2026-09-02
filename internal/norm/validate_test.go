@@ -8,16 +8,12 @@ import (
 	"github.com/marlliton/goinvest/internal/norm"
 )
 
-// Armadilha 2: bancos vêm com EV/EBITDA "0,00" no bulk, não com "-". O parser
-// genérico está certo em devolver (0, true) — é a validação por métrica que
-// sabe que aquele zero é um código de "não sei".
-func TestValidate_SentinelaEVEBITDA(t *testing.T) {
-	require.True(t, norm.IsSentinelaAusencia("ev_ebitda", 0),
-		"EV/EBITDA igual a 0 é sentinela de ausência (caso ITUB4), não valor real")
+func TestIsAbsenceSentinel(t *testing.T) {
+	require.True(t, norm.IsAbsenceSentinel("ev_ebitda", 0),
+		"EV/EBITDA of 0 is an absence sentinel, not a real value")
 
-	require.False(t, norm.IsSentinelaAusencia("ev_ebitda", 4.2),
-		"EV/EBITDA com valor real não é sentinela")
+	require.False(t, norm.IsAbsenceSentinel("ev_ebitda", 4.2))
 
-	require.False(t, norm.IsSentinelaAusencia("pl", 0),
-		"zero em P/L não é o sentinela documentado nesta fase")
+	require.False(t, norm.IsAbsenceSentinel("pl", 0),
+		"a zero P/L is not a sentinel")
 }
