@@ -11,6 +11,18 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	// Import em branco deliberado, não acidental: sem ele o cache de teste do Go
+	// serve um "ok (cached)" para este pacote mesmo depois de internal/domain
+	// passar a importar net/http. O cache indexa os arquivos que o binário de
+	// teste compila, e este teste lê o grafo de dependências por um subprocesso
+	// `go list` — invisível para o cache. Importar os pacotes vigiados torna
+	// qualquer mudança neles uma invalidação de cache, que é o que mantém o
+	// guarda vivo num `go test ./...` sem -count=1.
+	//
+	// Todo pacote novo adicionado a um teste de fronteira aqui precisa ganhar o
+	// seu import em branco junto.
+	_ "github.com/marlliton/goinvest/internal/domain"
 )
 
 const modulo = "github.com/marlliton/goinvest"
