@@ -9,6 +9,7 @@ import (
 	// grafo de dependências é lido por um subprocesso `go list`, invisível para
 	// o cache. Todo pacote vigiado aqui precisa do seu import em branco.
 	_ "github.com/marlliton/goinvest/internal/catalog"
+	_ "github.com/marlliton/goinvest/internal/derive"
 	_ "github.com/marlliton/goinvest/internal/domain"
 	_ "github.com/marlliton/goinvest/internal/fetch"
 )
@@ -27,50 +28,42 @@ var forbiddenForCore = []string{
 }
 
 func TestDomainHasNoInfraImports(t *testing.T) {
-	deps := goListDeps(t, modulePath+"/internal/domain/...")
-	requirePackagePresent(t, deps, modulePath+"/internal/domain")
-
-	for _, forbidden := range forbiddenForCore {
-		for _, dep := range deps {
-			if matchesForbidden(dep, forbidden) {
-				t.Errorf("internal/domain imports %s (transitively)", dep)
-			}
-		}
-	}
+	requireNoImports(t, modulePath+"/internal/domain", forbiddenForCore)
 }
 
 func TestCatalogHasNoInfraImports(t *testing.T) {
-	deps := goListDeps(t, modulePath+"/internal/catalog/...")
-	requirePackagePresent(t, deps, modulePath+"/internal/catalog")
+	requireNoImports(t, modulePath+"/internal/catalog", forbiddenForCore)
+}
 
-	for _, forbidden := range forbiddenForCore {
-		for _, dep := range deps {
-			if matchesForbidden(dep, forbidden) {
-				t.Errorf("internal/catalog imports %s (transitively)", dep)
-			}
-		}
-	}
+// derive é análise pura: recebe MetricSet e devolve MetricSet. Também não pode
+// alcançar o catálogo, senão a unidade do derivado passaria a ter duas fontes.
+func TestDeriveHasNoInfraImports(t *testing.T) {
+	requireNoImports(t, modulePath+"/internal/derive",
+		append(forbiddenForCore, modulePath+"/internal/catalog"))
 }
 
 // A interface Cache é declarada pelo consumidor justamente para que fetch e
 // store possam evoluir sem se conhecer. Sem este teste a dependência entra por
 // conveniência no primeiro plano que precisar de cache concreto.
 func TestFetchDoesNotImportStore(t *testing.T) {
-	deps := goListDeps(t, modulePath+"/internal/fetch/...")
-	requirePackagePresent(t, deps, modulePath+"/internal/fetch")
-
-	for _, dep := range deps {
-		if matchesForbidden(dep, modulePath+"/internal/store") {
-			t.Errorf("internal/fetch imports %s", dep)
-		}
-	}
+	requireNoImports(t, modulePath+"/internal/fetch", []string{modulePath + "/internal/store"})
 }
 
-// Casar por prefixo: internal/store/gen é infraestrutura tanto quanto
-// internal/store, e a lista não pode depender de alguém lembrar de estendê-la a
-// cada subpacote novo.
-func matchesForbidden(dep, forbidden string) bool {
-	return dep == forbidden || strings.HasPrefix(dep, forbidden+"/")
+func requireNoImports(t *testing.T, pkg string, forbidden []string) {
+	t.Helper()
+	deps := goListDeps(t, pkg+"/...")
+	requirePackagePresent(t, deps, pkg)
+
+	for _, f := range forbidden {
+		for _, dep := range deps {
+			// Casar por prefixo: internal/store/gen é infraestrutura tanto
+			// quanto internal/store, e a lista não pode depender de alguém
+			// lembrar de estendê-la a cada subpacote novo.
+			if dep == f || strings.HasPrefix(dep, f+"/") {
+				t.Errorf("%s imports %s (transitively)", pkg, dep)
+			}
+		}
+	}
 }
 
 // requirePackagePresent evita o falso verde: `go list` sobre um padrão que não
