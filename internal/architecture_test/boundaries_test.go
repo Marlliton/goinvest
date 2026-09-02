@@ -8,6 +8,7 @@ import (
 	// Sem este import o cache de teste do Go serve um resultado obsoleto: o
 	// grafo de dependências é lido por um subprocesso `go list`, invisível para
 	// o cache. Todo pacote vigiado aqui precisa do seu import em branco.
+	_ "github.com/marlliton/goinvest/internal/catalog"
 	_ "github.com/marlliton/goinvest/internal/domain"
 )
 
@@ -32,6 +33,19 @@ func TestDomainHasNoInfraImports(t *testing.T) {
 		for _, dep := range deps {
 			if dep == forbidden {
 				t.Errorf("internal/domain imports %s (transitively)", forbidden)
+			}
+		}
+	}
+}
+
+func TestCatalogHasNoInfraImports(t *testing.T) {
+	deps := goListDeps(t, modulePath+"/internal/catalog/...")
+	requirePackagePresent(t, deps, modulePath+"/internal/catalog")
+
+	for _, forbidden := range forbiddenForCore {
+		for _, dep := range deps {
+			if dep == forbidden {
+				t.Errorf("internal/catalog imports %s (transitively)", forbidden)
 			}
 		}
 	}

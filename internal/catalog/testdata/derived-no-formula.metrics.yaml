@@ -1,0 +1,27 @@
+blocks:
+  b1: {label: "Bloco 1", order: 1}
+  b2: {label: "Bloco 2", order: 2}
+
+metrics:
+  - id: dy
+    label: "Dividend Yield"
+    block: b1
+    order: 1
+    unit: percent
+    classes: [acao, fii]
+
+  - id: pl
+    label: "P/L"
+    block: b1
+    order: 2
+    unit: ratio
+    classes: [acao]
+
+  - id: payout
+    label: "Payout"
+    block: b2
+    order: 1
+    unit: percent
+    classes: [acao]
+    derived: true
+    inputs: [dy, pl]
