@@ -10,6 +10,7 @@ import (
 	// o cache. Todo pacote vigiado aqui precisa do seu import em branco.
 	_ "github.com/marlliton/goinvest/internal/catalog"
 	_ "github.com/marlliton/goinvest/internal/domain"
+	_ "github.com/marlliton/goinvest/internal/fetch"
 )
 
 const modulePath = "github.com/marlliton/goinvest"
@@ -47,6 +48,20 @@ func TestCatalogHasNoInfraImports(t *testing.T) {
 			if matchesForbidden(dep, forbidden) {
 				t.Errorf("internal/catalog imports %s (transitively)", dep)
 			}
+		}
+	}
+}
+
+// A interface Cache é declarada pelo consumidor justamente para que fetch e
+// store possam evoluir sem se conhecer. Sem este teste a dependência entra por
+// conveniência no primeiro plano que precisar de cache concreto.
+func TestFetchDoesNotImportStore(t *testing.T) {
+	deps := goListDeps(t, modulePath+"/internal/fetch/...")
+	requirePackagePresent(t, deps, modulePath+"/internal/fetch")
+
+	for _, dep := range deps {
+		if matchesForbidden(dep, modulePath+"/internal/store") {
+			t.Errorf("internal/fetch imports %s", dep)
 		}
 	}
 }
