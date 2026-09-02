@@ -10,6 +10,7 @@ import (
 	// o cache. Todo pacote vigiado aqui precisa do seu import em branco.
 	_ "github.com/marlliton/goinvest/internal/app"
 	_ "github.com/marlliton/goinvest/internal/catalog"
+	_ "github.com/marlliton/goinvest/internal/collect"
 	_ "github.com/marlliton/goinvest/internal/derive"
 	_ "github.com/marlliton/goinvest/internal/domain"
 	_ "github.com/marlliton/goinvest/internal/fetch"
@@ -56,6 +57,13 @@ func TestAppCannotReachTheNetwork(t *testing.T) {
 		modulePath + "/internal/fetch",
 		modulePath + "/internal/provider",
 	})
+}
+
+// A segunda fonte só é plugável enquanto collect conhecer a interface e nada
+// além dela: quem monta o provider concreto é o wiring de cmd.
+func TestCollectDependsOnlyOnProviderInterface(t *testing.T) {
+	requireNoImports(t, modulePath+"/internal/collect",
+		[]string{modulePath + "/internal/provider/fundamentus"})
 }
 
 func requireNoImports(t *testing.T, pkg string, forbidden []string) {
