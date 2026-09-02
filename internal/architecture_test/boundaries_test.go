@@ -14,8 +14,8 @@ import (
 
 const modulePath = "github.com/marlliton/goinvest"
 
-// Os três pacotes internos ainda não existem; estão na lista para o dia em que
-// existirem.
+// Alguns destes pacotes internos ainda não existem; estão na lista para o dia
+// em que existirem.
 var forbiddenForCore = []string{
 	"database/sql",
 	"net/http",
