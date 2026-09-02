@@ -17,15 +17,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// As fixtures são lidas do testdata do provider em vez de copiadas: duas cópias
-// divergem no dia em que a fonte mudar de layout.
 const (
 	stockFixture = "../provider/fundamentus/testdata/resultado_min.html"
 	fiiFixture   = "../provider/fundamentus/testdata/fii_resultado_min.html"
 )
 
-// Os tickers de cada fixture, nomeados para que a contagem esperada possa ser
-// conferida contra o arquivo em vez de contra um número solto.
 var (
 	stockTickers = []string{"WEGE3", "ITUB4", "CLAN3"}
 	fiiTickers   = []string{"MXRF11", "ABCP11", "HGLG11"}
@@ -73,8 +69,8 @@ func TestSyncReportsAssetCount(t *testing.T) {
 	require.Equal(t, len(stockTickers), report.Stocks.AssetCount)
 	require.Equal(t, len(fiiTickers), report.FIIs.AssetCount)
 
-	// A contagem relatada é uma afirmação sobre o banco, não sobre o parser: se
-	// as duas divergirem, o relatório do sync estaria mentindo para o usuário.
+	// Sem esta segunda contagem, o teste provaria só o parser: é ela que pega o
+	// relatório afirmar um número que o banco não tem.
 	var distinct int
 	require.NoError(t, db.QueryRow(`SELECT COUNT(DISTINCT ticker) FROM asset`).Scan(&distinct))
 	require.Equal(t, len(stockTickers)+len(fiiTickers), distinct)

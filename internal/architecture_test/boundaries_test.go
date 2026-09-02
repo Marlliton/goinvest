@@ -51,11 +51,13 @@ func TestFetchDoesNotImportStore(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/fetch", []string{modulePath + "/internal/store"})
 }
 
+// A interface provider fica de fora da lista de propósito: ela não disca nada, e
+// app precisa dela desde Sync. Quem disca é net/http, fetch e a fonte concreta.
 func TestAppCannotReachTheNetwork(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/app", []string{
 		"net/http",
 		modulePath + "/internal/fetch",
-		modulePath + "/internal/provider",
+		modulePath + "/internal/provider/fundamentus",
 	})
 }
 
