@@ -1,6 +1,4 @@
-// Package app é a fronteira que a casca fina (cmd, e a TUI das fases
-// seguintes) enxerga: devolve um Report pronto para renderizar e nunca expõe
-// store, provider ou rede a quem o chama.
+// Package app é a fronteira que cmd e, nas fases seguintes, a TUI enxergam.
 package app
 
 import (
@@ -16,19 +14,14 @@ import (
 	"github.com/marlliton/goinvest/internal/store"
 )
 
-// Texto consumido literalmente por cmd/goinvest: é a instrução que o usuário lê.
 var ErrNoData = errors.New("nenhum dado local. Rode 'goinvest sync' primeiro")
 
-// Acima deste limiar o frescor deixa de ser informação neutra e vira aviso com
-// ação. Constante, não configuração: não há uso real ainda que diga qual é o
-// número certo, e congelá-lo num TOML custa mais do que mudá-lo aqui.
 const stalenessThreshold = 7 * 24 * time.Hour
 
 type HeaderView struct {
 	ReferenceAt *time.Time
 	FetchedAt   time.Time
-	// Idade resolvida na leitura para que a renderização não precise de
-	// relógio, e o mesmo Report renderize igual sempre.
+	// Resolvida aqui para que a renderização não precise de relógio.
 	Age   time.Duration
 	Stale bool
 }
@@ -54,8 +47,6 @@ type Report struct {
 	Blocks []BlockView
 }
 
-// Show não recebe nem constrói cliente HTTP: fazer show sair para a rede exige
-// mudar esta assinatura e todo chamador junto.
 func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string, now func() time.Time) (Report, error) {
 	asset, found, err := db.GetAsset(ctx, ticker)
 	if err != nil {
@@ -69,8 +60,7 @@ func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string
 	if err != nil {
 		return Report{}, err
 	}
-	// Ticker cadastrado mas nunca coletado é indistinguível de ausente para
-	// quem lê: os dois pedem a mesma ação.
+	// Cadastrado e nunca coletado pede do usuário a mesma ação que ausente.
 	if len(collected) == 0 {
 		return Report{}, ErrNoData
 	}
@@ -102,9 +92,8 @@ func header(collected domain.MetricSet, now func() time.Time) HeaderView {
 	return h
 }
 
-// A competência do cabeçalho é a da maioria das observações; a linha divergente
-// é que carrega marca própria. Copiar FetchedAt quando não há competência
-// afirmaria uma data que a fonte nunca informou.
+// Nulo continua nulo: preencher com FetchedAt afirmaria uma competência que a
+// fonte nunca informou.
 func commonReference(collected domain.MetricSet) *time.Time {
 	count := map[int64]int{}
 	for _, o := range collected {
@@ -146,8 +135,7 @@ func blocks(cat *catalog.Catalog, class domain.AssetClass, merged domain.MetricS
 			if m.Block != b.ID {
 				continue
 			}
-			// Chave ausente é métrica nunca coletada: a linha não aparece.
-			// Chave presente com Value nil é a fonte dizendo que não tem.
+			// Nunca coletada some da tela; coletada sem valor vira "—".
 			o, ok := merged[m.ID]
 			if !ok {
 				continue
@@ -168,8 +156,6 @@ func blocks(cat *catalog.Catalog, class domain.AssetClass, merged domain.MetricS
 	return out
 }
 
-// A ordem de iteração de um map é aleatória, e tanto o desempate da competência
-// quanto o golden dependem de uma saída estável.
 func sortedIDs(set domain.MetricSet) []domain.MetricID {
 	return slices.Sorted(maps.Keys(set))
 }

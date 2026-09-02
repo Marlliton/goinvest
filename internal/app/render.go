@@ -13,8 +13,6 @@ const (
 	markDerived = "ƒ"
 )
 
-// RenderText não recebe relógio: a idade já vem resolvida no Header, e é o que
-// mantém a saída estável entre execuções.
 func RenderText(r Report) string {
 	var b strings.Builder
 
@@ -49,8 +47,6 @@ func RenderText(r Report) string {
 	return b.String()
 }
 
-// A legenda explica só os símbolos que estão na tela: explicar uma ausência que
-// não aconteceu ensina o usuário a não ler o rodapé.
 func legend(sawAbsent, sawDerived bool) string {
 	var parts []string
 	if sawAbsent {
@@ -100,7 +96,7 @@ func formatValue(v float64, unit domain.Unit) string {
 	}
 }
 
-// Inverso de norm.ParseBRNumber: ponto no milhar, vírgula no decimal.
+// Inverso de norm.ParseBRNumber.
 func formatBR(v float64, decimals int) string {
 	s := strconv.FormatFloat(v, 'f', decimals, 64)
 	sign := ""

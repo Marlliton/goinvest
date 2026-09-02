@@ -50,8 +50,6 @@ func TestFetchDoesNotImportStore(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/fetch", []string{modulePath + "/internal/store"})
 }
 
-// O grep na assinatura de Show prova só o arquivo. A promessa de leitura
-// offline é sobre o grafo inteiro: é aqui que ela vira erro de teste.
 func TestAppCannotReachTheNetwork(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/app", []string{
 		"net/http",

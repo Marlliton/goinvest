@@ -14,8 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Grave os goldens com `go test ./internal/app/... -update` e revise o diff
-// antes de comitar: um golden atualizado sem leitura vira carimbo do bug.
+// Regravar sem ler o diff transforma o golden em carimbo do bug.
 var update = flag.Bool("update", false, "regrava os arquivos golden")
 
 var (
@@ -35,9 +34,8 @@ func openTemp(t *testing.T) *store.DB {
 	return db
 }
 
-// seed grava o ativo e suas observações direto no store local. Nenhum
-// httptest.Server sobe aqui: se Show discasse rede, não haveria endpoint de pé
-// para responder e o teste travaria em vez de passar em silêncio.
+// Nenhum httptest.Server sobe aqui: se Show discasse rede, não haveria endpoint
+// de pé, e o teste travaria em vez de passar em silêncio.
 func seed(t *testing.T, db *store.DB, ticker string, class domain.AssetClass, values map[domain.MetricID]*float64) {
 	t.Helper()
 	ctx := t.Context()
@@ -89,8 +87,7 @@ func wege3Values() map[domain.MetricID]*float64 {
 		"mrg_liq":         ptr(0.17),
 		"roic":            ptr(0.28),
 		"roe":             ptr(0.25),
-		// Zero exatamente igual a 0.0 numa métrica sem sentinela: é o terceiro
-		// estado de "sem número", e o único que precisa aparecer como número.
+		// Métrica sem sentinela: este zero é legítimo e precisa sair como número.
 		"cresc_rec_5a": ptr(0.0),
 		"liq_corr":     ptr(2.1),
 		"patrim_liq":   ptr(15e9),
@@ -107,8 +104,6 @@ func TestShowNeverReachesTheNetwork(t *testing.T) {
 	require.NoError(t, err)
 	require.NotZero(t, report.Header.FetchedAt)
 	require.Equal(t, collectedAt, report.Header.FetchedAt)
-	// A fonte bulk não publica competência. Preenchê-la com a data de coleta
-	// afirmaria um balanço que ninguém informou.
 	require.Nil(t, report.Header.ReferenceAt)
 	require.NotContains(t, app.RenderText(report), collectedAt.Format("02/01/2006"),
 		"a data de coleta não pode aparecer como data de balanço")
@@ -148,7 +143,7 @@ func TestShowGoldenOutput(t *testing.T) {
 func TestShowGoldenOutputSuspectInput(t *testing.T) {
 	db := openTemp(t)
 	values := wege3Values()
-	// Banco: o Fundamentus não publica EV/EBITDA, e sem ele DL/EBITDA não sai.
+	// Banco: a fonte não publica EV/EBITDA, e sem ele DL/EBITDA não sai.
 	values["ev_ebitda"] = nil
 	seed(t, db, "ITUB4", domain.ClassStock, values)
 
