@@ -261,7 +261,30 @@ Ferramenta de terminal (TUI, escrita em Go) para análise fundamentalista de ati
 <!-- GSD:conventions-start source:CONVENTIONS.md -->
 ## Conventions
 
-Conventions not yet established. Will populate as patterns emerge during development.
+### Idioma
+Código em inglês (identificadores, nomes de teste, mensagens de erro ao desenvolvedor).
+Comentários em pt-BR. Saída ao usuário final em pt-BR. Valores de domínio persistidos
+ficam no vocabulário do mercado brasileiro mesmo com identificador em inglês:
+`ClassStock AssetClass = "ACAO"`.
+
+### Comentários
+Comentar é exceção, não hábito. Só quando o porquê não é dedutível do código:
+comportamento contraintuitivo de biblioteca, decisão de tipo que parece firula sem
+contexto, caractere invisível, linha que um leitor futuro apagaria por parecer inútil.
+Não comentar o que o código já diz. Não escrever doc de pacote em forma de ensaio.
+Não citar artefato de planejamento (`Armadilha N`, `D-0X`, `RESEARCH.md`, número de
+plano). Não usar travessão (`—`) em comentário.
+
+### Go
+- `internal/domain` não importa infraestrutura, verificado por `TestDomainHasNoInfraImports`.
+- Todo pacote novo num teste de fronteira ganha seu import em branco em `boundaries_test.go`,
+  senão o cache de teste do Go serve resultado obsoleto.
+- Ausência é `nil`, nunca `0`. Parser numérico devolve `(valor, bool)`; nunca descartar
+  erro de parse com `_`.
+
+### Commits
+Assunto curto e factual; corpo só quando houver algo real a explicar. Sem citar artefato
+de planejamento. Escopo `tipo(fase-plano):` é exigência do GSD.
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->
