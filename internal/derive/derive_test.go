@@ -13,17 +13,17 @@ func ptr(v float64) *float64 { return &v }
 
 var collectedAt = time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
 
-// Percentuais ficam na escala que a fonte publica (25.0 é 25%), então payout e
-// roa saem também em ponto percentual.
+// Percentual é fração em todo o pipeline (0.25 é 25%), a escala que o provider
+// grava. É ela que faz `roe x patrim_liq` dar lucro em reais.
 func healthySet() domain.MetricSet {
 	values := map[domain.MetricID]*float64{
-		"dy":         ptr(1.2),
+		"dy":         ptr(0.012),
 		"pl":         ptr(30.0),
 		"pvp":        ptr(9.5),
 		"patrim_liq": ptr(15e9),
 		"dl_patrim":  ptr(0.10),
 		"ev_ebitda":  ptr(20.0),
-		"roe":        ptr(25.0),
+		"roe":        ptr(0.25),
 		"p_ativo":    ptr(4.0),
 	}
 	set := domain.MetricSet{}
@@ -41,21 +41,21 @@ func TestComputeProducesAllThreeDerivedMetrics(t *testing.T) {
 	require.Len(t, out, 3)
 
 	// payout = dy * pl
-	require.InDelta(t, 1.2*30.0, *out["payout"].Value, 1e-9)
+	require.InDelta(t, 0.012*30.0, *out["payout"].Value, 1e-9)
 
 	// MC = 9,5 x 15e9 = 142,5e9 | DL = 0,10 x 15e9 = 1,5e9
 	// EV = 144e9 | EBITDA = 144e9 / 20 = 7,2e9 | DL/EBITDA = 1,5 / 7,2
 	require.InDelta(t, 1.5e9/7.2e9, *out["dl_ebitda"].Value, 1e-9)
 
-	// AtivoTotal = 142,5e9 / 4 = 35,625e9 | Lucro = 25 x 15e9 = 375e9
-	require.InDelta(t, 375e9/35.625e9, *out["roa"].Value, 1e-9)
+	// AtivoTotal = 142,5e9 / 4 = 35,625e9 | Lucro = 0,25 x 15e9 = 3,75e9
+	require.InDelta(t, 3.75e9/35.625e9, *out["roa"].Value, 1e-9)
 }
 
 // A cadeia longa existe para localizar o insumo ruim, mas precisa concordar
 // com a redução algébrica: se divergir, a aritmética está errada.
 func TestChainAgreesWithAlgebraicReduction(t *testing.T) {
 	out := derive.Compute(healthySet())
-	require.InDelta(t, 25.0*4.0/9.5, *out["roa"].Value, 1e-9, "ROA reduz para roe x p_ativo / pvp")
+	require.InDelta(t, 0.25*4.0/9.5, *out["roa"].Value, 1e-9, "ROA reduz para roe x p_ativo / pvp")
 	require.InDelta(t, 0.10*20.0/(9.5+0.10), *out["dl_ebitda"].Value, 1e-9,
 		"DL/EBITDA reduz para dl_patrim x ev_ebitda / (pvp + dl_patrim)")
 }
