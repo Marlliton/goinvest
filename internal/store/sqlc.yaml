@@ -1,0 +1,17 @@
+version: "2"
+sql:
+  - engine: "sqlite"
+    schema: "migrations"
+    queries: "queries"
+    gen:
+      go:
+        package: "gen"
+        out: "gen"
+        emit_pointers_for_null_types: true
+        overrides:
+          - column: "asset.class"
+            go_type: "github.com/marlliton/goinvest/internal/domain.AssetClass"
+          - column: "observation.metric_id"
+            go_type: "github.com/marlliton/goinvest/internal/domain.MetricID"
+          - column: "observation.unit"
+            go_type: "github.com/marlliton/goinvest/internal/domain.Unit"

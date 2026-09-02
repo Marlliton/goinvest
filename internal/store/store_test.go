@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -196,4 +197,16 @@ func TestRawDocRoundTrip(t *testing.T) {
 	var n int
 	require.NoError(t, db.QueryRow(`SELECT count(*) FROM raw_doc`).Scan(&n))
 	require.Equal(t, 1, n)
+}
+
+// Código gerado desatualizado é o modo de falha que o sqlc introduz: o SQL muda,
+// o Go continua o antigo e só quebra em runtime.
+func TestGeneratedCodeIsUpToDate(t *testing.T) {
+	if testing.Short() {
+		t.Skip("roda sqlc; fora do -short")
+	}
+	cmd := exec.Command("go", "tool", "sqlc", "diff")
+	cmd.Dir = "."
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "sqlc diff acusou divergência; rode `go generate ./internal/store/...`:\n%s", out)
 }

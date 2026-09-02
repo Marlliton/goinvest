@@ -1,16 +1,21 @@
 // Package store é a persistência local: SQLite append-only com proveniência.
+// As queries vivem em queries/ e o código de acesso é gerado por sqlc.
 package store
 
 import (
 	"database/sql"
 	"fmt"
 
+	"github.com/marlliton/goinvest/internal/store/gen"
 	"github.com/pressly/goose/v3"
 	_ "modernc.org/sqlite"
 )
 
+//go:generate go tool sqlc generate
+
 type DB struct {
 	*sql.DB
+	q *gen.Queries
 }
 
 // Open abre o banco e aplica as migrações pendentes. O usuário nunca roda
@@ -31,7 +36,7 @@ func Open(path string) (*DB, error) {
 		sqlDB.Close()
 		return nil, err
 	}
-	return &DB{sqlDB}, nil
+	return &DB{DB: sqlDB, q: gen.New(sqlDB)}, nil
 }
 
 func migrate(sqlDB *sql.DB) error {
@@ -47,4 +52,19 @@ func migrate(sqlDB *sql.DB) error {
 		return fmt.Errorf("goose up: %w", err)
 	}
 	return nil
+}
+
+// String vazia vira NULL: o schema distingue ausência de valor vazio.
+func nullString(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

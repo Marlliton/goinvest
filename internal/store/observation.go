@@ -8,19 +8,18 @@ import (
 	"time"
 
 	"github.com/marlliton/goinvest/internal/domain"
+	"github.com/marlliton/goinvest/internal/store/gen"
 )
 
 // UpsertAsset atualiza classe e nome. asset é dimensão, não fato histórico:
 // aqui sobrescrever é correto, diferente de observation.
 func (db *DB) UpsertAsset(ctx context.Context, ticker string, class domain.AssetClass, name string, updatedAt time.Time) error {
-	_, err := db.ExecContext(ctx, `
-		INSERT INTO asset (ticker, class, name, updated_at)
-		VALUES (?, ?, ?, ?)
-		ON CONFLICT(ticker) DO UPDATE SET
-			class      = excluded.class,
-			name       = excluded.name,
-			updated_at = excluded.updated_at`,
-		ticker, string(class), name, updatedAt)
+	err := db.q.UpsertAsset(ctx, gen.UpsertAssetParams{
+		Ticker:    ticker,
+		Class:     class,
+		Name:      nullString(name),
+		UpdatedAt: updatedAt,
+	})
 	if err != nil {
 		return fmt.Errorf("upsert asset %s: %w", ticker, err)
 	}
@@ -30,33 +29,26 @@ func (db *DB) UpsertAsset(ctx context.Context, ticker string, class domain.Asset
 // GetAsset devolve found=false para ticker inexistente. Ausência não é erro:
 // distinguir "nunca sincronizado" de "não existe na B3" é escopo da Fase 2.
 func (db *DB) GetAsset(ctx context.Context, ticker string) (domain.Asset, bool, error) {
-	var (
-		a    domain.Asset
-		cls  string
-		name sql.NullString
-	)
-	err := db.QueryRowContext(ctx,
-		`SELECT ticker, class, name, updated_at FROM asset WHERE ticker = ?`, ticker).
-		Scan(&a.Ticker, &cls, &name, &a.UpdatedAt)
+	a, err := db.q.GetAsset(ctx, ticker)
 	if errors.Is(err, sql.ErrNoRows) {
 		return domain.Asset{}, false, nil
 	}
 	if err != nil {
 		return domain.Asset{}, false, fmt.Errorf("get asset %s: %w", ticker, err)
 	}
-	a.Class = domain.AssetClass(cls)
-	a.Name = name.String
-	return a, true, nil
+	return domain.Asset{
+		Ticker:    a.Ticker,
+		Class:     a.Class,
+		Name:      deref(a.Name),
+		UpdatedAt: a.UpdatedAt,
+	}, true, nil
 }
 
 func (db *DB) StartRun(ctx context.Context, source string) (int64, error) {
-	res, err := db.ExecContext(ctx,
-		`INSERT INTO collection_run (source, started_at, status) VALUES (?, ?, 'running')`,
-		source, time.Now().UTC())
-	if err != nil {
-		return 0, fmt.Errorf("start run %s: %w", source, err)
-	}
-	id, err := res.LastInsertId()
+	id, err := db.q.StartRun(ctx, gen.StartRunParams{
+		Source:    source,
+		StartedAt: time.Now().UTC(),
+	})
 	if err != nil {
 		return 0, fmt.Errorf("start run %s: %w", source, err)
 	}
@@ -66,13 +58,15 @@ func (db *DB) StartRun(ctx context.Context, source string) (int64, error) {
 // FinishRun é a única escrita destrutiva legítima do schema: fecha a linha de
 // collection_run aberta por StartRun.
 func (db *DB) FinishRun(ctx context.Context, runID int64, status string, nObs int, errMsg string) error {
-	var msg any
-	if errMsg != "" {
-		msg = errMsg
-	}
-	_, err := db.ExecContext(ctx,
-		`UPDATE collection_run SET finished_at = ?, status = ?, n_obs = ?, error = ? WHERE id = ?`,
-		time.Now().UTC(), status, nObs, msg, runID)
+	now := time.Now().UTC()
+	n := int64(nObs)
+	err := db.q.FinishRun(ctx, gen.FinishRunParams{
+		FinishedAt: &now,
+		Status:     status,
+		NObs:       &n,
+		Error:      nullString(errMsg),
+		ID:         runID,
+	})
 	if err != nil {
 		return fmt.Errorf("finish run %d: %w", runID, err)
 	}
@@ -90,27 +84,20 @@ func (db *DB) InsertObservations(ctx context.Context, runID int64, obs []domain.
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.PrepareContext(ctx, `
-		INSERT INTO observation
-			(ticker, metric_id, period_kind, period_end, value, unit, source, reference_at, fetched_at, run_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-	if err != nil {
-		return fmt.Errorf("prepare insert observation: %w", err)
-	}
-	defer stmt.Close()
-
+	q := db.q.WithTx(tx)
 	for _, o := range obs {
-		var value, referenceAt any
-		if o.Value != nil {
-			value = *o.Value
-		}
-		if o.ReferenceAt != nil {
-			referenceAt = *o.ReferenceAt
-		}
-		if _, err := stmt.ExecContext(ctx,
-			o.Ticker, string(o.Metric), o.PeriodKind, o.PeriodEnd,
-			value, string(o.Unit), o.Source, referenceAt, o.FetchedAt, runID,
-		); err != nil {
+		if err := q.InsertObservation(ctx, gen.InsertObservationParams{
+			Ticker:      o.Ticker,
+			MetricID:    o.Metric,
+			PeriodKind:  o.PeriodKind,
+			PeriodEnd:   o.PeriodEnd,
+			Value:       o.Value,
+			Unit:        o.Unit,
+			Source:      o.Source,
+			ReferenceAt: o.ReferenceAt,
+			FetchedAt:   o.FetchedAt,
+			RunID:       &runID,
+		}); err != nil {
 			return fmt.Errorf("insert observation %s/%s: %w", o.Ticker, o.Metric, err)
 		}
 	}
@@ -125,52 +112,28 @@ func (db *DB) InsertObservations(ctx context.Context, runID int64, obs []domain.
 // Métrica nunca coletada não vira chave no mapa; métrica coletada sem valor
 // vira chave com Value nil.
 func (db *DB) LatestMetrics(ctx context.Context, ticker string) (domain.MetricSet, error) {
-	rows, err := db.QueryContext(ctx, `
-		SELECT metric_id, period_kind, period_end, value, unit, source, reference_at, fetched_at, run_id
-		FROM (
-			SELECT *, ROW_NUMBER() OVER (
-				PARTITION BY metric_id, period_kind
-				ORDER BY period_end DESC, fetched_at DESC) AS rn
-			FROM observation
-			WHERE ticker = ?
-		)
-		WHERE rn = 1`, ticker)
+	rows, err := db.q.LatestMetrics(ctx, ticker)
 	if err != nil {
 		return nil, fmt.Errorf("latest metrics %s: %w", ticker, err)
 	}
-	defer rows.Close()
 
-	set := domain.MetricSet{}
-	for rows.Next() {
-		var (
-			o           domain.Observation
-			metricID    string
-			unit        string
-			value       sql.NullFloat64
-			referenceAt sql.NullTime
-			runID       sql.NullInt64
-		)
-		if err := rows.Scan(&metricID, &o.PeriodKind, &o.PeriodEnd, &value, &unit,
-			&o.Source, &referenceAt, &o.FetchedAt, &runID); err != nil {
-			return nil, fmt.Errorf("scan latest metric %s: %w", ticker, err)
+	set := make(domain.MetricSet, len(rows))
+	for _, r := range rows {
+		o := domain.Observation{
+			Ticker:      ticker,
+			Metric:      r.MetricID,
+			PeriodKind:  r.PeriodKind,
+			PeriodEnd:   r.PeriodEnd,
+			Value:       r.Value,
+			Unit:        r.Unit,
+			Source:      r.Source,
+			ReferenceAt: r.ReferenceAt,
+			FetchedAt:   r.FetchedAt,
 		}
-
-		o.Ticker = ticker
-		o.Metric = domain.MetricID(metricID)
-		o.Unit = domain.Unit(unit)
-		if value.Valid {
-			v := value.Float64
-			o.Value = &v
+		if r.RunID != nil {
+			o.RunID = *r.RunID
 		}
-		if referenceAt.Valid {
-			t := referenceAt.Time
-			o.ReferenceAt = &t
-		}
-		o.RunID = runID.Int64
 		set[o.Metric] = o
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("latest metrics %s: %w", ticker, err)
 	}
 	return set, nil
 }

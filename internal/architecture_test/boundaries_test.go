@@ -31,8 +31,8 @@ func TestDomainHasNoInfraImports(t *testing.T) {
 
 	for _, forbidden := range forbiddenForCore {
 		for _, dep := range deps {
-			if dep == forbidden {
-				t.Errorf("internal/domain imports %s (transitively)", forbidden)
+			if matchesForbidden(dep, forbidden) {
+				t.Errorf("internal/domain imports %s (transitively)", dep)
 			}
 		}
 	}
@@ -44,11 +44,18 @@ func TestCatalogHasNoInfraImports(t *testing.T) {
 
 	for _, forbidden := range forbiddenForCore {
 		for _, dep := range deps {
-			if dep == forbidden {
-				t.Errorf("internal/catalog imports %s (transitively)", forbidden)
+			if matchesForbidden(dep, forbidden) {
+				t.Errorf("internal/catalog imports %s (transitively)", dep)
 			}
 		}
 	}
+}
+
+// Casar por prefixo: internal/store/gen é infraestrutura tanto quanto
+// internal/store, e a lista não pode depender de alguém lembrar de estendê-la a
+// cada subpacote novo.
+func matchesForbidden(dep, forbidden string) bool {
+	return dep == forbidden || strings.HasPrefix(dep, forbidden+"/")
 }
 
 // requirePackagePresent evita o falso verde: `go list` sobre um padrão que não
