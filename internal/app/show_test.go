@@ -110,7 +110,7 @@ func TestShowNeverReachesTheNetwork(t *testing.T) {
 	// A fonte bulk não publica competência. Preenchê-la com a data de coleta
 	// afirmaria um balanço que ninguém informou.
 	require.Nil(t, report.Header.ReferenceAt)
-	require.NotContains(t, app.RenderTexto(report), collectedAt.Format("02/01/2006"),
+	require.NotContains(t, app.RenderText(report), collectedAt.Format("02/01/2006"),
 		"a data de coleta não pode aparecer como data de balanço")
 }
 
@@ -136,13 +136,13 @@ func TestShowGoldenOutput(t *testing.T) {
 	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
 	require.NoError(t, err)
 
-	texto := app.RenderTexto(report)
-	requireGolden(t, "show_wege3.txt", texto)
+	text := app.RenderText(report)
+	requireGolden(t, "show_wege3.txt", text)
 
-	require.Contains(t, texto, "0,00%", "zero legítimo aparece como número")
-	require.NotContains(t, texto, "—", "nenhum insumo de WEGE3 está ausente")
-	require.Contains(t, texto, "ƒ", "os derivados saudáveis aparecem marcados")
-	require.Contains(t, texto, "(DY × P/L)", "a fórmula do derivado fica visível")
+	require.Contains(t, text, "0,00%", "zero legítimo aparece como número")
+	require.NotContains(t, text, "—", "nenhum insumo de WEGE3 está ausente")
+	require.Contains(t, text, "ƒ", "os derivados saudáveis aparecem marcados")
+	require.Contains(t, text, "(DY × P/L)", "a fórmula do derivado fica visível")
 }
 
 func TestShowGoldenOutputSuspectInput(t *testing.T) {
@@ -155,11 +155,11 @@ func TestShowGoldenOutputSuspectInput(t *testing.T) {
 	report, err := app.Show(t.Context(), db, loadCatalog(t), "ITUB4", now)
 	require.NoError(t, err)
 
-	texto := app.RenderTexto(report)
-	requireGolden(t, "show_itub4.txt", texto)
+	text := app.RenderText(report)
+	requireGolden(t, "show_itub4.txt", text)
 
-	require.Contains(t, texto, "—", "a fonte informou ausência de EV/EBITDA")
-	require.NotContains(t, texto, "Dív.Líq./EBITDA", "derivado sobre insumo ausente não vira linha")
+	require.Contains(t, text, "—", "a fonte informou ausência de EV/EBITDA")
+	require.NotContains(t, text, "Dív.Líq./EBITDA", "derivado sobre insumo ausente não vira linha")
 }
 
 func TestShowGoldenOutputFII(t *testing.T) {
@@ -181,21 +181,21 @@ func TestShowGoldenOutputFII(t *testing.T) {
 	report, err := app.Show(t.Context(), db, loadCatalog(t), "MXRF11", now)
 	require.NoError(t, err)
 
-	texto := app.RenderTexto(report)
-	requireGolden(t, "show_mxrf11.txt", texto)
+	text := app.RenderText(report)
+	requireGolden(t, "show_mxrf11.txt", text)
 
-	require.NotContains(t, texto, "P/L", "métrica que não se aplica à classe some da tela")
+	require.NotContains(t, text, "P/L", "métrica que não se aplica à classe some da tela")
 }
 
 func TestRenderWarnsWhenDataIsStale(t *testing.T) {
 	db := openTemp(t)
 	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
-	muitoDepois := func() time.Time { return collectedAt.Add(30 * 24 * time.Hour) }
+	longAfterCollection := func() time.Time { return collectedAt.Add(30 * 24 * time.Hour) }
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", muitoDepois)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", longAfterCollection)
 	require.NoError(t, err)
 	require.True(t, report.Header.Stale)
-	require.Contains(t, app.RenderTexto(report), "⚠ dado de 01/09 · rode 'goinvest sync'")
+	require.Contains(t, app.RenderText(report), "⚠ dado de 01/09 · rode 'goinvest sync'")
 }
 
 func requireGolden(t *testing.T, name, got string) {

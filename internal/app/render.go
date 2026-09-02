@@ -13,9 +13,9 @@ const (
 	markDerived = "ƒ"
 )
 
-// RenderTexto não recebe relógio: a idade já vem resolvida no Header, e é o que
+// RenderText não recebe relógio: a idade já vem resolvida no Header, e é o que
 // mantém a saída estável entre execuções.
-func RenderTexto(r Report) string {
+func RenderText(r Report) string {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "%s · %s\n", r.Ticker, classLabel(r.Class))
