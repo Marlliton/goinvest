@@ -38,6 +38,11 @@ func payout(m domain.MetricSet) (domain.Observation, bool) {
 	if !ok1 || !ok2 {
 		return domain.Observation{}, false
 	}
+	// Sem lucro não há fatia do lucro a distribuir: a pergunta que payout
+	// responde deixa de existir, e o número negativo se lê como se existisse.
+	if pl <= 0 {
+		return domain.Observation{}, false
+	}
 	return observation(m, "payout", domain.UnitPercent, dy*pl, inputs)
 }
 
@@ -56,6 +61,13 @@ func netDebtOverEBITDA(m domain.MetricSet) (domain.Observation, bool) {
 	enterpriseValue := marketCap + netDebt
 	ebitda := enterpriseValue / evEBITDA
 	if !finite(marketCap, netDebt, enterpriseValue, ebitda) {
+		return domain.Observation{}, false
+	}
+	// Um resultado negativo tem duas causas opostas: dívida líquida negativa
+	// (a empresa tem mais caixa que dívida, notícia boa) ou EBITDA negativo
+	// (prejuízo operacional). O número sozinho não distingue as duas, então só
+	// a primeira sai daqui.
+	if ebitda <= 0 {
 		return domain.Observation{}, false
 	}
 

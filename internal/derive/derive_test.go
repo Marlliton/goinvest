@@ -127,3 +127,44 @@ func TestComputeOnEmptySetProducesNothing(t *testing.T) {
 	require.NotNil(t, out)
 	require.Empty(t, out)
 }
+
+// A convenção de mercado é não publicar o índice quando o denominador torna a
+// pergunta sem sentido. Ver a seção "Domínio financeiro" em CONVENTIONS.md.
+func TestUninterpretableRatiosAreOmitted(t *testing.T) {
+	t.Run("EBITDA negativo não produz dl_ebitda", func(t *testing.T) {
+		set := healthySet()
+		// EV/EBITDA negativo é como a fonte reporta EBITDA negativo.
+		o := set["ev_ebitda"]
+		o.Value = ptr(-5.0)
+		set["ev_ebitda"] = o
+
+		out := derive.Compute(set)
+		_, present := out["dl_ebitda"]
+		require.False(t, present, "endividada e queimando caixa apareceria como caixa líquido")
+	})
+
+	t.Run("caixa líquido continua saindo, e negativo", func(t *testing.T) {
+		set := healthySet()
+		// Dívida líquida negativa com EBITDA positivo: o outro motivo para um
+		// dl_ebitda negativo, e este é legítimo.
+		o := set["dl_patrim"]
+		o.Value = ptr(-0.30)
+		set["dl_patrim"] = o
+
+		out := derive.Compute(set)
+		got, present := out["dl_ebitda"]
+		require.True(t, present, "mais caixa que dívida é notícia boa, não ausência")
+		require.Negative(t, *got.Value)
+	})
+
+	t.Run("prejuízo não produz payout", func(t *testing.T) {
+		set := healthySet()
+		o := set["pl"]
+		o.Value = ptr(-12.0)
+		set["pl"] = o
+
+		out := derive.Compute(set)
+		_, present := out["payout"]
+		require.False(t, present, "sem lucro não há fatia do lucro")
+	})
+}

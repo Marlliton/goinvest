@@ -158,6 +158,7 @@ metrics:
     derived: true
     formula: "Lucro Líquido ÷ Ativo Total"
     inputs: [roe, p_ativo, pvp, patrim_liq]
+    not_applicable: "Ativo total não derivável: P/Ativo ausente ou zero"
 
   - id: cresc_rec_5a
     label: "Crescimento Receita 5a"
@@ -218,6 +219,7 @@ metrics:
     derived: true
     formula: "Dívida Líquida ÷ EBITDA"
     inputs: [pvp, patrim_liq, dl_patrim, ev_ebitda]
+    not_applicable: "EBITDA negativo ou zero: não há geração de caixa para quitar a dívida, e o índice se leria como caixa líquido"
 
   # Bloco Dividendos
   - id: dy
@@ -243,3 +245,4 @@ metrics:
     derived: true
     formula: "DY × P/L"
     inputs: [dy, pl]
+    not_applicable: "Prejuízo no período: não há lucro do qual o dividendo seja uma fatia"

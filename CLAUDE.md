@@ -134,6 +134,19 @@ Ferramenta de terminal (TUI, escrita em Go) para análise fundamentalista de ati
 - **Distinga `observed_at` (competência do dado) de `fetched_at` (quando coletamos).** Sem essa separação você não consegue exibir frescor nem detectar fonte parada.
 - **`NULL` ≠ `0`.** Um DY ausente não é DY zero. Esse erro corrompe médias setoriais e semáforos.
 ### Migrações: goose
+### Domínio financeiro
+Nenhum de nós é especialista em investimentos. **Antes de escrever código que calcula,
+interpreta, colore ou classifica indicador financeiro, pesquisar a convenção de mercado** e
+registrar a fonte no plano ou no SUMMARY. Sem fonte, o número não sai.
+
+A pergunta que pega o erro: *o número é calculável, mas a pergunta que ele responde faz sentido
+para este ativo?* Quando não faz, mostrar ausência com motivo, nunca o número. Cuidado com o
+negativo legítimo: DL/EBITDA negativo por dívida líquida negativa é notícia boa; por EBITDA
+negativo é armadilha. A regra olha o sinal do denominador, não o do resultado.
+
+Mecanismo: `derived: true` em `metrics.yaml` exige `not_applicable`, e `catalog.Load()` falha
+sem ele.
+
 ### Acesso a dados
 ## (4) Planilha `.xlsx` da B3
 | Alternativa | Veredito |

@@ -26,4 +26,4 @@ metrics:
     derived: true
     formula: "DY × P/L"
     inputs: [dy, pl]
-    not_applicable: "Prejuízo no período"
+

@@ -25,3 +25,4 @@ metrics:
     classes: [acao]
     derived: true
     inputs: [dy, pl]
+    not_applicable: "Prejuízo no período"

@@ -39,6 +39,29 @@ func TestLoadRejectsDerivedWithoutFormula(t *testing.T) {
 	require.ErrorContains(t, err, "payout")
 }
 
+// O campo existe para forçar a pergunta "quando este número engana?" no
+// momento em que a métrica nasce. Sem a regra de carga, o campo vira opcional
+// na prática e o próximo derivado entra sem ela.
+func TestLoadRejectsDerivedWithoutNotApplicable(t *testing.T) {
+	_, err := loadFrom(fixture(t, "derived-no-not-applicable.metrics.yaml"), fixture(t, "valid.glossary.yaml"))
+	require.ErrorContains(t, err, "does not declare when it does not apply")
+}
+
+func TestEveryDerivedMetricDeclaresWhenItDoesNotApply(t *testing.T) {
+	c, err := Load()
+	require.NoError(t, err)
+
+	derived := 0
+	for _, m := range c.Metrics {
+		if !m.Derived {
+			continue
+		}
+		derived++
+		require.NotEmpty(t, m.NotApplicable, "métrica derivada %q", m.ID)
+	}
+	require.Equal(t, 3, derived)
+}
+
 func TestMetricsForExcludesOtherClasses(t *testing.T) {
 	c, err := Load()
 	require.NoError(t, err)
