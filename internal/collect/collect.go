@@ -39,9 +39,7 @@ type Config struct {
 }
 
 // Sync coleta sempre as duas classes e só devolve erro para o que impede
-// qualquer coleta. Uma fonte que falha vira Status partial no SourceResult
-// dela; os dados anteriores daquela classe continuam consultáveis porque nada
-// foi escrito por cima.
+// qualquer coleta. Uma fonte que falha vira Status partial no SourceResult dela.
 func Sync(ctx context.Context, cfg Config) (Report, error) {
 	if cfg.DB == nil {
 		return Report{}, errors.New("collect: db is required")

@@ -17,9 +17,6 @@ type Namer interface {
 // requisição. force ignora o TTL de cache do fetch.
 type UniverseProvider interface {
 	Namer
-	// SourceID identifica o endpoint da classe. Existe porque quem coleta
-	// precisa nomear a fonte antes do fetch, para abrir o registro que também
-	// guarda a falha: numa falha não há observação de onde ler o nome.
 	SourceID(class domain.AssetClass) string
 	Universe(ctx context.Context, class domain.AssetClass, force bool) ([]domain.Observation, error)
 }
