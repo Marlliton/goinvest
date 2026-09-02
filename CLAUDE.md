@@ -282,6 +282,17 @@ plano). Não usar travessão (`—`) em comentário.
 - Ausência é `nil`, nunca `0`. Parser numérico devolve `(valor, bool)`; nunca descartar
   erro de parse com `_`.
 
+### Acesso a dados
+Query nova nasce em `internal/store/queries/*.sql` e o Go sai de
+`go generate ./internal/store/...` (sqlc fixado no `go.mod` via `go tool`). Nunca escrever
+`database/sql` à mão para uma query nova. `internal/store` é camada fina sobre
+`internal/store/gen`: converte para tipos de domínio e decide política de ausência
+(`sql.ErrNoRows` vira `found=false`, nunca erro). `emit_pointers_for_null_types` mantém
+`*float64` para coluna nullable: é o que impede ausência virar zero.
+
+Não rodar `go mod tidy` enquanto houver dependência da fase sem importador: ela some do
+`go.mod`.
+
 ### Commits
 Assunto curto e factual; corpo só quando houver algo real a explicar. Sem citar artefato
 de planejamento. Escopo `tipo(fase-plano):` é exigência do GSD.
