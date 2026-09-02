@@ -1,0 +1,21 @@
+MXRF11 · FII
+Referência: desconhecida (fonte não informa) · coletado há 2 dias
+
+Cotação
+  Cotação: R$ 9,87
+  Liquidez: R$ 4.500.000,00
+
+Valuation
+  P/VP: 1,02
+  Valor de Mercado: R$ 3.200.000.000,00
+  Qtd. de Imóveis: 0
+  Preço por m²: R$ 0,00
+
+Rentabilidade
+  Aluguel por m²: R$ 0,00
+  Cap Rate: 0,00%
+  Vacância Média: 0,00%
+
+Dividendos
+  Dividend Yield: 13,20%
+  FFO Yield: 12,80%

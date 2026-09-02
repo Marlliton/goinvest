@@ -1,0 +1,211 @@
+package app_test
+
+import (
+	"flag"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/marlliton/goinvest/internal/app"
+	"github.com/marlliton/goinvest/internal/catalog"
+	"github.com/marlliton/goinvest/internal/domain"
+	"github.com/marlliton/goinvest/internal/store"
+	"github.com/stretchr/testify/require"
+)
+
+// Grave os goldens com `go test ./internal/app/... -update` e revise o diff
+// antes de comitar: um golden atualizado sem leitura vira carimbo do bug.
+var update = flag.Bool("update", false, "regrava os arquivos golden")
+
+var (
+	collectedAt = time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
+	fixedNow    = time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC)
+)
+
+func now() time.Time { return fixedNow }
+
+func ptr(v float64) *float64 { return &v }
+
+func openTemp(t *testing.T) *store.DB {
+	t.Helper()
+	db, err := store.Open(filepath.Join(t.TempDir(), "goinvest.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	return db
+}
+
+// seed grava o ativo e suas observações direto no store local. Nenhum
+// httptest.Server sobe aqui: se Show discasse rede, não haveria endpoint de pé
+// para responder e o teste travaria em vez de passar em silêncio.
+func seed(t *testing.T, db *store.DB, ticker string, class domain.AssetClass, values map[domain.MetricID]*float64) {
+	t.Helper()
+	ctx := t.Context()
+	require.NoError(t, db.UpsertAsset(ctx, ticker, class, ticker+" S.A.", collectedAt))
+
+	runID, err := db.StartRun(ctx, "fundamentus:resultado")
+	require.NoError(t, err)
+
+	obs := make([]domain.Observation, 0, len(values))
+	for id, v := range values {
+		obs = append(obs, domain.Observation{
+			Ticker:     ticker,
+			Metric:     id,
+			PeriodKind: "spot",
+			PeriodEnd:  collectedAt.Truncate(24 * time.Hour),
+			Value:      v,
+			Unit:       domain.UnitRatio,
+			Source:     "fundamentus:resultado",
+			FetchedAt:  collectedAt,
+		})
+	}
+	require.NoError(t, db.InsertObservations(ctx, runID, obs))
+	require.NoError(t, db.FinishRun(ctx, runID, "ok", len(obs), ""))
+}
+
+func loadCatalog(t *testing.T) *catalog.Catalog {
+	t.Helper()
+	cat, err := catalog.Load()
+	require.NoError(t, err)
+	return cat
+}
+
+// Percentual é fração em todo o pipeline: 0.25 é 25%.
+func wege3Values() map[domain.MetricID]*float64 {
+	return map[domain.MetricID]*float64{
+		"cotacao":         ptr(52.30),
+		"liq_2meses":      ptr(180_000_000),
+		"pl":              ptr(30.0),
+		"pvp":             ptr(9.5),
+		"psr":             ptr(6.0),
+		"p_ativo":         ptr(4.0),
+		"p_cap_giro":      ptr(8.0),
+		"p_ebit":          ptr(25.0),
+		"p_ativ_circ_liq": ptr(-3.0),
+		"ev_ebit":         ptr(24.0),
+		"ev_ebitda":       ptr(20.0),
+		"mrg_bruta":       ptr(0.32),
+		"mrg_ebit":        ptr(0.20),
+		"mrg_liq":         ptr(0.17),
+		"roic":            ptr(0.28),
+		"roe":             ptr(0.25),
+		// Zero exatamente igual a 0.0 numa métrica sem sentinela: é o terceiro
+		// estado de "sem número", e o único que precisa aparecer como número.
+		"cresc_rec_5a": ptr(0.0),
+		"liq_corr":     ptr(2.1),
+		"patrim_liq":   ptr(15e9),
+		"dl_patrim":    ptr(0.10),
+		"dy":           ptr(0.012),
+	}
+}
+
+func TestShowNeverReachesTheNetwork(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	require.NoError(t, err)
+	require.NotZero(t, report.Header.FetchedAt)
+	require.Equal(t, collectedAt, report.Header.FetchedAt)
+	// A fonte bulk não publica competência. Preenchê-la com a data de coleta
+	// afirmaria um balanço que ninguém informou.
+	require.Nil(t, report.Header.ReferenceAt)
+	require.NotContains(t, app.RenderTexto(report), collectedAt.Format("02/01/2006"),
+		"a data de coleta não pode aparecer como data de balanço")
+}
+
+func TestShowReturnsErrNoDataForUnknownTicker(t *testing.T) {
+	db := openTemp(t)
+
+	_, err := app.Show(t.Context(), db, loadCatalog(t), "NADA4", now)
+	require.ErrorIs(t, err, app.ErrNoData)
+}
+
+func TestShowReturnsErrNoDataForAssetNeverCollected(t *testing.T) {
+	db := openTemp(t)
+	require.NoError(t, db.UpsertAsset(t.Context(), "VALE3", domain.ClassStock, "VALE S.A.", collectedAt))
+
+	_, err := app.Show(t.Context(), db, loadCatalog(t), "VALE3", now)
+	require.ErrorIs(t, err, app.ErrNoData)
+}
+
+func TestShowGoldenOutput(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	require.NoError(t, err)
+
+	texto := app.RenderTexto(report)
+	requireGolden(t, "show_wege3.txt", texto)
+
+	require.Contains(t, texto, "0,00%", "zero legítimo aparece como número")
+	require.NotContains(t, texto, "—", "nenhum insumo de WEGE3 está ausente")
+	require.Contains(t, texto, "ƒ", "os derivados saudáveis aparecem marcados")
+	require.Contains(t, texto, "(DY × P/L)", "a fórmula do derivado fica visível")
+}
+
+func TestShowGoldenOutputSuspectInput(t *testing.T) {
+	db := openTemp(t)
+	values := wege3Values()
+	// Banco: o Fundamentus não publica EV/EBITDA, e sem ele DL/EBITDA não sai.
+	values["ev_ebitda"] = nil
+	seed(t, db, "ITUB4", domain.ClassStock, values)
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "ITUB4", now)
+	require.NoError(t, err)
+
+	texto := app.RenderTexto(report)
+	requireGolden(t, "show_itub4.txt", texto)
+
+	require.Contains(t, texto, "—", "a fonte informou ausência de EV/EBITDA")
+	require.NotContains(t, texto, "Dív.Líq./EBITDA", "derivado sobre insumo ausente não vira linha")
+}
+
+func TestShowGoldenOutputFII(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "MXRF11", domain.ClassFII, map[domain.MetricID]*float64{
+		"cotacao":        ptr(9.87),
+		"liquidez_fii":   ptr(4_500_000),
+		"pvp":            ptr(1.02),
+		"valor_mercado":  ptr(3_200_000_000),
+		"qtd_imoveis":    ptr(0),
+		"preco_m2":       ptr(0),
+		"aluguel_m2":     ptr(0),
+		"cap_rate":       ptr(0),
+		"vacancia_media": ptr(0),
+		"dy":             ptr(0.132),
+		"ffo_yield":      ptr(0.128),
+	})
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "MXRF11", now)
+	require.NoError(t, err)
+
+	texto := app.RenderTexto(report)
+	requireGolden(t, "show_mxrf11.txt", texto)
+
+	require.NotContains(t, texto, "P/L", "métrica que não se aplica à classe some da tela")
+}
+
+func TestRenderWarnsWhenDataIsStale(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
+	muitoDepois := func() time.Time { return collectedAt.Add(30 * 24 * time.Hour) }
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", muitoDepois)
+	require.NoError(t, err)
+	require.True(t, report.Header.Stale)
+	require.Contains(t, app.RenderTexto(report), "⚠ dado de 01/09 · rode 'goinvest sync'")
+}
+
+func requireGolden(t *testing.T, name, got string) {
+	t.Helper()
+	path := filepath.Join("testdata", "golden", name)
+	if *update {
+		require.NoError(t, os.WriteFile(path, []byte(got), 0o644))
+		return
+	}
+	want, err := os.ReadFile(path)
+	require.NoError(t, err, "golden ausente: rode `go test ./internal/app/... -update`")
+	require.Equal(t, string(want), got)
+}

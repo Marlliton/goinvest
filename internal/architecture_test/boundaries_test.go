@@ -8,6 +8,7 @@ import (
 	// Sem este import o cache de teste do Go serve um resultado obsoleto: o
 	// grafo de dependências é lido por um subprocesso `go list`, invisível para
 	// o cache. Todo pacote vigiado aqui precisa do seu import em branco.
+	_ "github.com/marlliton/goinvest/internal/app"
 	_ "github.com/marlliton/goinvest/internal/catalog"
 	_ "github.com/marlliton/goinvest/internal/derive"
 	_ "github.com/marlliton/goinvest/internal/domain"
@@ -47,6 +48,16 @@ func TestDeriveHasNoInfraImports(t *testing.T) {
 // conveniência no primeiro plano que precisar de cache concreto.
 func TestFetchDoesNotImportStore(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/fetch", []string{modulePath + "/internal/store"})
+}
+
+// O grep na assinatura de Show prova só o arquivo. A promessa de leitura
+// offline é sobre o grafo inteiro: é aqui que ela vira erro de teste.
+func TestAppCannotReachTheNetwork(t *testing.T) {
+	requireNoImports(t, modulePath+"/internal/app", []string{
+		"net/http",
+		modulePath + "/internal/fetch",
+		modulePath + "/internal/provider",
+	})
 }
 
 func requireNoImports(t *testing.T, pkg string, forbidden []string) {

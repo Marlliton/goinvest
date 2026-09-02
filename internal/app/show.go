@@ -27,7 +27,10 @@ const stalenessThreshold = 7 * 24 * time.Hour
 type HeaderView struct {
 	ReferenceAt *time.Time
 	FetchedAt   time.Time
-	Stale       bool
+	// Idade resolvida na leitura para que a renderização não precise de
+	// relógio, e o mesmo Report renderize igual sempre.
+	Age   time.Duration
+	Stale bool
 }
 
 type LineView struct {
@@ -94,7 +97,8 @@ func header(collected domain.MetricSet, now func() time.Time) HeaderView {
 			h.FetchedAt = o.FetchedAt
 		}
 	}
-	h.Stale = now().Sub(h.FetchedAt) > stalenessThreshold
+	h.Age = now().Sub(h.FetchedAt)
+	h.Stale = h.Age > stalenessThreshold
 	return h
 }
 

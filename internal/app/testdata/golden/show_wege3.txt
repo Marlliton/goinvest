@@ -1,0 +1,38 @@
+WEGE3 · Ação
+Referência: desconhecida (fonte não informa) · coletado há 2 dias
+
+Cotação
+  Cotação: R$ 52,30
+  Liquidez 2 meses: R$ 180.000.000,00
+
+Valuation
+  P/L: 30,00
+  P/VP: 9,50
+  PSR: 6,00
+  P/Ativo: 4,00
+  P/Cap.Giro: 8,00
+  P/EBIT: 25,00
+  P/Ativ Circ.Líq: -3,00
+  EV/EBIT: 24,00
+  EV/EBITDA: 20,00
+
+Rentabilidade
+  Margem Bruta: 32,00%
+  Margem EBIT: 20,00%
+  Margem Líquida: 17,00%
+  ROIC: 28,00%
+  ROE: 25,00%
+  ROA: 10,53% ƒ (Lucro Líquido ÷ Ativo Total)
+  Crescimento Receita 5a: 0,00%
+
+Endividamento
+  Liquidez Corrente: 2,10
+  Patrimônio Líquido: R$ 15.000.000.000,00
+  Dív.Líq/Patrimônio: 0,10
+  Dív.Líq./EBITDA: 0,21 ƒ (Dívida Líquida ÷ EBITDA)
+
+Dividendos
+  Dividend Yield: 1,20%
+  Payout: 36,00% ƒ (DY × P/L)
+
+ƒ = calculado por goinvest
