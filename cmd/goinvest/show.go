@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var errSemDadoLocal = errors.New("Nenhum dado local. Rode 'goinvest sync' primeiro.")
+var errNoLocalData = errors.New("Nenhum dado local. Rode 'goinvest sync' primeiro.")
 
 func newShowCmd(deps rootDeps) *cobra.Command {
 	return &cobra.Command{
@@ -23,7 +23,7 @@ func newShowCmd(deps rootDeps) *cobra.Command {
 			report, err := app.Show(cmd.Context(), deps.DB, deps.Catalog, ticker, time.Now)
 			if err != nil {
 				if errors.Is(err, app.ErrNoData) {
-					return errSemDadoLocal
+					return errNoLocalData
 				}
 				return err
 			}
