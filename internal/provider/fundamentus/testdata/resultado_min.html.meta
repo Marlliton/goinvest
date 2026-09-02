@@ -1,0 +1,10 @@
+url: https://www.fundamentus.com.br/resultado.php
+captured_at: 2026-09-02T21:29:35Z
+user_agent: goinvest/0.1 (+https://github.com/marlliton/goinvest)
+encoding: ISO-8859-1 (bytes preservados, sem transcodificação)
+estrutura: <thead> completo do original; <tbody> reduzido às linhas listadas abaixo
+tickers:
+  - WEGE3  # ação com todos os múltiplos preenchidos
+  - ITUB4  # banco: EV/EBITDA = 0,00 (sentinela de ausência)
+  - CLAN3  # todos os múltiplos de valuation zerados (simula deslistada)
+ev_ebitda_sentinela_sintetico: false  # a captura já trouxe 0,00 em ITUB4; nenhuma célula foi editada

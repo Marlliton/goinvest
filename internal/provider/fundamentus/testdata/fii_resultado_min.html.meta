@@ -1,0 +1,9 @@
+url: https://www.fundamentus.com.br/fii_resultado.php
+captured_at: 2026-09-02T21:29:35Z
+user_agent: goinvest/0.1 (+https://github.com/marlliton/goinvest)
+encoding: ISO-8859-1 (bytes preservados, sem transcodificação)
+estrutura: <thead> completo do original; <tbody> reduzido às linhas listadas abaixo
+tickers:
+  - MXRF11  # FII de papel: colunas de imóvel zeradas
+  - ABCP11  # FII de tijolo com 1 imóvel
+  - HGLG11  # FII de tijolo com 60 imóveis
