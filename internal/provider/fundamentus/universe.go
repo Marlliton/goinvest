@@ -110,6 +110,14 @@ func NewProvider(client *fetch.Client, baseURL string, now func() time.Time) *Pr
 
 func (p *Provider) Name() string { return "fundamentus" }
 
+func (p *Provider) SourceID(class domain.AssetClass) string {
+	sp, err := specFor(class)
+	if err != nil {
+		return p.Name()
+	}
+	return sp.source
+}
+
 func (p *Provider) Universe(ctx context.Context, class domain.AssetClass, force bool) ([]domain.Observation, error) {
 	sp, err := specFor(class)
 	if err != nil {
