@@ -1,0 +1,245 @@
+blocks:
+  cotacao:       {label: "Cotação",       order: 1}
+  valuation:     {label: "Valuation",     order: 2}
+  rentabilidade: {label: "Rentabilidade", order: 3}
+  endividamento: {label: "Endividamento", order: 4}
+  dividendos:    {label: "Dividendos",    order: 5}
+
+metrics:
+  # Bloco Cotação
+  - id: cotacao
+    label: "Cotação"
+    block: cotacao
+    order: 1
+    unit: brl
+    classes: [acao, fii]
+
+  - id: liq_2meses
+    label: "Liquidez 2 meses"
+    block: cotacao
+    order: 2
+    unit: brl
+    classes: [acao]
+
+  - id: liquidez_fii
+    label: "Liquidez"
+    block: cotacao
+    order: 3
+    unit: brl
+    classes: [fii]
+
+  # Bloco Valuation
+  - id: pl
+    label: "P/L"
+    block: valuation
+    order: 1
+    unit: ratio
+    classes: [acao]
+
+  - id: pvp
+    label: "P/VP"
+    block: valuation
+    order: 2
+    unit: ratio
+    classes: [acao, fii]
+
+  - id: psr
+    label: "PSR"
+    block: valuation
+    order: 3
+    unit: ratio
+    classes: [acao]
+
+  - id: p_ativo
+    label: "P/Ativo"
+    block: valuation
+    order: 4
+    unit: ratio
+    classes: [acao]
+
+  - id: p_cap_giro
+    label: "P/Cap.Giro"
+    block: valuation
+    order: 5
+    unit: ratio
+    classes: [acao]
+
+  - id: p_ebit
+    label: "P/EBIT"
+    block: valuation
+    order: 6
+    unit: ratio
+    classes: [acao]
+
+  - id: p_ativ_circ_liq
+    label: "P/Ativ Circ.Líq"
+    block: valuation
+    order: 7
+    unit: ratio
+    classes: [acao]
+
+  - id: ev_ebit
+    label: "EV/EBIT"
+    block: valuation
+    order: 8
+    unit: ratio
+    classes: [acao]
+
+  - id: ev_ebitda
+    label: "EV/EBITDA"
+    block: valuation
+    order: 9
+    unit: ratio
+    classes: [acao]
+
+  - id: valor_mercado
+    label: "Valor de Mercado"
+    block: valuation
+    order: 10
+    unit: brl
+    classes: [fii]
+
+  - id: qtd_imoveis
+    label: "Qtd. de Imóveis"
+    block: valuation
+    order: 11
+    unit: count
+    classes: [fii]
+
+  - id: preco_m2
+    label: "Preço por m²"
+    block: valuation
+    order: 12
+    unit: brl
+    classes: [fii]
+
+  # Bloco Rentabilidade
+  - id: mrg_bruta
+    label: "Margem Bruta"
+    block: rentabilidade
+    order: 1
+    unit: percent
+    classes: [acao]
+
+  - id: mrg_ebit
+    label: "Margem EBIT"
+    block: rentabilidade
+    order: 2
+    unit: percent
+    classes: [acao]
+
+  - id: mrg_liq
+    label: "Margem Líquida"
+    block: rentabilidade
+    order: 3
+    unit: percent
+    classes: [acao]
+
+  - id: roic
+    label: "ROIC"
+    block: rentabilidade
+    order: 4
+    unit: percent
+    classes: [acao]
+
+  - id: roe
+    label: "ROE"
+    block: rentabilidade
+    order: 5
+    unit: percent
+    classes: [acao]
+
+  - id: roa
+    label: "ROA"
+    block: rentabilidade
+    order: 6
+    unit: percent
+    classes: [acao]
+    derived: true
+    formula: "Lucro Líquido ÷ Ativo Total"
+    inputs: [roe, p_ativo, pvp, patrim_liq]
+
+  - id: cresc_rec_5a
+    label: "Crescimento Receita 5a"
+    block: rentabilidade
+    order: 7
+    unit: percent
+    classes: [acao]
+
+  - id: aluguel_m2
+    label: "Aluguel por m²"
+    block: rentabilidade
+    order: 8
+    unit: brl
+    classes: [fii]
+
+  - id: cap_rate
+    label: "Cap Rate"
+    block: rentabilidade
+    order: 9
+    unit: percent
+    classes: [fii]
+
+  - id: vacancia_media
+    label: "Vacância Média"
+    block: rentabilidade
+    order: 10
+    unit: percent
+    classes: [fii]
+
+  # Bloco Endividamento
+  - id: liq_corr
+    label: "Liquidez Corrente"
+    block: endividamento
+    order: 1
+    unit: ratio
+    classes: [acao]
+
+  - id: patrim_liq
+    label: "Patrimônio Líquido"
+    block: endividamento
+    order: 2
+    unit: brl
+    classes: [acao]
+
+  - id: dl_patrim
+    label: "Dív.Líq/Patrimônio"
+    block: endividamento
+    order: 3
+    unit: ratio
+    classes: [acao]
+
+  - id: dl_ebitda
+    label: "Dív.Líq./EBITDA"
+    block: endividamento
+    order: 4
+    unit: ratio
+    classes: [acao]
+    derived: true
+    formula: "Dívida Líquida ÷ EBITDA"
+    inputs: [pvp, patrim_liq, dl_patrim, ev_ebitda]
+
+  # Bloco Dividendos
+  - id: dy
+    label: "Dividend Yield"
+    block: dividendos
+    order: 1
+    unit: percent
+    classes: [acao, fii]
+
+  - id: ffo_yield
+    label: "FFO Yield"
+    block: dividendos
+    order: 2
+    unit: percent
+    classes: [fii]
+
+  - id: payout
+    label: "Payout"
+    block: dividendos
+    order: 3
+    unit: percent
+    classes: [acao]
+    derived: true
+    formula: "DY × P/L"
+    inputs: [dy, pl]
