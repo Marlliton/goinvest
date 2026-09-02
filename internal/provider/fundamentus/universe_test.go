@@ -84,20 +84,20 @@ func metricIDs(obs []domain.Observation) []domain.MetricID {
 // acentuado do <thead> ("Mrg. Líq.", "Patrim. Líq", "Dív.Líq/ Patrim.",
 // "Vacância Média") chegar íntegro ao índice de colunas. Com mojibake nenhuma
 // casa com o mapeamento e a métrica some sem erro.
-func TestParseUniverso_Encoding(t *testing.T) {
-	acoes := byTicker(universe(t, domain.ClassStock), "WEGE3")
+func TestParseUniverseDecodesLatin1(t *testing.T) {
+	stocks := byTicker(universe(t, domain.ClassStock), "WEGE3")
 	for _, id := range []domain.MetricID{"mrg_liq", "patrim_liq", "dl_patrim"} {
-		require.Contains(t, acoes, id, "coluna de rótulo acentuado não foi reconhecida")
+		require.Contains(t, stocks, id, "coluna de rótulo acentuado não foi reconhecida")
 	}
 
 	fiis := byTicker(universe(t, domain.ClassFII), "MXRF11")
 	require.Contains(t, fiis, domain.MetricID("vacancia_media"))
 }
 
-func TestUniverso_ValoresDeAcaoNormal(t *testing.T) {
+func TestUniverseParsesStockValues(t *testing.T) {
 	wege3 := byTicker(universe(t, domain.ClassStock), "WEGE3")
 
-	esperado := map[domain.MetricID]float64{
+	want := map[domain.MetricID]float64{
 		"cotacao":    49.70,
 		"pl":         33.36,
 		"pvp":        11.06,
@@ -106,7 +106,7 @@ func TestUniverso_ValoresDeAcaoNormal(t *testing.T) {
 		"patrim_liq": 18_861_400_000,
 		"dl_patrim":  -0.20,
 	}
-	for id, want := range esperado {
+	for id, want := range want {
 		obs, ok := wege3[id]
 		require.True(t, ok, "métrica %q ausente", id)
 		require.NotNil(t, obs.Value, "métrica %q veio nula", id)
@@ -114,10 +114,10 @@ func TestUniverso_ValoresDeAcaoNormal(t *testing.T) {
 	}
 }
 
-func TestUniverso_ValoresDeFII(t *testing.T) {
+func TestUniverseParsesFIIValues(t *testing.T) {
 	hglg11 := byTicker(universe(t, domain.ClassFII), "HGLG11")
 
-	esperado := map[domain.MetricID]float64{
+	want := map[domain.MetricID]float64{
 		"cotacao":        147.00,
 		"ffo_yield":      0.0662,
 		"dy":             0.0731,
@@ -126,7 +126,7 @@ func TestUniverso_ValoresDeFII(t *testing.T) {
 		"preco_m2":       1863.47,
 		"vacancia_media": 0.0323,
 	}
-	for id, want := range esperado {
+	for id, want := range want {
 		obs, ok := hglg11[id]
 		require.True(t, ok, "métrica %q ausente", id)
 		require.NotNil(t, obs.Value, "métrica %q veio nula", id)
@@ -136,23 +136,23 @@ func TestUniverso_ValoresDeFII(t *testing.T) {
 
 // O 0,00 de EV/EBITDA que a fonte publica para banco é código de ausência, não
 // múltiplo zerado.
-func TestUniverso_SentinelaEvEbitda(t *testing.T) {
-	acoes := universe(t, domain.ClassStock)
+func TestUniverseTreatsEvEbitdaZeroAsAbsence(t *testing.T) {
+	stocks := universe(t, domain.ClassStock)
 
-	itub4 := byTicker(acoes, "ITUB4")
+	itub4 := byTicker(stocks, "ITUB4")
 	obs, ok := itub4["ev_ebitda"]
 	require.True(t, ok, "ev_ebitda precisa existir como observação, só que sem valor")
 	require.Nil(t, obs.Value)
 
 	// Um zero em coluna sem sentinela continua sendo zero legítimo.
-	clan3 := byTicker(acoes, "CLAN3")
+	clan3 := byTicker(stocks, "CLAN3")
 	require.NotNil(t, clan3["pl"].Value)
 	require.Zero(t, *clan3["pl"].Value)
 }
 
 // Nenhuma tabela bulk tem coluna de data: preencher ReferenceAt com FetchedAt
 // inventaria uma competência que a fonte nunca informou.
-func TestUniverso_ReferenceAtSempreNulo(t *testing.T) {
+func TestUniverseNeverInventsReferenceAt(t *testing.T) {
 	for _, class := range []domain.AssetClass{domain.ClassStock, domain.ClassFII} {
 		for _, obs := range universe(t, class) {
 			require.Nil(t, obs.ReferenceAt, "%s/%s", obs.Ticker, obs.Metric)
@@ -160,7 +160,7 @@ func TestUniverso_ReferenceAtSempreNulo(t *testing.T) {
 	}
 }
 
-func TestUniverso_LinhaSemPapelNaoAbortaAClasse(t *testing.T) {
+func TestUniverseSkipsRowWithoutTickerWithoutAbortingClass(t *testing.T) {
 	obs := universe(t, domain.ClassStock)
 	require.Len(t, metricIDs(obs), 21)
 	require.NotEmpty(t, byTicker(obs, "WEGE3"))
@@ -170,18 +170,18 @@ func TestUniverso_LinhaSemPapelNaoAbortaAClasse(t *testing.T) {
 // escritos separadamente a partir da mesma tabela de colunas. Sem este teste um
 // typo de qualquer um dos lados vira métrica que nunca aparece na tela, e que se
 // lê como "nunca coletada" em vez de bug.
-func TestCatalogProviderMetricIDsAlinhados(t *testing.T) {
+func TestCatalogAndProviderMetricIDsMatch(t *testing.T) {
 	cat, err := catalog.Load()
 	require.NoError(t, err)
 
 	for _, class := range []domain.AssetClass{domain.ClassStock, domain.ClassFII} {
-		esperado := []domain.MetricID{}
+		want := []domain.MetricID{}
 		for _, m := range cat.MetricsFor(class) {
 			if !m.Derived {
-				esperado = append(esperado, m.ID)
+				want = append(want, m.ID)
 			}
 		}
-		require.ElementsMatch(t, esperado, metricIDs(universe(t, class)),
+		require.ElementsMatch(t, want, metricIDs(universe(t, class)),
 			"catalog e provider divergem para a classe %s", class)
 	}
 }
@@ -190,21 +190,21 @@ func TestCatalogProviderMetricIDsAlinhados(t *testing.T) {
 // <thead> ficou sem mapeamento por descuido. Só três colunas podem sobrar, e
 // elas estão nomeadas aqui — "Papel" é a âncora da linha, "Segmento" e
 // "Endereço" estão fora do catálogo por decisão de escopo.
-func TestNenhumaColunaDoCabecalhoFicaSemMapeamento(t *testing.T) {
-	foraDoCatalogo := map[string]bool{"Papel": true, "Segmento": true, "Endereço": true}
+func TestEveryHeaderColumnIsMappedOrAllowlisted(t *testing.T) {
+	outsideCatalog := map[string]bool{"Papel": true, "Segmento": true, "Endereço": true}
 
-	casos := map[domain.AssetClass]string{
+	cases := map[domain.AssetClass]string{
 		domain.ClassStock: "resultado_min.html",
 		domain.ClassFII:   "fii_resultado_min.html",
 	}
-	for class, fixture := range casos {
-		mapeaveis := 0
+	for class, fixture := range cases {
+		mappable := 0
 		for _, label := range headerLabels(t, fixture) {
-			if !foraDoCatalogo[label] {
-				mapeaveis++
+			if !outsideCatalog[label] {
+				mappable++
 			}
 		}
-		require.Equal(t, mapeaveis, len(metricIDs(universe(t, class))),
+		require.Equal(t, mappable, len(metricIDs(universe(t, class))),
 			"classe %s: alguma coluna do cabeçalho não vira métrica nem está na allowlist", class)
 	}
 }
