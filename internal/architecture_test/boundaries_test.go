@@ -15,6 +15,8 @@ import (
 	_ "github.com/marlliton/goinvest/internal/domain"
 	_ "github.com/marlliton/goinvest/internal/fetch"
 	_ "github.com/marlliton/goinvest/internal/identity"
+	_ "github.com/marlliton/goinvest/internal/norm"
+	_ "github.com/marlliton/goinvest/internal/provider/b3"
 )
 
 const modulePath = "github.com/marlliton/goinvest"
