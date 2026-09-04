@@ -60,7 +60,7 @@ func realFixture(t *testing.T) []byte {
 
 func TestISINByCNPJDecodesISO88591CSVFromZip(t *testing.T) {
 	srv := newServer(t, map[int][]byte{
-		2026: zipWith(t, "geral_2026.csv", realFixture(t)),
+		2026: zipWith(t, "inf_mensal_fii_geral_2026.csv", realFixture(t)),
 	})
 
 	byCNPJ, err := newProvider(t, srv.URL, 2026).ISINByCNPJ(t.Context(), false)
@@ -77,8 +77,8 @@ func TestISINByCNPJPrefersMostRecentReference(t *testing.T) {
 	}, ";") + "\n"
 
 	srv := newServer(t, map[int][]byte{
-		2026: zipWith(t, "geral_2026.csv", realFixture(t)),
-		2024: zipWith(t, "geral_2024.csv", []byte(old)),
+		2026: zipWith(t, "inf_mensal_fii_geral_2026.csv", realFixture(t)),
+		2024: zipWith(t, "inf_mensal_fii_geral_2024.csv", []byte(old)),
 	})
 
 	// O ano antigo é lido por último de propósito.
@@ -98,12 +98,22 @@ func TestISINByCNPJRejectsZipWithoutExpectedEntry(t *testing.T) {
 
 	_, err := newProvider(t, srv.URL, 2026).ISINByCNPJ(t.Context(), false)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "geral_2026.csv")
+	require.Contains(t, err.Error(), "inf_mensal_fii_geral_2026.csv")
+}
+
+func TestISINByCNPJRejectsLegacyZipEntryName(t *testing.T) {
+	srv := newServer(t, map[int][]byte{
+		2026: zipWith(t, "geral_2026.csv", realFixture(t)),
+	})
+
+	_, err := newProvider(t, srv.URL, 2026).ISINByCNPJ(t.Context(), false)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "inf_mensal_fii_geral_2026.csv")
 }
 
 func TestISINByCNPJRejectsMissingColumn(t *testing.T) {
 	srv := newServer(t, map[int][]byte{
-		2026: zipWith(t, "geral_2026.csv", []byte("Tipo_Fundo_Classe;CNPJ_Fundo_Classe\nClasse;00.332.266/0001-31\n")),
+		2026: zipWith(t, "inf_mensal_fii_geral_2026.csv", []byte("Tipo_Fundo_Classe;CNPJ_Fundo_Classe\nClasse;00.332.266/0001-31\n")),
 	})
 
 	_, err := newProvider(t, srv.URL, 2026).ISINByCNPJ(t.Context(), false)
@@ -118,7 +128,7 @@ func TestISINByCNPJSkipsRowsWithoutISIN(t *testing.T) {
 		"1994-11-24", "INVESTIDORES EM GERAL", "",
 	}, ";") + "\n"
 
-	srv := newServer(t, map[int][]byte{2026: zipWith(t, "geral_2026.csv", []byte(body))})
+	srv := newServer(t, map[int][]byte{2026: zipWith(t, "inf_mensal_fii_geral_2026.csv", []byte(body))})
 
 	byCNPJ, err := newProvider(t, srv.URL, 2026).ISINByCNPJ(t.Context(), false)
 	require.NoError(t, err)
