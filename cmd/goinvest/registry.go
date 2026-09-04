@@ -60,8 +60,6 @@ func newRegistryCmd(deps rootDeps) *cobra.Command {
 	return cmd
 }
 
-// Em terminal a mesma linha é reescrita; num log, cada atualização é uma linha
-// nova, senão o registro da execução fica sem histórico.
 func progressWriter(out io.Writer, interactive bool, label string) func(registry.Progress) {
 	format := "cadastro: %s %d/%d\n"
 	if interactive {
@@ -72,8 +70,6 @@ func progressWriter(out io.Writer, interactive bool, label string) func(registry
 	}
 }
 
-// A linha de progresso interativa fica sem quebra para poder ser reescrita:
-// sem isto o resumo sairia grudado nela.
 func endProgress(out io.Writer, interactive bool) {
 	if interactive {
 		fmt.Fprintln(out)

@@ -73,8 +73,6 @@ func build() (rootDeps, error) {
 
 	p := fundamentus.NewProvider(client, fundamentusBaseURL, time.Now)
 
-	// O mesmo cliente serve as duas fontes: rate limit e cache são política do
-	// projeto, não de cada fonte.
 	return rootDeps{
 		DB:      db,
 		Catalog: cat,
@@ -82,9 +80,7 @@ func build() (rootDeps, error) {
 			domain.ClassStock: p,
 			domain.ClassFII:   p,
 		},
-		B3: b3.NewProvider(client, b3BaseURL, time.Now),
-		// Um fundo grande pode faltar num ano isolado do informe: os anos são
-		// combinados justamente por isso.
+		B3:          b3.NewProvider(client, b3BaseURL, time.Now),
 		CVM:         cvm.NewProvider(client, cvmBaseURL, cvmYears, time.Now),
 		Fundamentus: p,
 	}, nil

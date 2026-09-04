@@ -14,7 +14,6 @@ func TestCleanSector(t *testing.T) {
 			"Bens Industriais / Máquinas e Equipamentos / Motores. Compressores e Outros"},
 		{"Financeiro / Intermediários Financeiros / Bancos",
 			"Financeiro / Intermediários Financeiros / Bancos"},
-		// Ponto de nome próprio não é sujeira: só o espaço solto antes do ponto é.
 		{"J. Macêdo", "J. Macêdo"},
 		{"Alimentos  Processados", "Alimentos Processados"},
 		{"  Bancos  ", "Bancos"},

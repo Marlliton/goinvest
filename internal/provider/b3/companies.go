@@ -94,8 +94,6 @@ func (p *Provider) companiesPage(ctx context.Context, page int, force bool) (com
 	return decoded, nil
 }
 
-// A B3 recebe o filtro como JSON em base64 no próprio path, não como query
-// string.
 func (p *Provider) callURL(call string, filter map[string]any) (string, error) {
 	raw, err := json.Marshal(filter)
 	if err != nil {

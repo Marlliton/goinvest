@@ -60,8 +60,6 @@ func TestSectorsListsByClassWithSampleMark(t *testing.T) {
 	require.True(t, fiis.Groups[0].BelowThreshold)
 }
 
-// Papel ilíquido não conta para a amostra, mas continua contando para a
-// cobertura de cadastro: são perguntas diferentes.
 func TestSectorsExcludesInactiveFromCountButNotFromCoverage(t *testing.T) {
 	db := openTemp(t)
 	seedSector(t, db, "AAAA3", domain.ClassStock, "Bens Industriais", "Máquinas", true)
@@ -107,8 +105,6 @@ func TestSectorsDescend(t *testing.T) {
 	require.True(t, subs[1].BelowThreshold)
 }
 
-// Lista vazia se confundiria com setor real sem ativo líquido; o erro separa
-// "não existe" de "existe e está vazio".
 func TestSectorsDescendUnknownSector(t *testing.T) {
 	db := openTemp(t)
 	seedSector(t, db, "AAAA3", domain.ClassStock, "Bens Industriais", "Máquinas", true)

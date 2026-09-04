@@ -15,8 +15,6 @@ func RootOf(ticker string) (root string, ok bool) {
 	return m[1], true
 }
 
-// MatchByRoot devolve ok=false para ticker sem correspondência no cadastro:
-// ausência é resultado esperado, não erro.
 func MatchByRoot(companies []CompanyRef, ticker string) (codeCVM string, ok bool) {
 	root, ok := RootOf(ticker)
 	if !ok {

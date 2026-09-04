@@ -58,8 +58,6 @@ func TestMigrationsUpDownUp(t *testing.T) {
 	require.Equal(t, 5, n)
 }
 
-// Ativo nasce ativo: só o sync tem dado para dizer o contrário, e ele roda
-// depois do cadastro.
 func TestUpdateAssetLiquidity(t *testing.T) {
 	db := openTemp(t)
 	ctx := t.Context()

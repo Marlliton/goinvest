@@ -60,8 +60,8 @@ func (db *DB) getAssetByAlias(ctx context.Context, aliasTicker string) (domain.A
 	return assetFromRow(a), true, nil
 }
 
-// AssetIDByTicker é a busca direta, sem passar por alias: serve a quem já sabe
-// que o ticker é o canônico.
+// Busca direta, sem passar por alias: para quem já sabe que o ticker é o
+// canônico.
 func (db *DB) AssetIDByTicker(ctx context.Context, ticker string) (int64, bool, error) {
 	a, err := db.q.GetAssetByTicker(ctx, ticker)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -106,8 +106,8 @@ func assetFromRow(a gen.Asset) domain.Asset {
 	}
 }
 
-// UpdateAssetLiquidity só avança last_liquid_at quando o ativo está líquido:
-// ficar inativo não apaga a memória de quando ele ainda negociava.
+// last_liquid_at só avança quando o ativo está líquido: ficar inativo não
+// apaga a memória de quando ele ainda negociava.
 func (db *DB) UpdateAssetLiquidity(ctx context.Context, assetID int64, isActive bool, at time.Time) error {
 	var active int64
 	if isActive {
@@ -136,9 +136,6 @@ type AssetIdentityUpdate struct {
 	UpdatedAt time.Time
 }
 
-// UpdateAssetIdentities aplica um lote numa transação só. Quem decide o
-// tamanho do lote é o chamador: é ele que sabe quanto trabalho pode perder num
-// cancelamento.
 func (db *DB) UpdateAssetIdentities(ctx context.Context, updates []AssetIdentityUpdate) error {
 	if len(updates) == 0 {
 		return nil
@@ -181,8 +178,8 @@ func (db *DB) ListActiveTickers(ctx context.Context, class domain.AssetClass) ([
 	return tickers, nil
 }
 
-// ListTickersForClass não filtra por liquidez: casar identidade é validar a
-// heurística contra a lista real de ativos, não só contra os negociáveis.
+// Sem filtro de liquidez, ao contrário de ListActiveTickers: casar identidade
+// é validar contra a lista real de ativos, não só contra os negociáveis.
 func (db *DB) ListTickersForClass(ctx context.Context, class domain.AssetClass) ([]string, error) {
 	tickers, err := db.q.ListTickersForClass(ctx, class)
 	if err != nil {
@@ -191,8 +188,6 @@ func (db *DB) ListTickersForClass(ctx context.Context, class domain.AssetClass) 
 	return tickers, nil
 }
 
-// SectorCoverage é a base do aviso de cadastro incompleto: sem o total, "1.200
-// setores" não diz ao usuário se falta muito ou nada.
 func (db *DB) SectorCoverage(ctx context.Context, class domain.AssetClass) (total, withSector int, err error) {
 	row, err := db.q.SectorCoverage(ctx, class)
 	if err != nil {

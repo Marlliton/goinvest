@@ -17,8 +17,6 @@ func TestRootOf(t *testing.T) {
 		{"ITUB4", "ITUB", true},
 		{"TAEE11", "TAEE", true},
 		{"BIDI11", "BIDI", true},
-		// Fracionário já virou alias antes de chegar aqui: nunca é candidato a
-		// casamento com o cadastro da B3.
 		{"PETR4F", "", false},
 		{"WEGE", "", false},
 		{"", "", false},
@@ -30,9 +28,6 @@ func TestRootOf(t *testing.T) {
 	}
 }
 
-// A prova de ATIVO-01: o sufixo do ticker não decide nada. TAEE11 é ação e
-// MXRF11 é FII, e nenhum dos dois é classificado aqui — quem classifica é a
-// fonte que devolveu o código.
 func TestClassifyByB3Taxonomy(t *testing.T) {
 	companies := []identity.CompanyRef{
 		{IssuingCompany: "WEGE", CodeCVM: "5410", CNPJ: "84429695000111"},
@@ -48,11 +43,7 @@ func TestClassifyByB3Taxonomy(t *testing.T) {
 		{"WEGE3", "5410", true},
 		{"ITUB3", "19348", true},
 		{"ITUB4", "19348", true},
-		// Sufixo 11 igual ao de FII, e mesmo assim casa como ação porque quem
-		// responde é o cadastro de companhias abertas.
 		{"TAEE11", "20257", true},
-		// FII não está no cadastro de companhias abertas: ausência é resultado
-		// esperado, não erro.
 		{"MXRF11", "", false},
 		{"PETR4F", "", false},
 	}

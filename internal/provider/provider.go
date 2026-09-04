@@ -22,23 +22,17 @@ type UniverseProvider interface {
 	Universe(ctx context.Context, class domain.AssetClass, force bool) ([]domain.Observation, error)
 }
 
-// IdentityProvider é a fonte de cadastro: quem é o ativo e em que setor ele
-// está, não quanto ele vale.
 type IdentityProvider interface {
 	Namer
 	Companies(ctx context.Context, force bool) ([]identity.CompanyRef, error)
 	Detail(ctx context.Context, codeCVM string, force bool) (identity.CompanyDetail, error)
 }
 
-// FIIISINProvider existe separada porque a B3 não cobre fundos: a identidade de
-// FII vem do informe da CVM, por outro caminho.
 type FIIISINProvider interface {
 	Namer
 	ISINByCNPJ(ctx context.Context, force bool) (map[string]string, error)
 }
 
-// FIISegmentProvider entrega o setor provisório de FII, que vem da mesma
-// página bulk já coletada, não de uma fonte nova.
 type FIISegmentProvider interface {
 	Namer
 	Segments(ctx context.Context, force bool) (map[string]string, error)

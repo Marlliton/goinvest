@@ -48,8 +48,6 @@ type peerAsset struct {
 	n         int
 }
 
-// RecomputeSectorStats roda inteiro numa transação: uma falha no meio nunca
-// deixa metade das estatísticas nova e metade velha.
 func (db *DB) RecomputeSectorStats(ctx context.Context, rules []MetricRule, now time.Time) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {

@@ -61,7 +61,6 @@ func seed(t *testing.T, db *store.DB, ticker string, class domain.AssetClass, va
 	require.NoError(t, db.InsertObservations(ctx, runID, obs))
 	require.NoError(t, db.FinishRun(ctx, runID, "ok", len(obs), ""))
 
-	// Reproduz o que o sync deixa gravado: ação ganha alias fracionário.
 	if class == domain.ClassStock {
 		a, found, err := db.GetAsset(ctx, ticker)
 		require.NoError(t, err)
@@ -130,8 +129,6 @@ func TestShowResolvesFractionalTicker(t *testing.T) {
 	require.ErrorIs(t, err, app.ErrNoData, "FII não tem alias fracionário")
 }
 
-// Papel sem liquidez continua mostrando os números (é o último retrato), mas
-// avisado, para não ser lido como comparável.
 func TestShowInactiveAsset(t *testing.T) {
 	db := openTemp(t)
 	seed(t, db, "DEAD3", domain.ClassStock, wege3Values())
@@ -190,8 +187,6 @@ func TestShowSectorFromRegistry(t *testing.T) {
 		"Setor: Bens Industriais / Máquinas e Equipamentos / Motores. Compressores e Outros")
 }
 
-// Setor ausente é dito, não escondido: três barras soltas dariam a impressão
-// de que a fonte respondeu vazio.
 func TestShowSectorUnknownWithoutRegistry(t *testing.T) {
 	db := openTemp(t)
 	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
@@ -258,8 +253,6 @@ func TestShowRendersPercentileAndPeerGroup(t *testing.T) {
 	require.NotContains(t, text, "Cotação: R$ 10,00 · p", "cotação não tem percentil declarado")
 }
 
-// Percentil calculado antes do papel secar continuaria gravado; exibi-lo seria
-// comparar um papel que não negocia com quem negocia.
 func TestShowInactiveAssetHasNoPercentile(t *testing.T) {
 	db := openTemp(t)
 	seedPeerGroup(t, db,

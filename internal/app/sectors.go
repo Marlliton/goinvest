@@ -17,10 +17,8 @@ type SectorGroup struct {
 }
 
 type ClassSectors struct {
-	Class  domain.AssetClass
-	Groups []SectorGroup
-	// Cobertura conta todos os ativos da classe, líquidos ou não: cadastro
-	// incompleto é pergunta independente de liquidez.
+	Class              domain.AssetClass
+	Groups             []SectorGroup
 	IncompleteRegistry int
 	TotalAssets        int
 }
@@ -48,8 +46,6 @@ func Sectors(ctx context.Context, db *store.DB) ([]ClassSectors, error) {
 	return out, nil
 }
 
-// Setor sem ativo líquido é indistinguível de setor inexistente numa lista
-// vazia: o erro separa os dois casos.
 func SectorsDescend(ctx context.Context, db *store.DB, sector string) ([]SectorGroup, error) {
 	exists, err := db.SectorExists(ctx, domain.ClassStock, sector)
 	if err != nil {

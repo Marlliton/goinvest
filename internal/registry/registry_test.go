@@ -16,8 +16,6 @@ import (
 
 var seededAt = time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
 
-// stubIdentity implementa provider.IdentityProvider sem rede: o cadastro só
-// conhece a interface.
 type stubIdentity struct {
 	companies   []identity.CompanyRef
 	details     map[string]identity.CompanyDetail
@@ -121,14 +119,11 @@ func TestRunAppliesBatchesTransactionally(t *testing.T) {
 	require.Equal(t, "5410", a.CDCVM)
 	require.Equal(t, "b3", a.SectorSrc)
 
-	// Sufixo 11 de ação, e mesmo assim o setor vem do cadastro de companhias.
 	taee, _, err := db.GetAsset(t.Context(), "TAEE11")
 	require.NoError(t, err)
 	require.Equal(t, "Utilidade Pública", taee.Sector)
 }
 
-// Um lote já commitado é dado gravado: o cancelamento para o que vem depois,
-// não desfaz o que veio antes.
 func TestRunCancellationPreservesCommittedBatches(t *testing.T) {
 	db := openDB(t)
 	seedActive(t, db, "WEGE3", "ITUB4", "TAEE11")
@@ -189,8 +184,6 @@ func TestRunUnmatchedTickerDoesNotAbortRun(t *testing.T) {
 	require.Equal(t, "Bens Industriais", a.Sector, "a falha de um ticker não impede os outros")
 }
 
-// Colisão de raiz gravaria o setor de outra empresa: a confirmação por
-// otherCodes é o que impede.
 func TestRunRejectsTickerNotConfirmedByOtherCodes(t *testing.T) {
 	db := openDB(t)
 	seedActive(t, db, "WEGE4")
@@ -207,8 +200,6 @@ func TestRunRejectsTickerNotConfirmedByOtherCodes(t *testing.T) {
 	require.Empty(t, a.Sector)
 }
 
-// Ativo inativo não entra: gastar uma chamada de detalhe por papel morto
-// multiplicaria por dois o custo do comando inteiro.
 func TestRunSkipsInactiveAssets(t *testing.T) {
 	db := openDB(t)
 	seedActive(t, db, "WEGE3")
@@ -273,8 +264,6 @@ func seedFII(t *testing.T, db *store.DB, tickers ...string) {
 	}
 }
 
-// A heurística ISIN→ticker acerta cerca de três em cada quatro fundos: o que
-// não casa vira contagem, nunca gravação por suposição.
 func TestRunFIIMatchesByHeuristicAndReportsUnmatched(t *testing.T) {
 	db := openDB(t)
 	seedFII(t, db, "FVPQ11")
@@ -306,8 +295,6 @@ func TestRunFIIMatchesByHeuristicAndReportsUnmatched(t *testing.T) {
 	require.Empty(t, a.Subsector, "a taxonomia de FII do Fundamentus tem um nível só")
 }
 
-// FII ilíquido continua entrando: a validação da heurística é contra a lista
-// real de fundos, não só contra os líquidos.
 func TestRunFIIIncludesInactiveAssets(t *testing.T) {
 	db := openDB(t)
 	seedFII(t, db, "FVPQ11")

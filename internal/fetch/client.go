@@ -68,8 +68,8 @@ func (c *Client) Get(ctx context.Context, url, docKind string, ttl time.Duration
 	return c.get(ctx, url, docKind, ttl, force, decodeLatin1)
 }
 
-// GetRaw devolve o corpo byte a byte. Fonte que já serve UTF-8 (ou binário)
-// seria corrompida pela decodificação que o Fundamentus exige.
+// Fonte que já serve UTF-8, ou binário, seria corrompida pela decodificação
+// que o Fundamentus exige.
 func (c *Client) GetRaw(ctx context.Context, url, docKind string, ttl time.Duration, force bool) ([]byte, error) {
 	return c.get(ctx, url, docKind, ttl, force, readAll)
 }

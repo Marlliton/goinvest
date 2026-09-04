@@ -37,10 +37,9 @@ type Progress struct {
 }
 
 type Config struct {
-	DB       *store.DB
-	Identity provider.IdentityProvider
-	Force    bool
-	// Lote menor perde menos trabalho num cancelamento.
+	DB         *store.DB
+	Identity   provider.IdentityProvider
+	Force      bool
 	BatchSize  int
 	Now        func() time.Time
 	OnProgress func(Progress)
@@ -54,8 +53,6 @@ type Report struct {
 	Status    string
 }
 
-// Run processa o universo inteiro a cada chamada: não há estado de retomada, e
-// o cache HTTP é o que torna a segunda rodada barata.
 func Run(ctx context.Context, cfg Config) (Report, error) {
 	if cfg.DB == nil {
 		return Report{}, errors.New("registry: db is required")
@@ -152,8 +149,6 @@ func status(r Report) string {
 	}
 }
 
-// Falha de um ticker nunca aborta o cadastro: sem correspondência é resultado,
-// não erro.
 func resolve(ctx context.Context, cfg Config, companies []identity.CompanyRef, ticker string) (store.AssetIdentityUpdate, bool) {
 	codeCVM, ok := identity.MatchByRoot(companies, ticker)
 	if !ok {
@@ -221,7 +216,6 @@ type FIIConfig struct {
 	OnProgress  func(Progress)
 }
 
-// O que não casa vira contagem, nunca gravação por suposição.
 func RunFII(ctx context.Context, cfg FIIConfig) (Report, error) {
 	if cfg.DB == nil {
 		return Report{}, errors.New("registry: db is required")

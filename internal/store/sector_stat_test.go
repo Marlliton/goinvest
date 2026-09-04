@@ -87,8 +87,6 @@ func TestRecomputeSectorStatsCascade(t *testing.T) {
 	require.Nil(t, z.PeerGroupN)
 }
 
-// Rodar duas vezes não pode duplicar linha: a materialização é substituição,
-// não acumulação.
 func TestRecomputeSectorStatsIsIdempotent(t *testing.T) {
 	db := openTemp(t)
 	for i, ticker := range []string{"AAAA3", "BBBB3", "CCCC3", "DDDD3", "EEEE3"} {
@@ -156,8 +154,6 @@ func TestRecomputeSectorStatsExcludesSentinelBySegment(t *testing.T) {
 	require.Equal(t, 5, pcts[0].N)
 }
 
-// O grupo do ativo pode ter tamanho suficiente e ainda assim faltar gente com
-// aquela métrica específica preenchida.
 func TestRecomputeSectorStatsFallsBackPerMetricWhenSparse(t *testing.T) {
 	db := openTemp(t)
 

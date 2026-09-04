@@ -109,8 +109,6 @@ func latestMetrics(t *testing.T, db *store.DB, ticker string) domain.MetricSet {
 	return set
 }
 
-// O fracionário é alias de identidade, não ativo próprio: consolidar aqui é o
-// que faz `show WEGE3F` devolver a análise de WEGE3.
 func TestSyncRegistersFractionalAliasForStocksOnly(t *testing.T) {
 	srv := newSource(t)
 	db := openDB(t)
@@ -163,8 +161,6 @@ func assetOf(t *testing.T, db *store.DB, ticker string) domain.Asset {
 	return a
 }
 
-// Papel morto e papel ilíquido saem do sync já marcados: um ranking nunca chega
-// a vê-los.
 func TestSyncMarksInactiveByLiquidityRule(t *testing.T) {
 	db := openDB(t)
 	syncStocks(t, db, newSourceFrom(t, liquidityFixture), nil)
@@ -177,8 +173,6 @@ func TestSyncMarksInactiveByLiquidityRule(t *testing.T) {
 	require.Nil(t, assetOf(t, db, "DEAD3").LastLiquidAt, "nunca esteve líquido")
 }
 
-// Cotação zerada é a outra metade do OU: o papel morre mesmo que a liquidez não
-// esteja zerada.
 func TestSyncMarksInactiveByZeroQuote(t *testing.T) {
 	db := openDB(t)
 	syncStocks(t, db, newSource(t), nil)
@@ -187,8 +181,6 @@ func TestSyncMarksInactiveByZeroQuote(t *testing.T) {
 	require.True(t, assetOf(t, db, "WEGE3").IsActive)
 }
 
-// A data do último dia líquido é memória: perdê-la ao ficar inativo apagaria a
-// única evidência de quando o papel ainda negociava.
 func TestSyncPreservesLastLiquidAtWhenTickerGoesInactive(t *testing.T) {
 	db := openDB(t)
 
@@ -199,7 +191,6 @@ func TestSyncPreservesLastLiquidAtWhenTickerGoesInactive(t *testing.T) {
 	require.True(t, before.IsActive)
 	require.NotNil(t, before.LastLiquidAt)
 
-	// O mesmo ticker volta sem liquidez num sync posterior.
 	dead := newSourceFrom(t, wege3DeadFixture(t))
 	syncStocks(t, db, dead, func() time.Time { return liquidAt.AddDate(0, 1, 0) })
 
@@ -209,8 +200,6 @@ func TestSyncPreservesLastLiquidAtWhenTickerGoesInactive(t *testing.T) {
 	require.Equal(t, before.LastLiquidAt.UTC(), after.LastLiquidAt.UTC())
 }
 
-// Reescreve a fixture real trocando a liquidez de WEGE3 por zero, para que o
-// mesmo ticker atravesse os dois estados sem depender de duas fixtures.
 func wege3DeadFixture(t *testing.T) string {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.FromSlash(stockFixture))

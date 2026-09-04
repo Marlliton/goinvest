@@ -49,8 +49,6 @@ func TestDeriveHasNoInfraImports(t *testing.T) {
 		append(forbiddenForCore, modulePath+"/internal/catalog"))
 }
 
-// identity é matching e derivação de alias: lógica pura, nunca alcança rede
-// nem banco.
 func TestIdentityHasNoInfraImports(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/identity", forbiddenForCore)
 }
@@ -79,8 +77,6 @@ func TestCollectDependsOnlyOnProviderInterface(t *testing.T) {
 		[]string{modulePath + "/internal/provider/fundamentus"})
 }
 
-// A fonte de identidade é plugável pelo mesmo motivo que a de universo: quem
-// monta o provider concreto é o wiring de cmd.
 func TestRegistryDependsOnlyOnProviderInterface(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/registry",
 		[]string{modulePath + "/internal/provider/b3"})

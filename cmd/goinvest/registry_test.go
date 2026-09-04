@@ -75,8 +75,6 @@ func testDeps(t *testing.T) rootDeps {
 	return rootDeps{DB: db, B3: fakeIdentity{}, CVM: fakeFII{}, Fundamentus: fakeFII{}}
 }
 
-// Fora de TTY o progresso é append-only: sobrescrever a linha com \r deixaria
-// um log de execução sem histórico.
 func TestRegistryCmdPrintsOneLinePerProgressOutsideTTY(t *testing.T) {
 	var out bytes.Buffer
 
@@ -99,8 +97,6 @@ func TestRegistryCmdPrintsOneLinePerProgressOutsideTTY(t *testing.T) {
 	require.Contains(t, text, "2 de 2")
 }
 
-// Um comando só cobre as duas classes: o usuário não precisa saber que a
-// identidade vem de duas fontes diferentes.
 func TestRegistryCmdCoversStocksAndFIIs(t *testing.T) {
 	var out bytes.Buffer
 	deps := testDeps(t)

@@ -8,8 +8,8 @@ const (
 	fiiSuffix     = "11"
 )
 
-// TickerFromISIN é heurística, não mapeamento oficial: acerta cerca de três em
-// cada quatro fundos. Quem chama precisa tratar o não-casamento como resultado.
+// Heurística, não mapeamento oficial: acerta cerca de três em cada quatro
+// fundos, e o não-casamento é resultado que o chamador precisa tratar.
 func TickerFromISIN(isin string) (ticker string, ok bool) {
 	if len(isin) < issuerCodeEnd || !strings.HasPrefix(isin, brazilPrefix) {
 		return "", false

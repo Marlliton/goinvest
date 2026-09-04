@@ -82,8 +82,6 @@ func legend(sawAbsent, sawDerived, sawFallback bool) string {
 	return strings.Join(parts, " · ")
 }
 
-// Três barras soltas dariam a impressão de que a fonte respondeu vazio, quando
-// o que houve foi o cadastro nunca ter rodado.
 func sectorLine(h HeaderView) string {
 	if h.Sector == "" {
 		return "Setor: desconhecido"
@@ -91,8 +89,6 @@ func sectorLine(h HeaderView) string {
 	return fmt.Sprintf("Setor: %s / %s / %s", h.Sector, h.Subsector, h.Segment)
 }
 
-// Sem data registrada o aviso não afirma uma: dizer "desde" sem saber desde
-// quando inventaria um fato que ninguém observou.
 func liquidityText(h HeaderView) string {
 	if h.LastLiquidAt == nil {
 		return "sem liquidez registrada"
@@ -195,8 +191,6 @@ func sectionLabel(c domain.AssetClass) string {
 	return "Ações"
 }
 
-// Amostra pequena demais precisa dizer a consequência, senão o número sozinho
-// parece só um setor menor.
 func sectorGroupLine(s SectorGroup) string {
 	if s.BelowThreshold {
 		return fmt.Sprintf("%s — %s: percentil cai para a referência de mercado",

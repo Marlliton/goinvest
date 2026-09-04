@@ -20,10 +20,7 @@ const (
 	StatusPartial = "partial"
 )
 
-// Pisos de volume médio diário em reais, abaixo dos quais o papel sai de
-// ranking e de estatística setorial. São constantes de código de propósito:
-// mexer neles muda o significado de toda comparação já exibida, e uma chave de
-// config esconderia isso do usuário.
+// Volume médio diário em reais.
 const (
 	minLiquidityStock = 1_000_000.0
 	minLiquidityFII   = 200_000.0
@@ -66,8 +63,6 @@ func Sync(ctx context.Context, cfg Config) (Report, error) {
 		FIIs:   collectClass(ctx, cfg, domain.ClassFII),
 	}
 
-	// Recalcula com o que existir: estatística desatualizada é melhor que
-	// estatística misturando coleta nova com grupo de pares velho.
 	if cfg.Catalog != nil {
 		if err := cfg.DB.RecomputeSectorStats(ctx, metricRules(cfg.Catalog), cfg.Now()); err != nil {
 			report.SectorStats = err.Error()
@@ -182,9 +177,8 @@ func metricsByTicker(obs []domain.Observation) map[string]map[domain.MetricID]*f
 	return values
 }
 
-// A régua tem dois cortes: morto (cotação ou liquidez zerada) e ilíquido
-// (liquidez acima de zero mas abaixo do piso). Métrica ausente não marca nada:
-// só um zero lido da fonte é evidência de que o papel não negocia.
+// Métrica ausente não marca nada: só um zero lido da fonte é evidência de que
+// o papel não negocia.
 func isActive(class domain.AssetClass, values map[domain.MetricID]*float64) bool {
 	quote := values["cotacao"]
 	liquidity := values[liquidityMetric(class)]

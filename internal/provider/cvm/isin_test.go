@@ -30,7 +30,6 @@ func zipWith(t *testing.T, name string, content []byte) []byte {
 	return buf.Bytes()
 }
 
-// O servidor devolve um zip por ano, como a CVM faz.
 func newServer(t *testing.T, byYear map[int][]byte) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -59,9 +58,6 @@ func realFixture(t *testing.T) []byte {
 	return body
 }
 
-// O corpo baixado é um zip: passá-lo pela decodificação ISO-8859-1 do
-// Fundamentus destruiria a estrutura binária antes de chegar no unzip. A
-// decodificação acontece sobre o CSV extraído, não sobre o download.
 func TestISINByCNPJDecodesISO88591CSVFromZip(t *testing.T) {
 	srv := newServer(t, map[int][]byte{
 		2026: zipWith(t, "geral_2026.csv", realFixture(t)),
@@ -73,8 +69,6 @@ func TestISINByCNPJDecodesISO88591CSVFromZip(t *testing.T) {
 		"CNPJ vira só dígitos; o ISIN vai como veio")
 }
 
-// Fundo grande some de um ano isolado, então os anos são combinados. Quem vence
-// é a data de referência mais recente, nunca a ordem em que os anos foram lidos.
 func TestISINByCNPJPrefersMostRecentReference(t *testing.T) {
 	header := strings.SplitN(string(realFixture(t)), "\n", 2)[0]
 	old := header + "\n" + strings.Join([]string{
@@ -107,7 +101,6 @@ func TestISINByCNPJRejectsZipWithoutExpectedEntry(t *testing.T) {
 	require.Contains(t, err.Error(), "geral_2026.csv")
 }
 
-// Layout que muda sem aviso é falha explícita, não mapa vazio silencioso.
 func TestISINByCNPJRejectsMissingColumn(t *testing.T) {
 	srv := newServer(t, map[int][]byte{
 		2026: zipWith(t, "geral_2026.csv", []byte("Tipo_Fundo_Classe;CNPJ_Fundo_Classe\nClasse;00.332.266/0001-31\n")),
@@ -118,7 +111,6 @@ func TestISINByCNPJRejectsMissingColumn(t *testing.T) {
 	require.Contains(t, err.Error(), "Codigo_ISIN")
 }
 
-// Linha sem ISIN é comum no arquivo real e não é erro: só não entra no mapa.
 func TestISINByCNPJSkipsRowsWithoutISIN(t *testing.T) {
 	header := strings.SplitN(string(realFixture(t)), "\n", 2)[0]
 	body := header + "\n" + strings.Join([]string{

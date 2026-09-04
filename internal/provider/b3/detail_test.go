@@ -22,8 +22,6 @@ func newFixtureServer(t *testing.T, fixture string) *httptest.Server {
 	return srv
 }
 
-// A B3 responde UTF-8. Passar esse corpo pelo decodificador ISO-8859-1 do
-// Fundamentus produziria "MÃ¡quinas" em silêncio.
 func TestDetailParsesUTF8Accents(t *testing.T) {
 	srv := newFixtureServer(t, "testdata/get_detail_wege.json")
 
@@ -39,8 +37,6 @@ func TestDetailParsesUTF8Accents(t *testing.T) {
 	require.Equal(t, "BRWEGEACNOR0", detail.OtherCodes[0].ISIN)
 }
 
-// Um codeCVM cobre todas as classes de ação da empresa: é otherCodes, não o
-// sufixo do ticker, que diz quais códigos existem.
 func TestDetailReturnsEveryTradingCode(t *testing.T) {
 	srv := newFixtureServer(t, "testdata/get_detail_itub.json")
 
@@ -54,8 +50,6 @@ func TestDetailReturnsEveryTradingCode(t *testing.T) {
 	require.Equal(t, "BRITUBACNPR1", detail.OtherCodes[1].ISIN)
 }
 
-// Setor vazio gravado como se fosse dado real contamina toda a referência
-// estatística que a fase constrói em cima dele.
 func TestDetailRejectsMissingIndustryClassification(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprint(w, `{"code":"XPTO3","codeCVM":"1","cnpj":"0","otherCodes":[]}`)

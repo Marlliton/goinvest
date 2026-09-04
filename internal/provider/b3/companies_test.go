@@ -25,8 +25,6 @@ func newProvider(t *testing.T, baseURL string) *b3.Provider {
 	return b3.NewProvider(client, baseURL, time.Now)
 }
 
-// A B3 codifica o filtro em base64 no próprio path: o servidor de teste precisa
-// decodificar para saber qual página foi pedida.
 func decodeFilter(t *testing.T, urlPath string, into any) {
 	t.Helper()
 	raw, err := base64.StdEncoding.DecodeString(path.Base(urlPath))
@@ -34,8 +32,6 @@ func decodeFilter(t *testing.T, urlPath string, into any) {
 	require.NoError(t, json.Unmarshal(raw, into))
 }
 
-// Três páginas de duas linhas com uma última página curta: o laço só termina
-// certo se ler totalPages da resposta.
 func newPagedServer(t *testing.T) (*httptest.Server, *int) {
 	t.Helper()
 	calls := 0
@@ -73,7 +69,6 @@ func TestCompaniesFollowsTotalPages(t *testing.T) {
 	require.Equal(t, "EMP4", companies[4].IssuingCompany)
 }
 
-// Resposta sem totalPages é erro, não laço infinito.
 func TestCompaniesRejectsResponseWithoutTotalPages(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprint(w, `{"page":{"pageNumber":1,"pageSize":120,"totalRecords":5},"results":[]}`)

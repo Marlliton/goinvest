@@ -146,8 +146,6 @@ func readGeneral(r io.Reader, name string) (map[string]record, error) {
 	return out, nil
 }
 
-// Coluna ausente é layout mudado: falhar aqui é o que evita gravar um mapa
-// vazio como se a fonte não tivesse fundos.
 func columnIndex(header []string, name string) (map[string]int, error) {
 	pos := make(map[string]int, len(header))
 	for i, h := range header {

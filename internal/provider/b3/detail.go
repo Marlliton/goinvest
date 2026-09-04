@@ -38,8 +38,6 @@ func (p *Provider) Detail(ctx context.Context, codeCVM string, force bool) (iden
 	if err := json.Unmarshal(body, &decoded); err != nil {
 		return identity.CompanyDetail{}, fmt.Errorf("b3: detail %s: %w", codeCVM, err)
 	}
-	// Setor vazio gravado como dado real contamina toda a referência
-	// estatística construída em cima dele.
 	if decoded.IndustryClassification == "" {
 		return identity.CompanyDetail{}, fmt.Errorf("b3: detail %s: industryClassification ausente", codeCVM)
 	}

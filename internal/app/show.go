@@ -19,34 +19,28 @@ var ErrNoData = errors.New("nenhum dado local. Rode 'goinvest sync' primeiro")
 const stalenessThreshold = 7 * 24 * time.Hour
 
 type HeaderView struct {
-	ReferenceAt  *time.Time
-	FetchedAt    time.Time
-	Age          time.Duration
-	Stale        bool
-	Inactive     bool
-	LastLiquidAt *time.Time
-	// Vazios enquanto o cadastro não rodou.
-	Sector    string
-	Subsector string
-	Segment   string
-	// Cobertura do cadastro na classe do ativo consultado: sem o total, a
-	// contagem de faltantes não diz se falta muito ou quase nada.
+	ReferenceAt        *time.Time
+	FetchedAt          time.Time
+	Age                time.Duration
+	Stale              bool
+	Inactive           bool
+	LastLiquidAt       *time.Time
+	Sector             string
+	Subsector          string
+	Segment            string
 	IncompleteRegistry int
 	TotalInClass       int
-	// Vazio quando o ativo está inativo ou sem grupo resolvido.
-	PeerGroupLabel string
-	PeerGroupN     int
+	PeerGroupLabel     string
+	PeerGroupN         int
 }
 
 type LineView struct {
-	MetricID domain.MetricID
-	Label    string
-	Value    *float64
-	Unit     domain.Unit
-	Derived  bool
-	Formula  string
-	// Nil quando a métrica não declara percentil ou a materialização não
-	// alcançou este ativo.
+	MetricID         domain.MetricID
+	Label            string
+	Value            *float64
+	Unit             domain.Unit
+	Derived          bool
+	Formula          string
 	Percentile       *float64
 	PeerN            *int
 	FellBackToMarket bool
@@ -101,8 +95,6 @@ func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string
 	h.TotalInClass = total
 	h.IncompleteRegistry = total - withSector
 
-	// Papel sem liquidez não é comparável: o percentil gravado antes de ele
-	// secar continuaria no banco até o próximo sync.
 	var percentiles map[domain.MetricID]store.AssetPercentile
 	if asset.IsActive {
 		h.PeerGroupLabel, h.PeerGroupN = peerGroup(asset)

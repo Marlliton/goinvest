@@ -15,7 +15,6 @@ func TestTickerFromISIN(t *testing.T) {
 	}{
 		{"BRFVPQCTF015", "FVPQ11", true},
 		{"BRMXRFCTF001", "MXRF11", true},
-		// Emissor estrangeiro não segue a convenção que a heurística assume.
 		{"US0378331005", "", false},
 		{"BR", "", false},
 		{"", "", false},

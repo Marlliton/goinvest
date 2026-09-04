@@ -62,8 +62,6 @@ func TestSectorsCommandDescend(t *testing.T) {
 	require.Contains(t, out.String(), "Máquinas")
 }
 
-// Erro de banco vazando para a tela ensina o usuário a ignorar mensagem de
-// erro.
 func TestSectorsCommandDescendUnknownSector(t *testing.T) {
 	cmd := newSectorsCmd(sectorDeps(t))
 	cmd.SetOut(&bytes.Buffer{})

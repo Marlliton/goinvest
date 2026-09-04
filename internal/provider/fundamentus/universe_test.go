@@ -229,8 +229,6 @@ func headerLabels(t *testing.T, fixture string) []string {
 	return labels
 }
 
-// A coluna Segmento não é métrica, é identidade: sai por um caminho próprio,
-// sem entrar no catálogo de indicadores.
 func TestSegments(t *testing.T) {
 	segments, err := newProvider(t).Segments(t.Context(), false)
 	require.NoError(t, err)
