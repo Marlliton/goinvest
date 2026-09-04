@@ -54,8 +54,8 @@ func TestMigrationsUpDownUp(t *testing.T) {
 	var n int
 	require.NoError(t, db.QueryRow(
 		`SELECT count(*) FROM sqlite_master WHERE type='table'
-		 AND name IN ('asset','collection_run','observation','raw_doc')`).Scan(&n))
-	require.Equal(t, 4, n)
+		 AND name IN ('asset','asset_alias','collection_run','observation','raw_doc')`).Scan(&n))
+	require.Equal(t, 5, n)
 }
 
 func TestInsertObservationsAndLatestMetrics(t *testing.T) {
@@ -75,7 +75,11 @@ func TestInsertObservationsAndLatestMetrics(t *testing.T) {
 		obs("WEGE3", "dy", ptr(0), recent),
 	}))
 
-	set, err := db.LatestMetrics(ctx, "WEGE3")
+	a, found, err := db.GetAsset(ctx, "WEGE3")
+	require.NoError(t, err)
+	require.True(t, found)
+
+	set, err := db.LatestMetrics(ctx, a.AssetID, a.Ticker)
 	require.NoError(t, err)
 	require.Len(t, set, 3)
 
@@ -109,13 +113,16 @@ func TestInsertObservationsIsAppendOnly(t *testing.T) {
 		"a mesma chave de proveniência colide em ux_obs")
 
 	var stored float64
-	require.NoError(t, db.QueryRow(`SELECT value FROM observation WHERE ticker='WEGE3'`).Scan(&stored))
+	require.NoError(t, db.QueryRow(
+		`SELECT o.value FROM observation o
+		 JOIN asset a ON a.asset_id = o.asset_id
+		 WHERE a.ticker = 'WEGE3'`).Scan(&stored))
 	require.Equal(t, 28.1, stored, "a colisão não sobrescreveu o valor")
 }
 
 func TestLatestMetricsOnEmptyDatabase(t *testing.T) {
 	db := openTemp(t)
-	set, err := db.LatestMetrics(t.Context(), "WEGE3")
+	set, err := db.LatestMetrics(t.Context(), 1, "WEGE3")
 	require.NoError(t, err, "banco vazio não é erro do store")
 	require.Empty(t, set)
 }
@@ -128,6 +135,7 @@ func TestGetAsset(t *testing.T) {
 	a, found, err := db.GetAsset(ctx, "MXRF11")
 	require.NoError(t, err)
 	require.True(t, found)
+	require.Greater(t, a.AssetID, int64(0))
 	require.Equal(t, domain.ClassFII, a.Class)
 	require.Equal(t, "MXRF11 S.A.", a.Name)
 
