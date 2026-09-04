@@ -10,6 +10,7 @@ import (
 	"github.com/marlliton/goinvest/internal/app"
 	"github.com/marlliton/goinvest/internal/catalog"
 	"github.com/marlliton/goinvest/internal/domain"
+	"github.com/marlliton/goinvest/internal/identity"
 	"github.com/marlliton/goinvest/internal/store"
 	"github.com/stretchr/testify/require"
 )
@@ -59,6 +60,14 @@ func seed(t *testing.T, db *store.DB, ticker string, class domain.AssetClass, va
 	}
 	require.NoError(t, db.InsertObservations(ctx, runID, obs))
 	require.NoError(t, db.FinishRun(ctx, runID, "ok", len(obs), ""))
+
+	// Reproduz o que o sync deixa gravado: ação ganha alias fracionário.
+	if class == domain.ClassStock {
+		a, found, err := db.GetAsset(ctx, ticker)
+		require.NoError(t, err)
+		require.True(t, found)
+		require.NoError(t, db.UpsertAssetAlias(ctx, identity.FractionalAlias(ticker), a.AssetID))
+	}
 }
 
 func loadCatalog(t *testing.T) *catalog.Catalog {
@@ -107,6 +116,18 @@ func TestShowNeverReachesTheNetwork(t *testing.T) {
 	require.Nil(t, report.Header.ReferenceAt)
 	require.NotContains(t, app.RenderText(report), collectedAt.Format("02/01/2006"),
 		"a data de coleta não pode aparecer como data de balanço")
+}
+
+func TestShowResolvesFractionalTicker(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "PETR4", domain.ClassStock, wege3Values())
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "PETR4F", now)
+	require.NoError(t, err)
+	require.Equal(t, "PETR4", report.Ticker, "o fracionário devolve a análise do canônico")
+
+	_, err = app.Show(t.Context(), db, loadCatalog(t), "MXRF11F", now)
+	require.ErrorIs(t, err, app.ErrNoData, "FII não tem alias fracionário")
 }
 
 func TestShowReturnsErrNoDataForUnknownTicker(t *testing.T) {

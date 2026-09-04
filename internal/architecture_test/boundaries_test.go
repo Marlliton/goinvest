@@ -14,6 +14,7 @@ import (
 	_ "github.com/marlliton/goinvest/internal/derive"
 	_ "github.com/marlliton/goinvest/internal/domain"
 	_ "github.com/marlliton/goinvest/internal/fetch"
+	_ "github.com/marlliton/goinvest/internal/identity"
 )
 
 const modulePath = "github.com/marlliton/goinvest"
@@ -42,6 +43,12 @@ func TestCatalogHasNoInfraImports(t *testing.T) {
 func TestDeriveHasNoInfraImports(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/derive",
 		append(forbiddenForCore, modulePath+"/internal/catalog"))
+}
+
+// identity é matching e derivação de alias: lógica pura, nunca alcança rede
+// nem banco.
+func TestIdentityHasNoInfraImports(t *testing.T) {
+	requireNoImports(t, modulePath+"/internal/identity", forbiddenForCore)
 }
 
 // A interface Cache é declarada pelo consumidor justamente para que fetch e

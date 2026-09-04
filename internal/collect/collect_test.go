@@ -99,6 +99,39 @@ func latestMetrics(t *testing.T, db *store.DB, ticker string) domain.MetricSet {
 	return set
 }
 
+// O fracionário é alias de identidade, não ativo próprio: consolidar aqui é o
+// que faz `show WEGE3F` devolver a análise de WEGE3.
+func TestSyncRegistersFractionalAliasForStocksOnly(t *testing.T) {
+	srv := newSource(t)
+	db := openDB(t)
+	seedPreviousFIIRun(t, db)
+
+	client := fetch.NewClient(fetch.Config{RateEvery: testRateEvery})
+	p := fundamentus.NewProvider(client, srv.URL, time.Now)
+
+	_, err := collect.Sync(t.Context(), collect.Config{
+		Providers: map[domain.AssetClass]provider.UniverseProvider{
+			domain.ClassStock: p,
+			domain.ClassFII:   p,
+		},
+		DB: db,
+	})
+	require.NoError(t, err)
+
+	a, found, err := db.GetAsset(t.Context(), "WEGE3F")
+	require.NoError(t, err)
+	require.True(t, found, "ação ganha alias fracionário no ingest")
+	require.Equal(t, "WEGE3", a.Ticker, "o alias resolve para o ativo canônico")
+
+	canonical, _, err := db.GetAsset(t.Context(), "WEGE3")
+	require.NoError(t, err)
+	require.Equal(t, canonical.AssetID, a.AssetID)
+
+	_, found, err = db.GetAsset(t.Context(), "MXRF11F")
+	require.NoError(t, err)
+	require.False(t, found, "FII não tem mercado fracionário")
+}
+
 func TestSyncIsolatesPartialFailure(t *testing.T) {
 	srv := newSource(t)
 	db := openDB(t)
