@@ -33,6 +33,9 @@ type HeaderView struct {
 	// contagem de faltantes não diz se falta muito ou quase nada.
 	IncompleteRegistry int
 	TotalInClass       int
+	// Vazio quando o ativo está inativo ou sem grupo resolvido.
+	PeerGroupLabel string
+	PeerGroupN     int
 }
 
 type LineView struct {
@@ -42,6 +45,11 @@ type LineView struct {
 	Unit     domain.Unit
 	Derived  bool
 	Formula  string
+	// Nil quando a métrica não declara percentil ou a materialização não
+	// alcançou este ativo.
+	Percentile       *float64
+	PeerN            *int
+	FellBackToMarket bool
 }
 
 type BlockView struct {
@@ -93,12 +101,48 @@ func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string
 	h.TotalInClass = total
 	h.IncompleteRegistry = total - withSector
 
+	// Papel sem liquidez não é comparável: o percentil gravado antes de ele
+	// secar continuaria no banco até o próximo sync.
+	var percentiles map[domain.MetricID]store.AssetPercentile
+	if asset.IsActive {
+		h.PeerGroupLabel, h.PeerGroupN = peerGroup(asset)
+		percentiles, err = assetPercentiles(ctx, db, asset.AssetID)
+		if err != nil {
+			return Report{}, err
+		}
+	}
+
 	return Report{
 		Ticker: asset.Ticker,
 		Class:  asset.Class,
 		Header: h,
-		Blocks: blocks(cat, asset.Class, merged),
+		Blocks: blocks(cat, asset.Class, merged, percentiles),
 	}, nil
+}
+
+func peerGroup(asset domain.Asset) (label string, n int) {
+	if asset.PeerGroupLevel == "" {
+		return "", 0
+	}
+	if asset.PeerGroupN != nil {
+		n = *asset.PeerGroupN
+	}
+	if asset.PeerGroupLevel == "mercado" {
+		return "o mercado", n
+	}
+	return asset.PeerGroupKey, n
+}
+
+func assetPercentiles(ctx context.Context, db *store.DB, assetID int64) (map[domain.MetricID]store.AssetPercentile, error) {
+	rows, err := db.GetAssetPercentiles(ctx, assetID)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[domain.MetricID]store.AssetPercentile, len(rows))
+	for _, r := range rows {
+		out[r.MetricID] = r
+	}
+	return out, nil
 }
 
 func header(collected domain.MetricSet, now func() time.Time) HeaderView {
@@ -146,7 +190,7 @@ func referenceKey(t *time.Time) int64 {
 	return t.UTC().Unix()
 }
 
-func blocks(cat *catalog.Catalog, class domain.AssetClass, merged domain.MetricSet) []BlockView {
+func blocks(cat *catalog.Catalog, class domain.AssetClass, merged domain.MetricSet, percentiles map[domain.MetricID]store.AssetPercentile) []BlockView {
 	applicable := cat.MetricsFor(class)
 
 	out := make([]BlockView, 0, len(cat.Blocks))
@@ -161,14 +205,21 @@ func blocks(cat *catalog.Catalog, class domain.AssetClass, merged domain.MetricS
 			if !ok {
 				continue
 			}
-			view.Lines = append(view.Lines, LineView{
+			line := LineView{
 				MetricID: m.ID,
 				Label:    m.Label,
 				Value:    o.Value,
 				Unit:     m.Unit,
 				Derived:  m.Derived,
 				Formula:  m.Formula,
-			})
+			}
+			if p, ok := percentiles[m.ID]; ok && m.Percentile {
+				n := p.N
+				line.Percentile = &p.Percentile
+				line.PeerN = &n
+				line.FellBackToMarket = p.FellBackToMarket
+			}
+			view.Lines = append(view.Lines, line)
 		}
 		if len(view.Lines) > 0 {
 			out = append(out, view)

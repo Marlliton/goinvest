@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	markAbsent  = "—"
-	markDerived = "ƒ"
+	markAbsent   = "—"
+	markDerived  = "ƒ"
+	markFallback = "*"
 )
 
 func RenderText(r Report) string {
@@ -30,7 +31,12 @@ func RenderText(r Report) string {
 			r.Header.IncompleteRegistry, r.Header.TotalInClass)
 	}
 
-	sawAbsent, sawDerived := false, false
+	if r.Header.PeerGroupLabel != "" {
+		fmt.Fprintf(&b, "Comparado com %s (%d papéis líquidos)\n",
+			r.Header.PeerGroupLabel, r.Header.PeerGroupN)
+	}
+
+	sawAbsent, sawDerived, sawFallback := false, false, false
 	for _, block := range r.Blocks {
 		fmt.Fprintf(&b, "\n%s\n", block.Label)
 		for _, line := range block.Lines {
@@ -41,6 +47,13 @@ func RenderText(r Report) string {
 				continue
 			}
 			b.WriteString(formatValue(*line.Value, line.Unit))
+			if line.Percentile != nil {
+				fmt.Fprintf(&b, " · p%d · n=%d", int(*line.Percentile*100), *line.PeerN)
+				if line.FellBackToMarket {
+					sawFallback = true
+					b.WriteString(" " + markFallback)
+				}
+			}
 			if line.Derived {
 				sawDerived = true
 				fmt.Fprintf(&b, " %s (%s)", markDerived, line.Formula)
@@ -49,19 +62,22 @@ func RenderText(r Report) string {
 		}
 	}
 
-	if legend := legend(sawAbsent, sawDerived); legend != "" {
+	if legend := legend(sawAbsent, sawDerived, sawFallback); legend != "" {
 		fmt.Fprintf(&b, "\n%s\n", legend)
 	}
 	return b.String()
 }
 
-func legend(sawAbsent, sawDerived bool) string {
+func legend(sawAbsent, sawDerived, sawFallback bool) string {
 	var parts []string
 	if sawAbsent {
 		parts = append(parts, markAbsent+" = fonte não informa")
 	}
 	if sawDerived {
 		parts = append(parts, markDerived+" = calculado por goinvest")
+	}
+	if sawFallback {
+		parts = append(parts, markFallback+" = comparado com o mercado inteiro; o setor tem poucos papéis com esta métrica")
 	}
 	return strings.Join(parts, " · ")
 }
