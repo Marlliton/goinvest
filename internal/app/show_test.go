@@ -225,6 +225,61 @@ func TestShowOmitsWarningWhenRegistryComplete(t *testing.T) {
 	require.NotContains(t, app.RenderText(report), "cadastro incompleto")
 }
 
+func seedPeerGroup(t *testing.T, db *store.DB, tickers []string, sector, subsector, segment string, pl []float64) {
+	t.Helper()
+	for i, ticker := range tickers {
+		seed(t, db, ticker, domain.ClassStock, map[domain.MetricID]*float64{
+			"cotacao": ptr(10), "pl": ptr(pl[i]),
+		})
+		setIdentity(t, db, ticker, sector, subsector, segment)
+		a, _, err := db.GetAsset(t.Context(), ticker)
+		require.NoError(t, err)
+		require.NoError(t, db.UpdateAssetLiquidity(t.Context(), a.AssetID, true, collectedAt))
+	}
+	require.NoError(t, db.RecomputeSectorStats(t.Context(),
+		[]store.MetricRule{{MetricID: "pl"}}, collectedAt))
+}
+
+func TestShowRendersPercentileAndPeerGroup(t *testing.T) {
+	db := openTemp(t)
+	seedPeerGroup(t, db,
+		[]string{"AAAA3", "BBBB3", "CCCC3", "DDDD3", "EEEE3"},
+		"Bens Industriais", "Máquinas", "Motores",
+		[]float64{10, 12, 14, 16, 18})
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "CCCC3", now)
+	require.NoError(t, err)
+	require.Equal(t, "Motores", report.Header.PeerGroupLabel)
+	require.Equal(t, 5, report.Header.PeerGroupN)
+
+	text := app.RenderText(report)
+	require.Contains(t, text, "Comparado com Motores (5 papéis líquidos)")
+	require.Contains(t, text, " · p60 · n=5", "3 de 5 valores são <= 14")
+	require.NotContains(t, text, "Cotação: R$ 10,00 · p", "cotação não tem percentil declarado")
+}
+
+// Percentil calculado antes do papel secar continuaria gravado; exibi-lo seria
+// comparar um papel que não negocia com quem negocia.
+func TestShowInactiveAssetHasNoPercentile(t *testing.T) {
+	db := openTemp(t)
+	seedPeerGroup(t, db,
+		[]string{"AAAA3", "BBBB3", "CCCC3", "DDDD3", "EEEE3"},
+		"Bens Industriais", "Máquinas", "Motores",
+		[]float64{10, 12, 14, 16, 18})
+
+	a, _, err := db.GetAsset(t.Context(), "CCCC3")
+	require.NoError(t, err)
+	require.NoError(t, db.UpdateAssetLiquidity(t.Context(), a.AssetID, false, collectedAt))
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "CCCC3", now)
+	require.NoError(t, err)
+	require.Empty(t, report.Header.PeerGroupLabel)
+
+	text := app.RenderText(report)
+	require.NotContains(t, text, " · p")
+	require.NotContains(t, text, "Comparado com")
+}
+
 func TestShowReturnsErrNoDataForUnknownTicker(t *testing.T) {
 	db := openTemp(t)
 
