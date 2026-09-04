@@ -182,3 +182,24 @@ func TestGetDecodesISO88591(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "Ações", string(body))
 }
+
+// A B3 responde UTF-8 nativo: passar esse corpo pelo decodificador ISO-8859-1
+// que o Fundamentus exige produziria mojibake em silêncio.
+func TestGetRawSkipsCharsetDecoding(t *testing.T) {
+	// "Máquinas" em ISO-8859-1: o "á" é o byte 0xE1 solto.
+	raw := []byte{'M', 0xE1, 'q', 'u', 'i', 'n', 'a', 's'}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Write(raw)
+	}))
+	t.Cleanup(srv.Close)
+
+	c := fetch.NewClient(fetch.Config{RateEvery: testRateEvery})
+
+	got, err := c.GetRaw(t.Context(), srv.URL, "b3_companies", time.Hour, false)
+	require.NoError(t, err)
+	require.Equal(t, raw, got, "GetRaw devolve o corpo byte a byte")
+
+	decoded, err := c.Get(t.Context(), srv.URL, "universe_acao", time.Hour, false)
+	require.NoError(t, err)
+	require.Equal(t, "Máquinas", string(decoded), "Get continua decodificando ISO-8859-1")
+}
