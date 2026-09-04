@@ -1,6 +1,6 @@
 -- name: InsertObservation :exec
 INSERT INTO observation
-  (ticker, metric_id, period_kind, period_end, value, unit, source, reference_at, fetched_at, run_id)
+  (asset_id, metric_id, period_kind, period_end, value, unit, source, reference_at, fetched_at, run_id)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: LatestMetrics :many
@@ -10,6 +10,6 @@ FROM (
     PARTITION BY metric_id, period_kind
     ORDER BY period_end DESC, fetched_at DESC) AS rn
   FROM observation
-  WHERE ticker = ?
+  WHERE asset_id = ?
 )
 WHERE rn = 1;

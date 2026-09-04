@@ -56,7 +56,7 @@ func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string
 		return Report{}, ErrNoData
 	}
 
-	collected, err := db.LatestMetrics(ctx, ticker)
+	collected, err := db.LatestMetrics(ctx, asset.AssetID, asset.Ticker)
 	if err != nil {
 		return Report{}, err
 	}

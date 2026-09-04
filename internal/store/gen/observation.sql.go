@@ -14,12 +14,12 @@ import (
 
 const insertObservation = `-- name: InsertObservation :exec
 INSERT INTO observation
-  (ticker, metric_id, period_kind, period_end, value, unit, source, reference_at, fetched_at, run_id)
+  (asset_id, metric_id, period_kind, period_end, value, unit, source, reference_at, fetched_at, run_id)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertObservationParams struct {
-	Ticker      string
+	AssetID     int64
 	MetricID    domain.MetricID
 	PeriodKind  string
 	PeriodEnd   time.Time
@@ -33,7 +33,7 @@ type InsertObservationParams struct {
 
 func (q *Queries) InsertObservation(ctx context.Context, arg InsertObservationParams) error {
 	_, err := q.db.ExecContext(ctx, insertObservation,
-		arg.Ticker,
+		arg.AssetID,
 		arg.MetricID,
 		arg.PeriodKind,
 		arg.PeriodEnd,
@@ -50,11 +50,11 @@ func (q *Queries) InsertObservation(ctx context.Context, arg InsertObservationPa
 const latestMetrics = `-- name: LatestMetrics :many
 SELECT metric_id, period_kind, period_end, value, unit, source, reference_at, fetched_at, run_id
 FROM (
-  SELECT id, ticker, metric_id, period_kind, period_end, value, unit, source, reference_at, fetched_at, run_id, ROW_NUMBER() OVER (
+  SELECT id, asset_id, metric_id, period_kind, period_end, value, unit, source, reference_at, fetched_at, run_id, ROW_NUMBER() OVER (
     PARTITION BY metric_id, period_kind
     ORDER BY period_end DESC, fetched_at DESC) AS rn
   FROM observation
-  WHERE ticker = ?
+  WHERE asset_id = ?
 )
 WHERE rn = 1
 `
@@ -71,8 +71,8 @@ type LatestMetricsRow struct {
 	RunID       *int64
 }
 
-func (q *Queries) LatestMetrics(ctx context.Context, ticker string) ([]LatestMetricsRow, error) {
-	rows, err := q.db.QueryContext(ctx, latestMetrics, ticker)
+func (q *Queries) LatestMetrics(ctx context.Context, assetID int64) ([]LatestMetricsRow, error) {
+	rows, err := q.db.QueryContext(ctx, latestMetrics, assetID)
 	if err != nil {
 		return nil, err
 	}

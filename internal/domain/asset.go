@@ -12,8 +12,16 @@ const (
 )
 
 type Asset struct {
+	AssetID   int64
 	Ticker    string
 	Class     AssetClass
 	Name      string
+	CNPJ      string
+	ISIN      string
+	CDCVM     string
+	Sector    string
+	Subsector string
+	Segment   string
+	SectorSrc string
 	UpdatedAt time.Time
 }

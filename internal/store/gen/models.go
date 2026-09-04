@@ -11,10 +11,23 @@ import (
 )
 
 type Asset struct {
+	AssetID   int64
 	Ticker    string
 	Class     domain.AssetClass
 	Name      *string
+	Cnpj      *string
+	Isin      *string
+	CdCvm     *string
+	Sector    *string
+	Subsector *string
+	Segment   *string
+	SectorSrc *string
 	UpdatedAt time.Time
+}
+
+type AssetAlias struct {
+	AliasTicker string
+	AssetID     int64
 }
 
 type CollectionRun struct {
@@ -29,7 +42,7 @@ type CollectionRun struct {
 
 type Observation struct {
 	ID          int64
-	Ticker      string
+	AssetID     int64
 	MetricID    domain.MetricID
 	PeriodKind  string
 	PeriodEnd   time.Time

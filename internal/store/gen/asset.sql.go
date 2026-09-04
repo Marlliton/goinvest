@@ -12,31 +12,98 @@ import (
 	"github.com/marlliton/goinvest/internal/domain"
 )
 
-const getAsset = `-- name: GetAsset :one
-SELECT ticker, class, name, updated_at
+const getAssetByID = `-- name: GetAssetByID :one
+SELECT asset_id, ticker, class, name, cnpj, isin, cd_cvm, sector, subsector, segment, sector_src, updated_at
 FROM asset
-WHERE ticker = ?
+WHERE asset_id = ?
 `
 
-func (q *Queries) GetAsset(ctx context.Context, ticker string) (Asset, error) {
-	row := q.db.QueryRowContext(ctx, getAsset, ticker)
+func (q *Queries) GetAssetByID(ctx context.Context, assetID int64) (Asset, error) {
+	row := q.db.QueryRowContext(ctx, getAssetByID, assetID)
 	var i Asset
 	err := row.Scan(
+		&i.AssetID,
 		&i.Ticker,
 		&i.Class,
 		&i.Name,
+		&i.Cnpj,
+		&i.Isin,
+		&i.CdCvm,
+		&i.Sector,
+		&i.Subsector,
+		&i.Segment,
+		&i.SectorSrc,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
-const upsertAsset = `-- name: UpsertAsset :exec
+const getAssetByTicker = `-- name: GetAssetByTicker :one
+SELECT asset_id, ticker, class, name, cnpj, isin, cd_cvm, sector, subsector, segment, sector_src, updated_at
+FROM asset
+WHERE ticker = ?
+`
+
+func (q *Queries) GetAssetByTicker(ctx context.Context, ticker string) (Asset, error) {
+	row := q.db.QueryRowContext(ctx, getAssetByTicker, ticker)
+	var i Asset
+	err := row.Scan(
+		&i.AssetID,
+		&i.Ticker,
+		&i.Class,
+		&i.Name,
+		&i.Cnpj,
+		&i.Isin,
+		&i.CdCvm,
+		&i.Sector,
+		&i.Subsector,
+		&i.Segment,
+		&i.SectorSrc,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listAssetIDsByTicker = `-- name: ListAssetIDsByTicker :many
+SELECT asset_id, ticker FROM asset
+`
+
+type ListAssetIDsByTickerRow struct {
+	AssetID int64
+	Ticker  string
+}
+
+func (q *Queries) ListAssetIDsByTicker(ctx context.Context) ([]ListAssetIDsByTickerRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAssetIDsByTicker)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAssetIDsByTickerRow
+	for rows.Next() {
+		var i ListAssetIDsByTickerRow
+		if err := rows.Scan(&i.AssetID, &i.Ticker); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const upsertAsset = `-- name: UpsertAsset :one
 INSERT INTO asset (ticker, class, name, updated_at)
 VALUES (?, ?, ?, ?)
 ON CONFLICT(ticker) DO UPDATE SET
   class      = excluded.class,
   name       = excluded.name,
   updated_at = excluded.updated_at
+RETURNING asset_id
 `
 
 type UpsertAssetParams struct {
@@ -46,12 +113,14 @@ type UpsertAssetParams struct {
 	UpdatedAt time.Time
 }
 
-func (q *Queries) UpsertAsset(ctx context.Context, arg UpsertAssetParams) error {
-	_, err := q.db.ExecContext(ctx, upsertAsset,
+func (q *Queries) UpsertAsset(ctx context.Context, arg UpsertAssetParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, upsertAsset,
 		arg.Ticker,
 		arg.Class,
 		arg.Name,
 		arg.UpdatedAt,
 	)
-	return err
+	var asset_id int64
+	err := row.Scan(&asset_id)
+	return asset_id, err
 }

@@ -2,47 +2,12 @@ package store
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/marlliton/goinvest/internal/domain"
 	"github.com/marlliton/goinvest/internal/store/gen"
 )
-
-// UpsertAsset atualiza classe e nome. asset é dimensão, não fato histórico:
-// aqui sobrescrever é correto, diferente de observation.
-func (db *DB) UpsertAsset(ctx context.Context, ticker string, class domain.AssetClass, name string, updatedAt time.Time) error {
-	err := db.q.UpsertAsset(ctx, gen.UpsertAssetParams{
-		Ticker:    ticker,
-		Class:     class,
-		Name:      nullString(name),
-		UpdatedAt: updatedAt,
-	})
-	if err != nil {
-		return fmt.Errorf("upsert asset %s: %w", ticker, err)
-	}
-	return nil
-}
-
-// GetAsset devolve found=false para ticker inexistente. Ausência não é erro:
-// distinguir "nunca sincronizado" de "não existe na B3" é escopo da Fase 2.
-func (db *DB) GetAsset(ctx context.Context, ticker string) (domain.Asset, bool, error) {
-	a, err := db.q.GetAsset(ctx, ticker)
-	if errors.Is(err, sql.ErrNoRows) {
-		return domain.Asset{}, false, nil
-	}
-	if err != nil {
-		return domain.Asset{}, false, fmt.Errorf("get asset %s: %w", ticker, err)
-	}
-	return domain.Asset{
-		Ticker:    a.Ticker,
-		Class:     a.Class,
-		Name:      deref(a.Name),
-		UpdatedAt: a.UpdatedAt,
-	}, true, nil
-}
 
 func (db *DB) StartRun(ctx context.Context, source string) (int64, error) {
 	id, err := db.q.StartRun(ctx, gen.StartRunParams{
@@ -84,10 +49,19 @@ func (db *DB) InsertObservations(ctx context.Context, runID int64, obs []domain.
 	}
 	defer tx.Rollback()
 
+	byTicker, err := db.assetIDsByTicker(ctx)
+	if err != nil {
+		return err
+	}
+
 	q := db.q.WithTx(tx)
 	for _, o := range obs {
+		assetID, ok := byTicker[o.Ticker]
+		if !ok {
+			return fmt.Errorf("insert observation %s/%s: grave o asset antes da observação", o.Ticker, o.Metric)
+		}
 		if err := q.InsertObservation(ctx, gen.InsertObservationParams{
-			Ticker:      o.Ticker,
+			AssetID:     assetID,
 			MetricID:    o.Metric,
 			PeriodKind:  o.PeriodKind,
 			PeriodEnd:   o.PeriodEnd,
@@ -108,11 +82,12 @@ func (db *DB) InsertObservations(ctx context.Context, runID int64, obs []domain.
 	return nil
 }
 
-// LatestMetrics devolve a observação corrente de cada métrica do ticker.
+// LatestMetrics devolve a observação corrente de cada métrica do ativo.
 // Métrica nunca coletada não vira chave no mapa; métrica coletada sem valor
-// vira chave com Value nil.
-func (db *DB) LatestMetrics(ctx context.Context, ticker string) (domain.MetricSet, error) {
-	rows, err := db.q.LatestMetrics(ctx, ticker)
+// vira chave com Value nil. O ticker só preenche as linhas devolvidas: a
+// consulta em si é por asset_id.
+func (db *DB) LatestMetrics(ctx context.Context, assetID int64, ticker string) (domain.MetricSet, error) {
+	rows, err := db.q.LatestMetrics(ctx, assetID)
 	if err != nil {
 		return nil, fmt.Errorf("latest metrics %s: %w", ticker, err)
 	}
@@ -136,4 +111,16 @@ func (db *DB) LatestMetrics(ctx context.Context, ticker string) (domain.MetricSe
 		set[o.Metric] = o
 	}
 	return set, nil
+}
+
+func (db *DB) assetIDsByTicker(ctx context.Context) (map[string]int64, error) {
+	rows, err := db.q.ListAssetIDsByTicker(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list asset ids: %w", err)
+	}
+	byTicker := make(map[string]int64, len(rows))
+	for _, r := range rows {
+		byTicker[r.Ticker] = r.AssetID
+	}
+	return byTicker, nil
 }

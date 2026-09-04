@@ -89,6 +89,16 @@ func latestRunStatus(t *testing.T, db *store.DB, source string) string {
 	return status
 }
 
+func latestMetrics(t *testing.T, db *store.DB, ticker string) domain.MetricSet {
+	t.Helper()
+	a, found, err := db.GetAsset(t.Context(), ticker)
+	require.NoError(t, err)
+	require.True(t, found)
+	set, err := db.LatestMetrics(t.Context(), a.AssetID, a.Ticker)
+	require.NoError(t, err)
+	return set
+}
+
 func TestSyncIsolatesPartialFailure(t *testing.T) {
 	srv := newSource(t)
 	db := openDB(t)
@@ -121,12 +131,10 @@ func TestSyncIsolatesPartialFailure(t *testing.T) {
 	require.Equal(t, collect.StatusOK, latestRunStatus(t, db, "fundamentus:resultado"))
 	require.Equal(t, collect.StatusPartial, latestRunStatus(t, db, "fundamentus:fii_resultado"))
 
-	stocks, err := db.LatestMetrics(t.Context(), "WEGE3")
-	require.NoError(t, err)
+	stocks := latestMetrics(t, db, "WEGE3")
 	require.NotEmpty(t, stocks)
 
-	fiis, err := db.LatestMetrics(t.Context(), "MXRF11")
-	require.NoError(t, err)
+	fiis := latestMetrics(t, db, "MXRF11")
 	require.Contains(t, fiis, domain.MetricID("dy"))
 	require.NotNil(t, fiis["dy"].Value)
 	require.InDelta(t, 0.1234, *fiis["dy"].Value, 1e-9)
