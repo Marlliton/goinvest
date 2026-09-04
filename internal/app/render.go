@@ -61,8 +61,6 @@ func legend(sawAbsent, sawDerived bool) string {
 	return strings.Join(parts, " · ")
 }
 
-// Sem data registrada o aviso não pode inventar uma: dizer "desde" sem saber
-// desde quando afirmaria um fato que ninguém observou.
 func liquidityText(h HeaderView) string {
 	if h.LastLiquidAt == nil {
 		return "sem liquidez registrada"
