@@ -19,13 +19,10 @@ var ErrNoData = errors.New("nenhum dado local. Rode 'goinvest sync' primeiro")
 const stalenessThreshold = 7 * 24 * time.Hour
 
 type HeaderView struct {
-	ReferenceAt *time.Time
-	FetchedAt   time.Time
-	// Resolvida aqui para que a renderização não precise de relógio.
-	Age   time.Duration
-	Stale bool
-	// Papel sem liquidez fica fora de ranking e de comparação, mas os números
-	// continuam à vista como último retrato.
+	ReferenceAt  *time.Time
+	FetchedAt    time.Time
+	Age          time.Duration
+	Stale        bool
 	Inactive     bool
 	LastLiquidAt *time.Time
 }
