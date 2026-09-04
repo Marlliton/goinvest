@@ -83,7 +83,7 @@ func parseGeneralCSV(body []byte, year int) (map[string]record, error) {
 		return nil, fmt.Errorf("cvm: zip de %d: %w", year, err)
 	}
 
-	name := fmt.Sprintf("geral_%d.csv", year)
+	name := fmt.Sprintf("inf_mensal_fii_geral_%d.csv", year)
 	for _, f := range z.File {
 		if f.Name != name {
 			continue
