@@ -251,6 +251,84 @@ func TestRunRequiresDBAndIdentity(t *testing.T) {
 	require.Error(t, err)
 }
 
+type stubFIISource struct {
+	byCNPJ   map[string]string
+	segments map[string]string
+}
+
+func (stubFIISource) Name() string { return "stub" }
+
+func (s stubFIISource) ISINByCNPJ(context.Context, bool) (map[string]string, error) {
+	return s.byCNPJ, nil
+}
+
+func (s stubFIISource) Segments(context.Context, bool) (map[string]string, error) {
+	return s.segments, nil
+}
+
+func seedFII(t *testing.T, db *store.DB, tickers ...string) {
+	t.Helper()
+	for _, ticker := range tickers {
+		require.NoError(t, db.UpsertAsset(t.Context(), ticker, domain.ClassFII, "", seededAt))
+	}
+}
+
+// A heurística ISIN→ticker acerta cerca de três em cada quatro fundos: o que
+// não casa vira contagem, nunca gravação por suposição.
+func TestRunFIIMatchesByHeuristicAndReportsUnmatched(t *testing.T) {
+	db := openDB(t)
+	seedFII(t, db, "FVPQ11")
+
+	src := stubFIISource{
+		byCNPJ: map[string]string{
+			"00332266000131": "BRFVPQCTF015",
+			"11111111000111": "BRNADACTF015",
+			"22222222000122": "US0378331005",
+		},
+		segments: map[string]string{"FVPQ11": "Shoppings"},
+	}
+
+	report, err := registry.RunFII(t.Context(), registry.FIIConfig{
+		DB: db, CVM: src, Fundamentus: src, Now: func() time.Time { return seededAt },
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, report.Matched)
+	require.Equal(t, 2, report.Unmatched, "ticker candidato inexistente e ISIN fora da convenção")
+	require.Equal(t, registry.StatusPartial, report.Status)
+
+	a, _, err := db.GetAsset(t.Context(), "FVPQ11")
+	require.NoError(t, err)
+	require.Equal(t, "BRFVPQCTF015", a.ISIN)
+	require.Equal(t, "00332266000131", a.CNPJ)
+	require.Equal(t, "Shoppings", a.Sector)
+	require.Equal(t, "fundamentus:segmento", a.SectorSrc,
+		"a marca de origem é o que deixa a Fase 5 substituir sem ambiguidade")
+	require.Empty(t, a.Subsector, "a taxonomia de FII do Fundamentus tem um nível só")
+}
+
+// FII ilíquido continua entrando: a validação da heurística é contra a lista
+// real de fundos, não só contra os líquidos.
+func TestRunFIIIncludesInactiveAssets(t *testing.T) {
+	db := openDB(t)
+	seedFII(t, db, "FVPQ11")
+
+	a, _, err := db.GetAsset(t.Context(), "FVPQ11")
+	require.NoError(t, err)
+	require.NoError(t, db.UpdateAssetLiquidity(t.Context(), a.AssetID, false, seededAt))
+
+	report, err := registry.RunFII(t.Context(), registry.FIIConfig{
+		DB: db,
+		CVM: stubFIISource{
+			byCNPJ:   map[string]string{"00332266000131": "BRFVPQCTF015"},
+			segments: map[string]string{"FVPQ11": "Shoppings"},
+		},
+		Fundamentus: stubFIISource{segments: map[string]string{"FVPQ11": "Shoppings"}},
+		Now:         func() time.Time { return seededAt },
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, report.Matched)
+}
+
 func latestRunStatus(t *testing.T, db *store.DB, source string) string {
 	t.Helper()
 	var status string

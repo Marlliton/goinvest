@@ -228,3 +228,15 @@ func headerLabels(t *testing.T, fixture string) []string {
 	require.NotEmpty(t, labels)
 	return labels
 }
+
+// A coluna Segmento não é métrica, é identidade: sai por um caminho próprio,
+// sem entrar no catálogo de indicadores.
+func TestSegments(t *testing.T) {
+	segments, err := newProvider(t).Segments(t.Context(), false)
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{
+		"MXRF11": "Logística",
+		"ABCP11": "Shoppings",
+		"HGLG11": "Multicategoria",
+	}, segments)
+}

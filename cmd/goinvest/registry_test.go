@@ -44,6 +44,18 @@ func (fakeIdentity) Detail(_ context.Context, codeCVM string, _ bool) (identity.
 	}
 }
 
+type fakeFII struct{}
+
+func (fakeFII) Name() string { return "fake-fii" }
+
+func (fakeFII) ISINByCNPJ(context.Context, bool) (map[string]string, error) {
+	return map[string]string{"00332266000131": "BRFVPQCTF015"}, nil
+}
+
+func (fakeFII) Segments(context.Context, bool) (map[string]string, error) {
+	return map[string]string{"FVPQ11": "Shoppings"}, nil
+}
+
 func testDeps(t *testing.T) rootDeps {
 	t.Helper()
 	db, err := store.Open(filepath.Join(t.TempDir(), "goinvest.db"))
@@ -58,7 +70,9 @@ func testDeps(t *testing.T) rootDeps {
 		require.NoError(t, db.UpdateAssetLiquidity(ctx, a.AssetID, true, collectedAt))
 	}
 
-	return rootDeps{DB: db, B3: fakeIdentity{}}
+	require.NoError(t, db.UpsertAsset(ctx, "FVPQ11", domain.ClassFII, "", collectedAt))
+
+	return rootDeps{DB: db, B3: fakeIdentity{}, CVM: fakeFII{}, Fundamentus: fakeFII{}}
 }
 
 // Fora de TTY o progresso é append-only: sobrescrever a linha com \r deixaria
@@ -83,4 +97,24 @@ func TestRegistryCmdPrintsOneLinePerProgressOutsideTTY(t *testing.T) {
 	}
 	require.GreaterOrEqual(t, progress, 1, "cada atualização de progresso é uma linha")
 	require.Contains(t, text, "2 de 2")
+}
+
+// Um comando só cobre as duas classes: o usuário não precisa saber que a
+// identidade vem de duas fontes diferentes.
+func TestRegistryCmdCoversStocksAndFIIs(t *testing.T) {
+	var out bytes.Buffer
+	deps := testDeps(t)
+
+	cmd := newRegistryCmd(deps)
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs(nil)
+	require.NoError(t, cmd.ExecuteContext(t.Context()))
+
+	require.Contains(t, out.String(), "ações")
+	require.Contains(t, out.String(), "FIIs")
+
+	a, _, err := deps.DB.GetAsset(t.Context(), "FVPQ11")
+	require.NoError(t, err)
+	require.Equal(t, "Shoppings", a.Sector)
 }
