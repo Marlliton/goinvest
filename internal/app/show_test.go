@@ -130,6 +130,43 @@ func TestShowResolvesFractionalTicker(t *testing.T) {
 	require.ErrorIs(t, err, app.ErrNoData, "FII não tem alias fracionário")
 }
 
+// Papel sem liquidez continua mostrando os números (é o último retrato), mas
+// avisado, para não ser lido como comparável.
+func TestShowInactiveAsset(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "DEAD3", domain.ClassStock, wege3Values())
+
+	a, _, err := db.GetAsset(t.Context(), "DEAD3")
+	require.NoError(t, err)
+	lastLiquid := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
+	require.NoError(t, db.UpdateAssetLiquidity(t.Context(), a.AssetID, true, lastLiquid))
+	require.NoError(t, db.UpdateAssetLiquidity(t.Context(), a.AssetID, false, fixedNow))
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "DEAD3", now)
+	require.NoError(t, err)
+	require.True(t, report.Header.Inactive)
+	require.NotNil(t, report.Header.LastLiquidAt)
+
+	text := app.RenderText(report)
+	require.Contains(t, text, "15/07/2026")
+	require.Contains(t, text, "fora de rankings")
+	require.Contains(t, text, "R$ 52,30", "o último retrato continua visível")
+}
+
+func TestShowInactiveAssetNeverSeenLiquid(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "DEAD3", domain.ClassStock, wege3Values())
+
+	a, _, err := db.GetAsset(t.Context(), "DEAD3")
+	require.NoError(t, err)
+	require.NoError(t, db.UpdateAssetLiquidity(t.Context(), a.AssetID, false, fixedNow))
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "DEAD3", now)
+	require.NoError(t, err)
+	require.Nil(t, report.Header.LastLiquidAt)
+	require.Contains(t, app.RenderText(report), "sem liquidez registrada")
+}
+
 func TestShowReturnsErrNoDataForUnknownTicker(t *testing.T) {
 	db := openTemp(t)
 
