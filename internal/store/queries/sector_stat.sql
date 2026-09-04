@@ -41,3 +41,20 @@ SELECT metric_id, percentile, n, fell_back_to_market
 FROM asset_percentile
 WHERE asset_id = ?
 ORDER BY metric_id;
+
+-- name: ListSectorCounts :many
+SELECT sector, COUNT(*) AS n
+FROM asset
+WHERE class = ? AND is_active = 1 AND sector IS NOT NULL AND sector != ''
+GROUP BY sector
+ORDER BY sector;
+
+-- name: ListSubsectorCounts :many
+SELECT subsector, COUNT(*) AS n
+FROM asset
+WHERE class = ? AND sector = ? AND is_active = 1 AND subsector IS NOT NULL AND subsector != ''
+GROUP BY subsector
+ORDER BY subsector;
+
+-- name: SectorExists :one
+SELECT COUNT(*) AS n FROM asset WHERE class = ? AND sector = ?;

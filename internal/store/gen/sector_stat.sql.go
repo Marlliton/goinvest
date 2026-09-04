@@ -221,6 +221,83 @@ func (q *Queries) ListPeerGroupPopulation(ctx context.Context) ([]ListPeerGroupP
 	return items, nil
 }
 
+const listSectorCounts = `-- name: ListSectorCounts :many
+SELECT sector, COUNT(*) AS n
+FROM asset
+WHERE class = ? AND is_active = 1 AND sector IS NOT NULL AND sector != ''
+GROUP BY sector
+ORDER BY sector
+`
+
+type ListSectorCountsRow struct {
+	Sector *string
+	N      int64
+}
+
+func (q *Queries) ListSectorCounts(ctx context.Context, class domain.AssetClass) ([]ListSectorCountsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listSectorCounts, class)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListSectorCountsRow
+	for rows.Next() {
+		var i ListSectorCountsRow
+		if err := rows.Scan(&i.Sector, &i.N); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSubsectorCounts = `-- name: ListSubsectorCounts :many
+SELECT subsector, COUNT(*) AS n
+FROM asset
+WHERE class = ? AND sector = ? AND is_active = 1 AND subsector IS NOT NULL AND subsector != ''
+GROUP BY subsector
+ORDER BY subsector
+`
+
+type ListSubsectorCountsParams struct {
+	Class  domain.AssetClass
+	Sector *string
+}
+
+type ListSubsectorCountsRow struct {
+	Subsector *string
+	N         int64
+}
+
+func (q *Queries) ListSubsectorCounts(ctx context.Context, arg ListSubsectorCountsParams) ([]ListSubsectorCountsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listSubsectorCounts, arg.Class, arg.Sector)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListSubsectorCountsRow
+	for rows.Next() {
+		var i ListSubsectorCountsRow
+		if err := rows.Scan(&i.Subsector, &i.N); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const resetPeerGroups = `-- name: ResetPeerGroups :exec
 UPDATE asset SET peer_group_level = NULL, peer_group_key = NULL, peer_group_n = NULL
 `
@@ -228,6 +305,22 @@ UPDATE asset SET peer_group_level = NULL, peer_group_key = NULL, peer_group_n = 
 func (q *Queries) ResetPeerGroups(ctx context.Context) error {
 	_, err := q.db.ExecContext(ctx, resetPeerGroups)
 	return err
+}
+
+const sectorExists = `-- name: SectorExists :one
+SELECT COUNT(*) AS n FROM asset WHERE class = ? AND sector = ?
+`
+
+type SectorExistsParams struct {
+	Class  domain.AssetClass
+	Sector *string
+}
+
+func (q *Queries) SectorExists(ctx context.Context, arg SectorExistsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, sectorExists, arg.Class, arg.Sector)
+	var n int64
+	err := row.Scan(&n)
+	return n, err
 }
 
 const updateAssetPeerGroup = `-- name: UpdateAssetPeerGroup :exec

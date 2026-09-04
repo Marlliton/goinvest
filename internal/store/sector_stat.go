@@ -14,7 +14,7 @@ import (
 
 // Abaixo deste tamanho a distribuição do grupo não diz nada, e a comparação
 // sobe um nível na taxonomia.
-const minPeerGroup = 5
+const MinPeerGroup = 5
 
 const (
 	levelSegment   = "segmento"
@@ -136,13 +136,13 @@ func resolvePeerGroups(ctx context.Context, q *gen.Queries) ([]peerAsset, error)
 }
 
 func cascade(p peerAsset, bySegment map[[4]string]int, bySubsector map[[3]string]int, bySector map[[2]string]int, byClass map[domain.AssetClass]int) (level, key string, n int) {
-	if c := bySegment[segmentKey(p)]; c >= minPeerGroup && p.segment != "" {
+	if c := bySegment[segmentKey(p)]; c >= MinPeerGroup && p.segment != "" {
 		return levelSegment, p.segment, c
 	}
-	if c := bySubsector[subsectorKey(p)]; c >= minPeerGroup && p.subsector != "" {
+	if c := bySubsector[subsectorKey(p)]; c >= MinPeerGroup && p.subsector != "" {
 		return levelSubsector, p.subsector, c
 	}
-	if c := bySector[sectorKey(p)]; c >= minPeerGroup {
+	if c := bySector[sectorKey(p)]; c >= MinPeerGroup {
 		return levelSector, p.sector, c
 	}
 	return levelMarket, marketGroupKey, byClass[p.class]
@@ -188,7 +188,7 @@ func materializeMetric(ctx context.Context, q *gen.Queries, rule MetricRule, byI
 	}
 
 	for g, values := range byGroup {
-		if len(values) < minPeerGroup {
+		if len(values) < MinPeerGroup {
 			continue
 		}
 		sort.Float64s(values)
@@ -197,7 +197,7 @@ func materializeMetric(ctx context.Context, q *gen.Queries, rule MetricRule, byI
 		}
 	}
 	for class, values := range byMarket {
-		if len(values) < minPeerGroup {
+		if len(values) < MinPeerGroup {
 			continue
 		}
 		sort.Float64s(values)
@@ -215,11 +215,11 @@ func materializeMetric(ctx context.Context, q *gen.Queries, rule MetricRule, byI
 		g := groupID{asset.level, asset.key, asset.class}
 
 		values, fellBack := byGroup[g], false
-		if len(values) < minPeerGroup {
+		if len(values) < MinPeerGroup {
 			values, fellBack = byMarket[asset.class], true
 			g = groupID{levelMarket, marketGroupKey, asset.class}
 		}
-		if len(values) < minPeerGroup {
+		if len(values) < MinPeerGroup {
 			continue
 		}
 
@@ -318,4 +318,43 @@ func boolToInt(b bool) int64 {
 		return 1
 	}
 	return 0
+}
+
+type SectorCount struct {
+	Name string
+	N    int
+}
+
+func (db *DB) ListSectorCounts(ctx context.Context, class domain.AssetClass) ([]SectorCount, error) {
+	rows, err := db.q.ListSectorCounts(ctx, class)
+	if err != nil {
+		return nil, fmt.Errorf("list sector counts %s: %w", class, err)
+	}
+	out := make([]SectorCount, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, SectorCount{Name: deref(r.Sector), N: int(r.N)})
+	}
+	return out, nil
+}
+
+func (db *DB) ListSubsectorCounts(ctx context.Context, class domain.AssetClass, sector string) ([]SectorCount, error) {
+	rows, err := db.q.ListSubsectorCounts(ctx, gen.ListSubsectorCountsParams{
+		Class: class, Sector: nullString(sector),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list subsector counts %s: %w", sector, err)
+	}
+	out := make([]SectorCount, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, SectorCount{Name: deref(r.Subsector), N: int(r.N)})
+	}
+	return out, nil
+}
+
+func (db *DB) SectorExists(ctx context.Context, class domain.AssetClass, sector string) (bool, error) {
+	n, err := db.q.SectorExists(ctx, gen.SectorExistsParams{Class: class, Sector: nullString(sector)})
+	if err != nil {
+		return false, fmt.Errorf("sector exists %s: %w", sector, err)
+	}
+	return n > 0, nil
 }
