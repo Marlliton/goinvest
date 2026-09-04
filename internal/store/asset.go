@@ -120,3 +120,70 @@ func (db *DB) UpdateAssetLiquidity(ctx context.Context, assetID int64, isActive 
 	}
 	return nil
 }
+
+type AssetIdentityUpdate struct {
+	AssetID   int64
+	CNPJ      string
+	ISIN      string
+	CDCVM     string
+	Sector    string
+	Subsector string
+	Segment   string
+	SectorSrc string
+	UpdatedAt time.Time
+}
+
+// UpdateAssetIdentities aplica um lote numa transação só. Quem decide o
+// tamanho do lote é o chamador: é ele que sabe quanto trabalho pode perder num
+// cancelamento.
+func (db *DB) UpdateAssetIdentities(ctx context.Context, updates []AssetIdentityUpdate) error {
+	if len(updates) == 0 {
+		return nil
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin update identities: %w", err)
+	}
+	defer tx.Rollback()
+
+	q := db.q.WithTx(tx)
+	for _, u := range updates {
+		if err := q.UpdateAssetIdentity(ctx, gen.UpdateAssetIdentityParams{
+			Cnpj:      nullString(u.CNPJ),
+			Isin:      nullString(u.ISIN),
+			CdCvm:     nullString(u.CDCVM),
+			Sector:    nullString(u.Sector),
+			Subsector: nullString(u.Subsector),
+			Segment:   nullString(u.Segment),
+			SectorSrc: nullString(u.SectorSrc),
+			UpdatedAt: u.UpdatedAt,
+			AssetID:   u.AssetID,
+		}); err != nil {
+			return fmt.Errorf("update identity %d: %w", u.AssetID, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit update identities: %w", err)
+	}
+	return nil
+}
+
+func (db *DB) ListActiveTickers(ctx context.Context, class domain.AssetClass) ([]string, error) {
+	tickers, err := db.q.ListActiveTickers(ctx, class)
+	if err != nil {
+		return nil, fmt.Errorf("list active tickers %s: %w", class, err)
+	}
+	return tickers, nil
+}
+
+// SectorCoverage é a base do aviso de cadastro incompleto: sem o total, "1.200
+// setores" não diz ao usuário se falta muito ou nada.
+func (db *DB) SectorCoverage(ctx context.Context, class domain.AssetClass) (total, withSector int, err error) {
+	row, err := db.q.SectorCoverage(ctx, class)
+	if err != nil {
+		return 0, 0, fmt.Errorf("sector coverage %s: %w", class, err)
+	}
+	return int(row.Total), int(row.WithSector), nil
+}

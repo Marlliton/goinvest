@@ -1,4 +1,4 @@
-package cadastro_test
+package registry_test
 
 import (
 	"context"
@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/marlliton/goinvest/internal/cadastro"
 	"github.com/marlliton/goinvest/internal/domain"
 	"github.com/marlliton/goinvest/internal/identity"
+	"github.com/marlliton/goinvest/internal/registry"
 	"github.com/marlliton/goinvest/internal/store"
 	"github.com/stretchr/testify/require"
 )
@@ -103,14 +103,14 @@ func TestRunAppliesBatchesTransactionally(t *testing.T) {
 	db := openDB(t)
 	seedActive(t, db, "WEGE3", "ITUB4", "TAEE11")
 
-	report, err := cadastro.Run(t.Context(), cadastro.Config{
+	report, err := registry.Run(t.Context(), registry.Config{
 		DB: db, Identity: newStub(), BatchSize: 2, Now: func() time.Time { return seededAt },
 	})
 	require.NoError(t, err)
 	require.Equal(t, 3, report.Total)
 	require.Equal(t, 3, report.Matched)
 	require.Zero(t, report.Unmatched)
-	require.Equal(t, cadastro.StatusOK, report.Status)
+	require.Equal(t, registry.StatusOK, report.Status)
 
 	a, _, err := db.GetAsset(t.Context(), "WEGE3")
 	require.NoError(t, err)
@@ -136,32 +136,35 @@ func TestRunCancellationPreservesCommittedBatches(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
+	// Os tickers são processados em ordem alfabética (ITUB4, TAEE11, WEGE3):
+	// cancelar no terceiro deixa o primeiro lote inteiro já commitado.
 	stub := newStub()
 	seen := 0
 	stub.onDetail = func(string) {
 		seen++
-		if seen == 2 {
+		if seen == 3 {
 			cancel()
 		}
 	}
 
-	report, err := cadastro.Run(ctx, cadastro.Config{
+	report, err := registry.Run(ctx, registry.Config{
 		DB: db, Identity: stub, BatchSize: 2, Now: func() time.Time { return seededAt },
 	})
 	require.NoError(t, err)
 	require.True(t, report.Cancelled)
-	require.Equal(t, cadastro.StatusCancelled, report.Status)
+	require.Equal(t, registry.StatusCancelled, report.Status)
 	require.Equal(t, 2, report.Matched, "o lote fechado antes do cancelamento foi aplicado")
+	require.Zero(t, report.Unmatched, "interrompido não é o mesmo que sem correspondência")
 
-	a, _, err := db.GetAsset(t.Context(), "WEGE3")
+	a, _, err := db.GetAsset(t.Context(), "ITUB4")
 	require.NoError(t, err)
-	require.Equal(t, "Bens Industriais", a.Sector)
+	require.Equal(t, "Financeiro", a.Sector)
 
-	last, _, err := db.GetAsset(t.Context(), "TAEE11")
+	last, _, err := db.GetAsset(t.Context(), "WEGE3")
 	require.NoError(t, err)
-	require.Empty(t, last.Sector, "o ticker posterior ao cancelamento não foi tocado")
+	require.Empty(t, last.Sector, "o ticker interrompido não foi gravado")
 
-	require.Equal(t, cadastro.StatusCancelled, latestRunStatus(t, db, "b3:cadastro"),
+	require.Equal(t, registry.StatusCancelled, latestRunStatus(t, db, "b3:listed_companies"),
 		"o run fecha mesmo com o contexto cancelado")
 }
 
@@ -172,14 +175,14 @@ func TestRunUnmatchedTickerDoesNotAbortRun(t *testing.T) {
 	stub := newStub()
 	stub.detailErr["19348"] = errors.New("b3: detail 19348: status 500")
 
-	report, err := cadastro.Run(t.Context(), cadastro.Config{
+	report, err := registry.Run(t.Context(), registry.Config{
 		DB: db, Identity: stub, Now: func() time.Time { return seededAt },
 	})
 	require.NoError(t, err)
 	require.Equal(t, 3, report.Total)
 	require.Equal(t, 1, report.Matched)
 	require.Equal(t, 2, report.Unmatched, "raiz sem correspondência e falha de detalhe")
-	require.Equal(t, cadastro.StatusPartial, report.Status)
+	require.Equal(t, registry.StatusPartial, report.Status)
 
 	a, _, err := db.GetAsset(t.Context(), "WEGE3")
 	require.NoError(t, err)
@@ -192,7 +195,7 @@ func TestRunRejectsTickerNotConfirmedByOtherCodes(t *testing.T) {
 	db := openDB(t)
 	seedActive(t, db, "WEGE4")
 
-	report, err := cadastro.Run(t.Context(), cadastro.Config{
+	report, err := registry.Run(t.Context(), registry.Config{
 		DB: db, Identity: newStub(), Now: func() time.Time { return seededAt },
 	})
 	require.NoError(t, err)
@@ -217,7 +220,7 @@ func TestRunSkipsInactiveAssets(t *testing.T) {
 	require.NoError(t, db.UpdateAssetLiquidity(ctx, a.AssetID, false, seededAt))
 
 	stub := newStub()
-	report, err := cadastro.Run(ctx, cadastro.Config{
+	report, err := registry.Run(ctx, registry.Config{
 		DB: db, Identity: stub, Now: func() time.Time { return seededAt },
 	})
 	require.NoError(t, err)
@@ -229,11 +232,11 @@ func TestRunReportsProgress(t *testing.T) {
 	db := openDB(t)
 	seedActive(t, db, "WEGE3", "ITUB4", "TAEE11")
 
-	var last cadastro.Progress
-	_, err := cadastro.Run(t.Context(), cadastro.Config{
+	var last registry.Progress
+	_, err := registry.Run(t.Context(), registry.Config{
 		DB: db, Identity: newStub(), BatchSize: 2,
 		Now:        func() time.Time { return seededAt },
-		OnProgress: func(p cadastro.Progress) { last = p },
+		OnProgress: func(p registry.Progress) { last = p },
 	})
 	require.NoError(t, err)
 	require.Equal(t, 3, last.Total)
@@ -241,10 +244,10 @@ func TestRunReportsProgress(t *testing.T) {
 }
 
 func TestRunRequiresDBAndIdentity(t *testing.T) {
-	_, err := cadastro.Run(t.Context(), cadastro.Config{Identity: newStub()})
+	_, err := registry.Run(t.Context(), registry.Config{Identity: newStub()})
 	require.Error(t, err)
 
-	_, err = cadastro.Run(t.Context(), cadastro.Config{DB: openDB(t)})
+	_, err = registry.Run(t.Context(), registry.Config{DB: openDB(t)})
 	require.Error(t, err)
 }
 

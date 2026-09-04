@@ -9,7 +9,6 @@ import (
 	// grafo de dependências é lido por um subprocesso `go list`, invisível para
 	// o cache. Todo pacote vigiado aqui precisa do seu import em branco.
 	_ "github.com/marlliton/goinvest/internal/app"
-	_ "github.com/marlliton/goinvest/internal/cadastro"
 	_ "github.com/marlliton/goinvest/internal/catalog"
 	_ "github.com/marlliton/goinvest/internal/collect"
 	_ "github.com/marlliton/goinvest/internal/derive"
@@ -18,6 +17,7 @@ import (
 	_ "github.com/marlliton/goinvest/internal/identity"
 	_ "github.com/marlliton/goinvest/internal/norm"
 	_ "github.com/marlliton/goinvest/internal/provider/b3"
+	_ "github.com/marlliton/goinvest/internal/registry"
 )
 
 const modulePath = "github.com/marlliton/goinvest"
@@ -80,8 +80,8 @@ func TestCollectDependsOnlyOnProviderInterface(t *testing.T) {
 
 // A fonte de identidade é plugável pelo mesmo motivo que a de universo: quem
 // monta o provider concreto é o wiring de cmd.
-func TestCadastroDependsOnlyOnProviderInterface(t *testing.T) {
-	requireNoImports(t, modulePath+"/internal/cadastro",
+func TestRegistryDependsOnlyOnProviderInterface(t *testing.T) {
+	requireNoImports(t, modulePath+"/internal/registry",
 		[]string{modulePath + "/internal/provider/b3"})
 }
 
