@@ -35,6 +35,8 @@ metrics:
     order: 1
     unit: ratio
     classes: [acao]
+    percentile: true
+    distribution_excludes_negative: true
 
   - id: pvp
     label: "P/VP"
@@ -42,6 +44,8 @@ metrics:
     order: 2
     unit: ratio
     classes: [acao, fii]
+    percentile: true
+    distribution_excludes_negative: true
 
   - id: psr
     label: "PSR"
@@ -49,6 +53,8 @@ metrics:
     order: 3
     unit: ratio
     classes: [acao]
+    percentile: true
+    sentinel_segments: ["Bancos"]
 
   - id: p_ativo
     label: "P/Ativo"
@@ -56,6 +62,8 @@ metrics:
     order: 4
     unit: ratio
     classes: [acao]
+    percentile: true
+    sentinel_segments: ["Bancos"]
 
   - id: p_cap_giro
     label: "P/Cap.Giro"
@@ -63,6 +71,8 @@ metrics:
     order: 5
     unit: ratio
     classes: [acao]
+    percentile: true
+    sentinel_segments: ["Bancos"]
 
   - id: p_ebit
     label: "P/EBIT"
@@ -70,6 +80,8 @@ metrics:
     order: 6
     unit: ratio
     classes: [acao]
+    percentile: true
+    sentinel_segments: ["Bancos"]
 
   - id: p_ativ_circ_liq
     label: "P/Ativ Circ.Líq"
@@ -77,6 +89,8 @@ metrics:
     order: 7
     unit: ratio
     classes: [acao]
+    percentile: true
+    sentinel_segments: ["Bancos"]
 
   - id: ev_ebit
     label: "EV/EBIT"
@@ -84,6 +98,8 @@ metrics:
     order: 8
     unit: ratio
     classes: [acao]
+    percentile: true
+    sentinel_segments: ["Bancos"]
 
   - id: ev_ebitda
     label: "EV/EBITDA"
@@ -91,6 +107,8 @@ metrics:
     order: 9
     unit: ratio
     classes: [acao]
+    percentile: true
+    sentinel_segments: ["Bancos"]
 
   - id: valor_mercado
     label: "Valor de Mercado"
@@ -120,6 +138,8 @@ metrics:
     order: 1
     unit: percent
     classes: [acao]
+    percentile: true
+    sentinel_segments: ["Bancos"]
 
   - id: mrg_ebit
     label: "Margem EBIT"
@@ -127,6 +147,8 @@ metrics:
     order: 2
     unit: percent
     classes: [acao]
+    percentile: true
+    sentinel_segments: ["Bancos"]
 
   - id: mrg_liq
     label: "Margem Líquida"
@@ -134,6 +156,8 @@ metrics:
     order: 3
     unit: percent
     classes: [acao]
+    percentile: true
+    sentinel_segments: ["Bancos"]
 
   - id: roic
     label: "ROIC"
@@ -141,6 +165,8 @@ metrics:
     order: 4
     unit: percent
     classes: [acao]
+    percentile: true
+    sentinel_segments: ["Bancos"]
 
   - id: roe
     label: "ROE"
@@ -148,6 +174,7 @@ metrics:
     order: 5
     unit: percent
     classes: [acao]
+    percentile: true
 
   - id: roa
     label: "ROA"
@@ -166,6 +193,7 @@ metrics:
     order: 7
     unit: percent
     classes: [acao]
+    percentile: true
 
   - id: aluguel_m2
     label: "Aluguel por m²"
@@ -180,6 +208,7 @@ metrics:
     order: 9
     unit: percent
     classes: [fii]
+    percentile: true
 
   - id: vacancia_media
     label: "Vacância Média"
@@ -187,6 +216,7 @@ metrics:
     order: 10
     unit: percent
     classes: [fii]
+    percentile: true
 
   # Bloco Endividamento
   - id: liq_corr
@@ -195,6 +225,8 @@ metrics:
     order: 1
     unit: ratio
     classes: [acao]
+    percentile: true
+    sentinel_segments: ["Bancos"]
 
   - id: patrim_liq
     label: "Patrimônio Líquido"
@@ -209,6 +241,8 @@ metrics:
     order: 3
     unit: ratio
     classes: [acao]
+    percentile: true
+    sentinel_segments: ["Bancos"]
 
   - id: dl_ebitda
     label: "Dív.Líq./EBITDA"
@@ -228,6 +262,7 @@ metrics:
     order: 1
     unit: percent
     classes: [acao, fii]
+    percentile: true
 
   - id: ffo_yield
     label: "FFO Yield"
@@ -235,6 +270,7 @@ metrics:
     order: 2
     unit: percent
     classes: [fii]
+    percentile: true
 
   - id: payout
     label: "Payout"

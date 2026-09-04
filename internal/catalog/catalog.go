@@ -38,6 +38,12 @@ type Metric struct {
 	// não faz sentido. Obrigatório em derivado: é o campo que força a decisão
 	// a ser tomada quando a métrica nasce, não quando o usuário se confunde.
 	NotApplicable string
+	Percentile    bool
+	// Damodaran: múltiplo com denominador negativo sai da distribuição em vez
+	// de virar cauda, senão a mediana do setor desloca sem significado.
+	ExcludeNegative bool
+	// Segmentos em que a fonte publica 0,00 no lugar de "não se aplica".
+	SentinelSegments []string
 }
 
 type Catalog struct {
@@ -81,16 +87,19 @@ type rawBlock struct {
 }
 
 type rawMetric struct {
-	ID            string   `yaml:"id"`
-	Label         string   `yaml:"label"`
-	Block         string   `yaml:"block"`
-	Order         int      `yaml:"order"`
-	Unit          string   `yaml:"unit"`
-	Classes       []string `yaml:"classes"`
-	Derived       bool     `yaml:"derived"`
-	Formula       string   `yaml:"formula"`
-	Inputs        []string `yaml:"inputs"`
-	NotApplicable string   `yaml:"not_applicable"`
+	ID               string   `yaml:"id"`
+	Label            string   `yaml:"label"`
+	Block            string   `yaml:"block"`
+	Order            int      `yaml:"order"`
+	Unit             string   `yaml:"unit"`
+	Classes          []string `yaml:"classes"`
+	Derived          bool     `yaml:"derived"`
+	Formula          string   `yaml:"formula"`
+	Inputs           []string `yaml:"inputs"`
+	NotApplicable    string   `yaml:"not_applicable"`
+	Percentile       bool     `yaml:"percentile"`
+	ExcludeNegative  bool     `yaml:"distribution_excludes_negative"`
+	SentinelSegments []string `yaml:"sentinel_segments"`
 }
 
 func loadFrom(metricsData, glossaryData []byte) (*Catalog, error) {
@@ -190,16 +199,19 @@ func (rm rawMetric) toMetric() (Metric, error) {
 	}
 
 	return Metric{
-		ID:            id,
-		Label:         rm.Label,
-		Block:         rm.Block,
-		Order:         rm.Order,
-		Unit:          unit,
-		Classes:       classes,
-		Derived:       rm.Derived,
-		Formula:       rm.Formula,
-		Inputs:        inputs,
-		NotApplicable: rm.NotApplicable,
+		ID:               id,
+		Label:            rm.Label,
+		Block:            rm.Block,
+		Order:            rm.Order,
+		Unit:             unit,
+		Classes:          classes,
+		Derived:          rm.Derived,
+		Formula:          rm.Formula,
+		Inputs:           inputs,
+		NotApplicable:    rm.NotApplicable,
+		Percentile:       rm.Percentile,
+		ExcludeNegative:  rm.ExcludeNegative,
+		SentinelSegments: rm.SentinelSegments,
 	}, nil
 }
 
