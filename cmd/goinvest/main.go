@@ -25,7 +25,7 @@ func run() int {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	rootCmd.AddCommand(newSyncCmd(deps), newShowCmd(deps), newRegistryCmd(deps))
+	rootCmd.AddCommand(newSyncCmd(deps), newShowCmd(deps), newRegistryCmd(deps), newSectorsCmd(deps))
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

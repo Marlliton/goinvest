@@ -161,3 +161,53 @@ func formatBR(v float64, decimals int) string {
 	}
 	return out
 }
+
+func RenderSectors(groups []ClassSectors) string {
+	var b strings.Builder
+	for i, g := range groups {
+		if i > 0 {
+			b.WriteString("\n")
+		}
+		fmt.Fprintf(&b, "%s\n", sectionLabel(g.Class))
+		if g.IncompleteRegistry > 0 {
+			fmt.Fprintf(&b, "cadastro incompleto: %d de %d\n", g.IncompleteRegistry, g.TotalAssets)
+		}
+		for _, s := range g.Groups {
+			b.WriteString("  " + sectorGroupLine(s) + "\n")
+		}
+	}
+	return b.String()
+}
+
+func RenderSectorsDescend(sector string, groups []SectorGroup) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s · subsetores\n", sector)
+	for _, s := range groups {
+		b.WriteString("  " + sectorGroupLine(s) + "\n")
+	}
+	return b.String()
+}
+
+func sectionLabel(c domain.AssetClass) string {
+	if c == domain.ClassFII {
+		return "FIIs"
+	}
+	return "Ações"
+}
+
+// Amostra pequena demais precisa dizer a consequência, senão o número sozinho
+// parece só um setor menor.
+func sectorGroupLine(s SectorGroup) string {
+	if s.BelowThreshold {
+		return fmt.Sprintf("%s — %s: percentil cai para a referência de mercado",
+			s.Name, plural(s.N, "papel líquido", "papéis líquidos"))
+	}
+	return fmt.Sprintf("%s — %s", s.Name, plural(s.N, "ativo líquido", "ativos líquidos"))
+}
+
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return fmt.Sprintf("%d %s", n, one)
+	}
+	return fmt.Sprintf("%d %s", n, many)
+}
