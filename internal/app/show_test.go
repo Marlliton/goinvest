@@ -167,6 +167,64 @@ func TestShowInactiveAssetNeverSeenLiquid(t *testing.T) {
 	require.Contains(t, app.RenderText(report), "sem liquidez registrada")
 }
 
+func setIdentity(t *testing.T, db *store.DB, ticker, sector, subsector, segment string) {
+	t.Helper()
+	a, found, err := db.GetAsset(t.Context(), ticker)
+	require.NoError(t, err)
+	require.True(t, found)
+	require.NoError(t, db.UpdateAssetIdentities(t.Context(), []store.AssetIdentityUpdate{{
+		AssetID: a.AssetID, Sector: sector, Subsector: subsector, Segment: segment,
+		SectorSrc: "b3", UpdatedAt: collectedAt,
+	}}))
+}
+
+func TestShowSectorFromRegistry(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
+	setIdentity(t, db, "WEGE3", "Bens Industriais", "Máquinas e Equipamentos", "Motores. Compressores e Outros")
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	require.NoError(t, err)
+	require.Equal(t, "Bens Industriais", report.Header.Sector)
+	require.Contains(t, app.RenderText(report),
+		"Setor: Bens Industriais / Máquinas e Equipamentos / Motores. Compressores e Outros")
+}
+
+// Setor ausente é dito, não escondido: três barras soltas dariam a impressão
+// de que a fonte respondeu vazio.
+func TestShowSectorUnknownWithoutRegistry(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	require.NoError(t, err)
+	require.Contains(t, app.RenderText(report), "Setor: desconhecido")
+}
+
+func TestShowWarnsWhenClassRegistryIncomplete(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
+	seed(t, db, "ITUB4", domain.ClassStock, wege3Values())
+	seed(t, db, "MXRF11", domain.ClassFII, wege3Values())
+	setIdentity(t, db, "WEGE3", "Bens Industriais", "Máquinas e Equipamentos", "Motores")
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	require.NoError(t, err)
+	require.Equal(t, 1, report.Header.IncompleteRegistry)
+	require.Equal(t, 2, report.Header.TotalInClass, "a contagem é da classe do ativo, não do mercado")
+	require.Contains(t, app.RenderText(report), "cadastro incompleto: 1 de 2")
+}
+
+func TestShowOmitsWarningWhenRegistryComplete(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
+	setIdentity(t, db, "WEGE3", "Bens Industriais", "Máquinas e Equipamentos", "Motores")
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	require.NoError(t, err)
+	require.NotContains(t, app.RenderText(report), "cadastro incompleto")
+}
+
 func TestShowReturnsErrNoDataForUnknownTicker(t *testing.T) {
 	db := openTemp(t)
 
