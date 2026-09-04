@@ -59,7 +59,7 @@ func (p *Provider) ISINByCNPJ(ctx context.Context, force bool) (map[string]strin
 			return nil, err
 		}
 
-		byCNPJ, err := parseGeralCSV(body, year)
+		byCNPJ, err := parseGeneralCSV(body, year)
 		if err != nil {
 			return nil, err
 		}
@@ -77,7 +77,7 @@ func (p *Provider) ISINByCNPJ(ctx context.Context, force bool) (map[string]strin
 	return out, nil
 }
 
-func parseGeralCSV(body []byte, year int) (map[string]record, error) {
+func parseGeneralCSV(body []byte, year int) (map[string]record, error) {
 	z, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
 	if err != nil {
 		return nil, fmt.Errorf("cvm: zip de %d: %w", year, err)
@@ -93,12 +93,12 @@ func parseGeralCSV(body []byte, year int) (map[string]record, error) {
 			return nil, fmt.Errorf("cvm: abrir %s: %w", name, err)
 		}
 		defer rc.Close()
-		return readGeral(rc, name)
+		return readGeneral(rc, name)
 	}
 	return nil, fmt.Errorf("cvm: %s não encontrado no zip", name)
 }
 
-func readGeral(r io.Reader, name string) (map[string]record, error) {
+func readGeneral(r io.Reader, name string) (map[string]record, error) {
 	decoded, err := norm.DecodeISO88591(r)
 	if err != nil {
 		return nil, fmt.Errorf("cvm: decodificar %s: %w", name, err)
