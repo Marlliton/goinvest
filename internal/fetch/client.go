@@ -65,6 +65,28 @@ func NewClient(cfg Config) *Client {
 // Get devolve o corpo já em UTF-8. Com cache configurado e dentro do TTL, não
 // toca a rede; force ignora o cache mas continua gravando o resultado.
 func (c *Client) Get(ctx context.Context, url, docKind string, ttl time.Duration, force bool) ([]byte, error) {
+	return c.get(ctx, url, docKind, ttl, force, decodeLatin1)
+}
+
+// GetRaw devolve o corpo byte a byte. Fonte que já serve UTF-8 (ou binário)
+// seria corrompida pela decodificação que o Fundamentus exige.
+func (c *Client) GetRaw(ctx context.Context, url, docKind string, ttl time.Duration, force bool) ([]byte, error) {
+	return c.get(ctx, url, docKind, ttl, force, readAll)
+}
+
+type bodyReader func(io.Reader) ([]byte, error)
+
+func decodeLatin1(r io.Reader) ([]byte, error) {
+	decoded, err := norm.DecodeISO88591(r)
+	if err != nil {
+		return nil, backoff.Permanent(err)
+	}
+	return io.ReadAll(decoded)
+}
+
+func readAll(r io.Reader) ([]byte, error) { return io.ReadAll(r) }
+
+func (c *Client) get(ctx context.Context, url, docKind string, ttl time.Duration, force bool, read bodyReader) ([]byte, error) {
 	if c.cfg.Cache != nil && !force {
 		body, fetchedAt, found, err := c.cfg.Cache.Get(ctx, url)
 		if err != nil {
@@ -75,7 +97,7 @@ func (c *Client) Get(ctx context.Context, url, docKind string, ttl time.Duration
 		}
 	}
 
-	body, err := backoff.Retry(ctx, func() ([]byte, error) { return c.attempt(ctx, url) },
+	body, err := backoff.Retry(ctx, func() ([]byte, error) { return c.attempt(ctx, url, read) },
 		backoff.WithMaxTries(maxAttempts),
 		backoff.WithMaxElapsedTime(2*time.Minute))
 	if err != nil {
@@ -90,7 +112,7 @@ func (c *Client) Get(ctx context.Context, url, docKind string, ttl time.Duration
 	return body, nil
 }
 
-func (c *Client) attempt(ctx context.Context, url string) ([]byte, error) {
+func (c *Client) attempt(ctx context.Context, url string, read bodyReader) ([]byte, error) {
 	if err := c.limiter.Wait(ctx); err != nil {
 		return nil, backoff.Permanent(fmt.Errorf("rate limiter %s: %w", url, err))
 	}
@@ -111,11 +133,7 @@ func (c *Client) attempt(ctx context.Context, url string) ([]byte, error) {
 		return nil, err
 	}
 
-	decoded, err := norm.DecodeISO88591(resp.Body)
-	if err != nil {
-		return nil, backoff.Permanent(fmt.Errorf("decode %s: %w", url, err))
-	}
-	body, err := io.ReadAll(decoded)
+	body, err := read(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("read body %s: %w", url, err)
 	}
