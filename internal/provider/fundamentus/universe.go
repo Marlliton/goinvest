@@ -133,9 +133,8 @@ func (p *Provider) Universe(ctx context.Context, class domain.AssetClass, force 
 
 const segmentLabel = "Segmento"
 
-// Segments lê a mesma página que Universe já baixa para FIIs: dentro do TTL a
-// chamada não custa requisição nenhuma. O segmento não é métrica, é o setor
-// provisório do fundo até a fonte definitiva existir.
+// Mesma página que Universe já baixa para FIIs: dentro do TTL não custa
+// requisição nenhuma.
 func (p *Provider) Segments(ctx context.Context, force bool) (map[string]string, error) {
 	sp, err := specFor(domain.ClassFII)
 	if err != nil {

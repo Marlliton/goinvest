@@ -40,7 +40,7 @@ type Config struct {
 	DB       *store.DB
 	Identity provider.IdentityProvider
 	Force    bool
-	// Lote menor perde menos trabalho num cancelamento e commita mais vezes.
+	// Lote menor perde menos trabalho num cancelamento.
 	BatchSize  int
 	Now        func() time.Time
 	OnProgress func(Progress)
@@ -135,8 +135,6 @@ func Run(ctx context.Context, cfg Config) (Report, error) {
 	}
 
 	report.Status = status(report)
-	// O fechamento do run não pode depender do contexto que acabou de ser
-	// cancelado, senão o Ctrl-C deixaria o run aberto para sempre.
 	if err := cfg.DB.FinishRun(context.WithoutCancel(ctx), runID, report.Status, report.Matched, ""); err != nil {
 		return report, err
 	}
@@ -223,9 +221,7 @@ type FIIConfig struct {
 	OnProgress  func(Progress)
 }
 
-// RunFII casa fundo com ticker por heurística sobre o ISIN: acerta cerca de
-// três em cada quatro. O que não casa vira contagem, nunca gravação por
-// suposição.
+// O que não casa vira contagem, nunca gravação por suposição.
 func RunFII(ctx context.Context, cfg FIIConfig) (Report, error) {
 	if cfg.DB == nil {
 		return Report{}, errors.New("registry: db is required")

@@ -19,8 +19,7 @@ type companyDetail struct {
 	} `json:"otherCodes"`
 }
 
-// Detail devolve a identidade e a taxonomia de três níveis de uma companhia.
-// Um codeCVM cobre todas as classes de ação dela.
+// Um codeCVM cobre todas as classes de ação da companhia.
 func (p *Provider) Detail(ctx context.Context, codeCVM string, force bool) (identity.CompanyDetail, error) {
 	url, err := p.callURL("GetDetail", map[string]any{
 		"codeCVM":  codeCVM,

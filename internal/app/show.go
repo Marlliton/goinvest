@@ -25,7 +25,7 @@ type HeaderView struct {
 	Stale        bool
 	Inactive     bool
 	LastLiquidAt *time.Time
-	// Taxonomia oficial de três níveis. Vazia enquanto o cadastro não rodou.
+	// Vazios enquanto o cadastro não rodou.
 	Sector    string
 	Subsector string
 	Segment   string

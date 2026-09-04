@@ -48,8 +48,6 @@ type companiesPage struct {
 	} `json:"results"`
 }
 
-// Companies devolve o cadastro inteiro, seguindo o totalPages que a própria
-// resposta anuncia.
 func (p *Provider) Companies(ctx context.Context, force bool) ([]identity.CompanyRef, error) {
 	var out []identity.CompanyRef
 

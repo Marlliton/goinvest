@@ -46,9 +46,7 @@ type record struct {
 	ref  string
 }
 
-// ISINByCNPJ combina os anos configurados porque um fundo grande pode faltar
-// num ano isolado. Entre registros do mesmo CNPJ vence a competência mais
-// recente, nunca a ordem de leitura.
+// Os anos são combinados porque um fundo grande pode faltar num ano isolado.
 func (p *Provider) ISINByCNPJ(ctx context.Context, force bool) (map[string]string, error) {
 	best := make(map[string]record)
 
@@ -101,7 +99,6 @@ func parseGeralCSV(body []byte, year int) (map[string]record, error) {
 }
 
 func readGeral(r io.Reader, name string) (map[string]record, error) {
-	// A decodificação vem aqui, sobre o CSV já extraído do zip.
 	decoded, err := norm.DecodeISO88591(r)
 	if err != nil {
 		return nil, fmt.Errorf("cvm: decodificar %s: %w", name, err)
