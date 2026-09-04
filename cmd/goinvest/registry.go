@@ -27,23 +27,32 @@ func newRegistryCmd(deps rootDeps) *cobra.Command {
 			out := cmd.OutOrStdout()
 			interactive := isatty.IsTerminal(os.Stdout.Fd())
 
-			report, err := app.Registry(ctx, app.RegistryConfig{
+			stocks, err := app.Registry(ctx, app.RegistryConfig{
 				DB:         deps.DB,
 				Identity:   deps.B3,
 				Force:      force,
 				Now:        time.Now,
-				OnProgress: progressWriter(out, interactive),
+				OnProgress: progressWriter(out, interactive, "ações"),
 			})
 			if err != nil {
 				return err
 			}
+			endProgress(out, interactive)
+			fmt.Fprintln(out, registrySummary("ações", stocks))
 
-			// A última linha de progresso ficou sem quebra para poder ser
-			// reescrita: sem isto o resumo sairia grudado nela.
-			if interactive {
-				fmt.Fprintln(out)
+			fiis, err := app.RegistryFII(ctx, app.RegistryFIIConfig{
+				DB:          deps.DB,
+				CVM:         deps.CVM,
+				Fundamentus: deps.Fundamentus,
+				Force:       force,
+				Now:         time.Now,
+				OnProgress:  progressWriter(out, interactive, "FIIs"),
+			})
+			if err != nil {
+				return err
 			}
-			fmt.Fprintln(out, registrySummary(report))
+			endProgress(out, interactive)
+			fmt.Fprintln(out, registrySummary("FIIs", fiis))
 			return nil
 		},
 	}
@@ -53,24 +62,32 @@ func newRegistryCmd(deps rootDeps) *cobra.Command {
 
 // Em terminal a mesma linha é reescrita; num log, cada atualização é uma linha
 // nova, senão o registro da execução fica sem histórico.
-func progressWriter(out io.Writer, interactive bool) func(registry.Progress) {
-	format := "cadastro: %d/%d\n"
+func progressWriter(out io.Writer, interactive bool, label string) func(registry.Progress) {
+	format := "cadastro: %s %d/%d\n"
 	if interactive {
-		format = "\rcadastro: %d/%d"
+		format = "\rcadastro: %s %d/%d"
 	}
 	return func(p registry.Progress) {
-		fmt.Fprintf(out, format, p.Done, p.Total)
+		fmt.Fprintf(out, format, label, p.Done, p.Total)
 	}
 }
 
-func registrySummary(r registry.Report) string {
-	line := fmt.Sprintf("✓ cadastro · %d de %d ativos casados", r.Matched, r.Total)
-	if r.Unmatched > 0 {
-		line += fmt.Sprintf(" · %d sem correspondência na B3", r.Unmatched)
+// A linha de progresso interativa fica sem quebra para poder ser reescrita:
+// sem isto o resumo sairia grudado nela.
+func endProgress(out io.Writer, interactive bool) {
+	if interactive {
+		fmt.Fprintln(out)
 	}
+}
+
+func registrySummary(label string, r registry.Report) string {
 	if r.Cancelled {
-		return fmt.Sprintf("⚠ cadastro interrompido · %d de %d ativos casados · rode de novo para continuar",
-			r.Matched, r.Total)
+		return fmt.Sprintf("⚠ cadastro de %s interrompido · %d de %d casados · rode de novo para continuar",
+			label, r.Matched, r.Total)
+	}
+	line := fmt.Sprintf("✓ cadastro de %s · %d de %d casados", label, r.Matched, r.Total)
+	if r.Unmatched > 0 {
+		line += fmt.Sprintf(" · %d sem correspondência", r.Unmatched)
 	}
 	return line
 }

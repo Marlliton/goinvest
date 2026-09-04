@@ -131,18 +131,70 @@ func (p *Provider) Universe(ctx context.Context, class domain.AssetClass, force 
 	return p.parse(body, sp)
 }
 
-func (p *Provider) parse(body []byte, sp spec) ([]domain.Observation, error) {
+const segmentLabel = "Segmento"
+
+// Segments lê a mesma página que Universe já baixa para FIIs: dentro do TTL a
+// chamada não custa requisição nenhuma. O segmento não é métrica, é o setor
+// provisório do fundo até a fonte definitiva existir.
+func (p *Provider) Segments(ctx context.Context, force bool) (map[string]string, error) {
+	sp, err := specFor(domain.ClassFII)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := p.client.Get(ctx, p.baseURL+sp.path, "universe_"+string(domain.ClassFII), universeTTL, force)
+	if err != nil {
+		return nil, err
+	}
+
+	table, labels, err := resultTable(body, sp)
+	if err != nil {
+		return nil, err
+	}
+	tickerAt := indexOf(labels, tickerLabel)
+	if tickerAt < 0 {
+		return nil, fmt.Errorf("fundamentus: %s has no %q column", sp.path, tickerLabel)
+	}
+	segmentAt := indexOf(labels, segmentLabel)
+	if segmentAt < 0 {
+		return nil, fmt.Errorf("fundamentus: %s has no %q column", sp.path, segmentLabel)
+	}
+
+	out := make(map[string]string)
+	table.Find("tbody tr").Each(func(_ int, row *goquery.Selection) {
+		cells := row.Find("td")
+		if cells.Length() <= tickerAt || cells.Length() <= segmentAt {
+			return
+		}
+		ticker := cellText(cells.Eq(tickerAt))
+		segment := cellText(cells.Eq(segmentAt))
+		if ticker == "" || segment == "" {
+			return
+		}
+		out[ticker] = segment
+	})
+	return out, nil
+}
+
+func resultTable(body []byte, sp spec) (*goquery.Selection, []string, error) {
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("fundamentus: parse %s: %w", sp.path, err)
+		return nil, nil, fmt.Errorf("fundamentus: parse %s: %w", sp.path, err)
 	}
 
 	table := doc.Find("table.resultado").First()
 	if table.Length() == 0 {
-		return nil, fmt.Errorf("fundamentus: %s has no result table", sp.path)
+		return nil, nil, fmt.Errorf("fundamentus: %s has no result table", sp.path)
+	}
+	return table, headerLabels(table), nil
+}
+
+func (p *Provider) parse(body []byte, sp spec) ([]domain.Observation, error) {
+	table, labels, err := resultTable(body, sp)
+	if err != nil {
+		return nil, err
 	}
 
-	labels := headerLabels(table)
 	tickerAt := indexOf(labels, tickerLabel)
 	if tickerAt < 0 {
 		return nil, fmt.Errorf("fundamentus: %s has no %q column", sp.path, tickerLabel)

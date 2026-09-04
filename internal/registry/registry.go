@@ -5,6 +5,8 @@ package registry
 import (
 	"context"
 	"errors"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -204,4 +206,138 @@ func confirmTicker(detail identity.CompanyDetail, ticker string) (isin string, o
 		return "", true
 	}
 	return "", false
+}
+
+const (
+	fiiSourceID  = "cvm:cadastro_fii"
+	fiiSectorSrc = "fundamentus:segmento"
+)
+
+type FIIConfig struct {
+	DB          *store.DB
+	CVM         provider.FIIISINProvider
+	Fundamentus provider.FIISegmentProvider
+	Force       bool
+	BatchSize   int
+	Now         func() time.Time
+	OnProgress  func(Progress)
+}
+
+// RunFII casa fundo com ticker por heurística sobre o ISIN: acerta cerca de
+// três em cada quatro. O que não casa vira contagem, nunca gravação por
+// suposição.
+func RunFII(ctx context.Context, cfg FIIConfig) (Report, error) {
+	if cfg.DB == nil {
+		return Report{}, errors.New("registry: db is required")
+	}
+	if cfg.CVM == nil || cfg.Fundamentus == nil {
+		return Report{}, errors.New("registry: cvm and fundamentus providers are required")
+	}
+	if cfg.BatchSize <= 0 {
+		cfg.BatchSize = defaultBatchSize
+	}
+	if cfg.Now == nil {
+		cfg.Now = time.Now
+	}
+
+	tickers, err := cfg.DB.ListTickersForClass(ctx, domain.ClassFII)
+	if err != nil {
+		return Report{}, err
+	}
+	known := make(map[string]struct{}, len(tickers))
+	for _, t := range tickers {
+		known[t] = struct{}{}
+	}
+
+	byCNPJ, err := cfg.CVM.ISINByCNPJ(ctx, cfg.Force)
+	if err != nil {
+		return Report{}, err
+	}
+	segments, err := cfg.Fundamentus.Segments(ctx, cfg.Force)
+	if err != nil {
+		return Report{}, err
+	}
+
+	runID, err := cfg.DB.StartRun(ctx, fiiSourceID)
+	if err != nil {
+		return Report{}, err
+	}
+
+	report := Report{Total: len(byCNPJ)}
+	batch := make([]store.AssetIdentityUpdate, 0, cfg.BatchSize)
+
+	flush := func() error {
+		if len(batch) == 0 {
+			return nil
+		}
+		if err := cfg.DB.UpdateAssetIdentities(context.WithoutCancel(ctx), batch); err != nil {
+			return err
+		}
+		report.Matched += len(batch)
+		batch = batch[:0]
+		if cfg.OnProgress != nil {
+			cfg.OnProgress(Progress{Done: report.Matched + report.Unmatched, Total: report.Total})
+		}
+		return nil
+	}
+
+	// A ordem do mapa é aleatória em Go, e um relatório que muda entre
+	// execuções idênticas não serve para comparar.
+	for _, cnpj := range slices.Sorted(maps.Keys(byCNPJ)) {
+		if ctx.Err() != nil {
+			report.Cancelled = true
+			break
+		}
+
+		update, ok := resolveFII(ctx, cfg, cnpj, byCNPJ[cnpj], known, segments)
+		if !ok {
+			if ctx.Err() != nil {
+				report.Cancelled = true
+				break
+			}
+			report.Unmatched++
+			continue
+		}
+		batch = append(batch, update)
+
+		if len(batch) >= cfg.BatchSize {
+			if err := flush(); err != nil {
+				return report, err
+			}
+		}
+	}
+
+	if err := flush(); err != nil {
+		return report, err
+	}
+
+	report.Status = status(report)
+	if err := cfg.DB.FinishRun(context.WithoutCancel(ctx), runID, report.Status, report.Matched, ""); err != nil {
+		return report, err
+	}
+	return report, nil
+}
+
+func resolveFII(ctx context.Context, cfg FIIConfig, cnpj, isin string, known map[string]struct{}, segments map[string]string) (store.AssetIdentityUpdate, bool) {
+	candidate, ok := identity.TickerFromISIN(isin)
+	if !ok {
+		return store.AssetIdentityUpdate{}, false
+	}
+	if _, exists := known[candidate]; !exists {
+		return store.AssetIdentityUpdate{}, false
+	}
+
+	assetID, found, err := cfg.DB.AssetIDByTicker(ctx, candidate)
+	if err != nil || !found {
+		return store.AssetIdentityUpdate{}, false
+	}
+
+	return store.AssetIdentityUpdate{
+		AssetID:   assetID,
+		CNPJ:      cnpj,
+		ISIN:      isin,
+		Sector:    segments[candidate],
+		SectorSrc: fiiSectorSrc,
+		UpdatedAt: cfg.Now(),
+	}, true
 }

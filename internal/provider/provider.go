@@ -36,3 +36,10 @@ type FIIISINProvider interface {
 	Namer
 	ISINByCNPJ(ctx context.Context, force bool) (map[string]string, error)
 }
+
+// FIISegmentProvider entrega o setor provisório de FII, que vem da mesma
+// página bulk já coletada, não de uma fonte nova.
+type FIISegmentProvider interface {
+	Namer
+	Segments(ctx context.Context, force bool) (map[string]string, error)
+}

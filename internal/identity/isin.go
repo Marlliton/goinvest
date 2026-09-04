@@ -3,9 +3,7 @@ package identity
 import "strings"
 
 const (
-	brazilPrefix = "BR"
-	// O código do fundo ocupa quatro caracteres logo após o país; a cota de FII
-	// negocia sempre com sufixo 11.
+	brazilPrefix  = "BR"
 	issuerCodeEnd = 6
 	fiiSuffix     = "11"
 )

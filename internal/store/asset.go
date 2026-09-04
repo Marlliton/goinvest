@@ -178,6 +178,16 @@ func (db *DB) ListActiveTickers(ctx context.Context, class domain.AssetClass) ([
 	return tickers, nil
 }
 
+// ListTickersForClass não filtra por liquidez: casar identidade é validar a
+// heurística contra a lista real de ativos, não só contra os negociáveis.
+func (db *DB) ListTickersForClass(ctx context.Context, class domain.AssetClass) ([]string, error) {
+	tickers, err := db.q.ListTickersForClass(ctx, class)
+	if err != nil {
+		return nil, fmt.Errorf("list tickers %s: %w", class, err)
+	}
+	return tickers, nil
+}
+
 // SectorCoverage é a base do aviso de cadastro incompleto: sem o total, "1.200
 // setores" não diz ao usuário se falta muito ou nada.
 func (db *DB) SectorCoverage(ctx context.Context, class domain.AssetClass) (total, withSector int, err error) {

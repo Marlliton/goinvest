@@ -39,6 +39,33 @@ func (q *Queries) ListActiveTickers(ctx context.Context, class domain.AssetClass
 	return items, nil
 }
 
+const listTickersForClass = `-- name: ListTickersForClass :many
+SELECT ticker FROM asset WHERE class = ? ORDER BY ticker
+`
+
+func (q *Queries) ListTickersForClass(ctx context.Context, class domain.AssetClass) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listTickersForClass, class)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var ticker string
+		if err := rows.Scan(&ticker); err != nil {
+			return nil, err
+		}
+		items = append(items, ticker)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const sectorCoverage = `-- name: SectorCoverage :one
 SELECT COUNT(*)                                                     AS total,
        COUNT(CASE WHEN sector IS NOT NULL AND sector != '' THEN 1 END) AS with_sector
