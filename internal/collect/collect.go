@@ -38,9 +38,8 @@ type SourceResult struct {
 }
 
 type Report struct {
-	Stocks SourceResult
-	FIIs   SourceResult
-	// Vazio quando a referência estatística foi recalculada com sucesso.
+	Stocks      SourceResult
+	FIIs        SourceResult
 	SectorStats string
 }
 
