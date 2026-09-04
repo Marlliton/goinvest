@@ -9,6 +9,7 @@ import (
 	// grafo de dependências é lido por um subprocesso `go list`, invisível para
 	// o cache. Todo pacote vigiado aqui precisa do seu import em branco.
 	_ "github.com/marlliton/goinvest/internal/app"
+	_ "github.com/marlliton/goinvest/internal/cadastro"
 	_ "github.com/marlliton/goinvest/internal/catalog"
 	_ "github.com/marlliton/goinvest/internal/collect"
 	_ "github.com/marlliton/goinvest/internal/derive"
@@ -75,6 +76,13 @@ func TestAppCannotReachTheNetwork(t *testing.T) {
 func TestCollectDependsOnlyOnProviderInterface(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/collect",
 		[]string{modulePath + "/internal/provider/fundamentus"})
+}
+
+// A fonte de identidade é plugável pelo mesmo motivo que a de universo: quem
+// monta o provider concreto é o wiring de cmd.
+func TestCadastroDependsOnlyOnProviderInterface(t *testing.T) {
+	requireNoImports(t, modulePath+"/internal/cadastro",
+		[]string{modulePath + "/internal/provider/b3"})
 }
 
 func requireNoImports(t *testing.T, pkg string, forbidden []string) {

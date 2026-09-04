@@ -1,0 +1,258 @@
+package cadastro_test
+
+import (
+	"context"
+	"errors"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/marlliton/goinvest/internal/cadastro"
+	"github.com/marlliton/goinvest/internal/domain"
+	"github.com/marlliton/goinvest/internal/identity"
+	"github.com/marlliton/goinvest/internal/store"
+	"github.com/stretchr/testify/require"
+)
+
+var seededAt = time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
+
+// stubIdentity implementa provider.IdentityProvider sem rede: o cadastro só
+// conhece a interface.
+type stubIdentity struct {
+	companies   []identity.CompanyRef
+	details     map[string]identity.CompanyDetail
+	detailErr   map[string]error
+	detailCalls int
+	onDetail    func(codeCVM string)
+}
+
+func (s *stubIdentity) Name() string { return "stub" }
+
+func (s *stubIdentity) Companies(context.Context, bool) ([]identity.CompanyRef, error) {
+	return s.companies, nil
+}
+
+func (s *stubIdentity) Detail(_ context.Context, codeCVM string, _ bool) (identity.CompanyDetail, error) {
+	s.detailCalls++
+	if s.onDetail != nil {
+		s.onDetail(codeCVM)
+	}
+	if err, ok := s.detailErr[codeCVM]; ok {
+		return identity.CompanyDetail{}, err
+	}
+	d, ok := s.details[codeCVM]
+	if !ok {
+		return identity.CompanyDetail{}, errors.New("codeCVM desconhecido")
+	}
+	return d, nil
+}
+
+func openDB(t *testing.T) *store.DB {
+	t.Helper()
+	db, err := store.Open(filepath.Join(t.TempDir(), "goinvest.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	return db
+}
+
+func seedActive(t *testing.T, db *store.DB, tickers ...string) {
+	t.Helper()
+	ctx := t.Context()
+	for _, ticker := range tickers {
+		require.NoError(t, db.UpsertAsset(ctx, ticker, domain.ClassStock, "", seededAt))
+		a, found, err := db.GetAsset(ctx, ticker)
+		require.NoError(t, err)
+		require.True(t, found)
+		require.NoError(t, db.UpdateAssetLiquidity(ctx, a.AssetID, true, seededAt))
+	}
+}
+
+func detail(code, codeCVM, cnpj, classification string, others ...string) identity.CompanyDetail {
+	d := identity.CompanyDetail{
+		Code:                   code,
+		CodeCVM:                codeCVM,
+		CNPJ:                   cnpj,
+		IndustryClassification: classification,
+	}
+	for _, o := range others {
+		d.OtherCodes = append(d.OtherCodes, identity.CompanyCode{Code: o, ISIN: "BR" + o + "ACNOR0"})
+	}
+	return d
+}
+
+func newStub() *stubIdentity {
+	return &stubIdentity{
+		companies: []identity.CompanyRef{
+			{IssuingCompany: "WEGE", CodeCVM: "5410"},
+			{IssuingCompany: "ITUB", CodeCVM: "19348"},
+			{IssuingCompany: "TAEE", CodeCVM: "20257"},
+		},
+		details: map[string]identity.CompanyDetail{
+			"5410": detail("WEGE3", "5410", "84429695000111",
+				"Bens Industriais / Máquinas e Equipamentos / Motores . Compressores e Outros", "WEGE3"),
+			"19348": detail("ITUB4", "19348", "60872504000123",
+				"Financeiro / Intermediários Financeiros / Bancos", "ITUB3", "ITUB4"),
+			"20257": detail("TAEE11", "20257", "07859971000130",
+				"Utilidade Pública / Energia Elétrica / Energia Elétrica", "TAEE11"),
+		},
+		detailErr: map[string]error{},
+	}
+}
+
+func TestRunAppliesBatchesTransactionally(t *testing.T) {
+	db := openDB(t)
+	seedActive(t, db, "WEGE3", "ITUB4", "TAEE11")
+
+	report, err := cadastro.Run(t.Context(), cadastro.Config{
+		DB: db, Identity: newStub(), BatchSize: 2, Now: func() time.Time { return seededAt },
+	})
+	require.NoError(t, err)
+	require.Equal(t, 3, report.Total)
+	require.Equal(t, 3, report.Matched)
+	require.Zero(t, report.Unmatched)
+	require.Equal(t, cadastro.StatusOK, report.Status)
+
+	a, _, err := db.GetAsset(t.Context(), "WEGE3")
+	require.NoError(t, err)
+	require.Equal(t, "Bens Industriais", a.Sector)
+	require.Equal(t, "Máquinas e Equipamentos", a.Subsector)
+	require.Equal(t, "Motores. Compressores e Outros", a.Segment, "o rótulo chega limpo")
+	require.Equal(t, "84429695000111", a.CNPJ)
+	require.Equal(t, "5410", a.CDCVM)
+	require.Equal(t, "b3", a.SectorSrc)
+
+	// Sufixo 11 de ação, e mesmo assim o setor vem do cadastro de companhias.
+	taee, _, err := db.GetAsset(t.Context(), "TAEE11")
+	require.NoError(t, err)
+	require.Equal(t, "Utilidade Pública", taee.Sector)
+}
+
+// Um lote já commitado é dado gravado: o cancelamento para o que vem depois,
+// não desfaz o que veio antes.
+func TestRunCancellationPreservesCommittedBatches(t *testing.T) {
+	db := openDB(t)
+	seedActive(t, db, "WEGE3", "ITUB4", "TAEE11")
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	stub := newStub()
+	seen := 0
+	stub.onDetail = func(string) {
+		seen++
+		if seen == 2 {
+			cancel()
+		}
+	}
+
+	report, err := cadastro.Run(ctx, cadastro.Config{
+		DB: db, Identity: stub, BatchSize: 2, Now: func() time.Time { return seededAt },
+	})
+	require.NoError(t, err)
+	require.True(t, report.Cancelled)
+	require.Equal(t, cadastro.StatusCancelled, report.Status)
+	require.Equal(t, 2, report.Matched, "o lote fechado antes do cancelamento foi aplicado")
+
+	a, _, err := db.GetAsset(t.Context(), "WEGE3")
+	require.NoError(t, err)
+	require.Equal(t, "Bens Industriais", a.Sector)
+
+	last, _, err := db.GetAsset(t.Context(), "TAEE11")
+	require.NoError(t, err)
+	require.Empty(t, last.Sector, "o ticker posterior ao cancelamento não foi tocado")
+
+	require.Equal(t, cadastro.StatusCancelled, latestRunStatus(t, db, "b3:cadastro"),
+		"o run fecha mesmo com o contexto cancelado")
+}
+
+func TestRunUnmatchedTickerDoesNotAbortRun(t *testing.T) {
+	db := openDB(t)
+	seedActive(t, db, "WEGE3", "NADA4", "ITUB4")
+
+	stub := newStub()
+	stub.detailErr["19348"] = errors.New("b3: detail 19348: status 500")
+
+	report, err := cadastro.Run(t.Context(), cadastro.Config{
+		DB: db, Identity: stub, Now: func() time.Time { return seededAt },
+	})
+	require.NoError(t, err)
+	require.Equal(t, 3, report.Total)
+	require.Equal(t, 1, report.Matched)
+	require.Equal(t, 2, report.Unmatched, "raiz sem correspondência e falha de detalhe")
+	require.Equal(t, cadastro.StatusPartial, report.Status)
+
+	a, _, err := db.GetAsset(t.Context(), "WEGE3")
+	require.NoError(t, err)
+	require.Equal(t, "Bens Industriais", a.Sector, "a falha de um ticker não impede os outros")
+}
+
+// Colisão de raiz gravaria o setor de outra empresa: a confirmação por
+// otherCodes é o que impede.
+func TestRunRejectsTickerNotConfirmedByOtherCodes(t *testing.T) {
+	db := openDB(t)
+	seedActive(t, db, "WEGE4")
+
+	report, err := cadastro.Run(t.Context(), cadastro.Config{
+		DB: db, Identity: newStub(), Now: func() time.Time { return seededAt },
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, report.Unmatched)
+	require.Zero(t, report.Matched)
+
+	a, _, err := db.GetAsset(t.Context(), "WEGE4")
+	require.NoError(t, err)
+	require.Empty(t, a.Sector)
+}
+
+// Ativo inativo não entra: gastar uma chamada de detalhe por papel morto
+// multiplicaria por dois o custo do comando inteiro.
+func TestRunSkipsInactiveAssets(t *testing.T) {
+	db := openDB(t)
+	seedActive(t, db, "WEGE3")
+
+	ctx := t.Context()
+	require.NoError(t, db.UpsertAsset(ctx, "ITUB4", domain.ClassStock, "", seededAt))
+	a, _, err := db.GetAsset(ctx, "ITUB4")
+	require.NoError(t, err)
+	require.NoError(t, db.UpdateAssetLiquidity(ctx, a.AssetID, false, seededAt))
+
+	stub := newStub()
+	report, err := cadastro.Run(ctx, cadastro.Config{
+		DB: db, Identity: stub, Now: func() time.Time { return seededAt },
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, report.Total)
+	require.Equal(t, 1, stub.detailCalls)
+}
+
+func TestRunReportsProgress(t *testing.T) {
+	db := openDB(t)
+	seedActive(t, db, "WEGE3", "ITUB4", "TAEE11")
+
+	var last cadastro.Progress
+	_, err := cadastro.Run(t.Context(), cadastro.Config{
+		DB: db, Identity: newStub(), BatchSize: 2,
+		Now:        func() time.Time { return seededAt },
+		OnProgress: func(p cadastro.Progress) { last = p },
+	})
+	require.NoError(t, err)
+	require.Equal(t, 3, last.Total)
+	require.Equal(t, 3, last.Done)
+}
+
+func TestRunRequiresDBAndIdentity(t *testing.T) {
+	_, err := cadastro.Run(t.Context(), cadastro.Config{Identity: newStub()})
+	require.Error(t, err)
+
+	_, err = cadastro.Run(t.Context(), cadastro.Config{DB: openDB(t)})
+	require.Error(t, err)
+}
+
+func latestRunStatus(t *testing.T, db *store.DB, source string) string {
+	t.Helper()
+	var status string
+	require.NoError(t, db.QueryRow(
+		`SELECT status FROM collection_run WHERE source = ? ORDER BY id DESC LIMIT 1`,
+		source).Scan(&status))
+	return status
+}

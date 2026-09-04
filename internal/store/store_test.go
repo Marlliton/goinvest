@@ -173,6 +173,56 @@ func TestGetAsset(t *testing.T) {
 	require.False(t, found)
 }
 
+func TestUpdateAssetIdentitiesAndCoverage(t *testing.T) {
+	db := openTemp(t)
+	ctx := t.Context()
+	seedAsset(t, db, "WEGE3", domain.ClassStock)
+	seedAsset(t, db, "ITUB4", domain.ClassStock)
+	seedAsset(t, db, "MXRF11", domain.ClassFII)
+
+	total, withSector, err := db.SectorCoverage(ctx, domain.ClassStock)
+	require.NoError(t, err)
+	require.Equal(t, 2, total)
+	require.Zero(t, withSector, "cadastro nunca rodado é zero, não ausência de ativos")
+
+	a, _, err := db.GetAsset(ctx, "WEGE3")
+	require.NoError(t, err)
+	at := time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
+	require.NoError(t, db.UpdateAssetIdentities(ctx, []AssetIdentityUpdate{{
+		AssetID: a.AssetID, CNPJ: "84429695000111", ISIN: "BRWEGEACNOR0", CDCVM: "5410",
+		Sector: "Bens Industriais", Subsector: "Máquinas e Equipamentos",
+		Segment: "Motores. Compressores e Outros", SectorSrc: "b3", UpdatedAt: at,
+	}}))
+
+	a, _, err = db.GetAsset(ctx, "WEGE3")
+	require.NoError(t, err)
+	require.Equal(t, "Bens Industriais", a.Sector)
+	require.Equal(t, "BRWEGEACNOR0", a.ISIN)
+	require.Equal(t, "b3", a.SectorSrc)
+	require.Equal(t, at, a.UpdatedAt.UTC())
+
+	total, withSector, err = db.SectorCoverage(ctx, domain.ClassStock)
+	require.NoError(t, err)
+	require.Equal(t, 2, total)
+	require.Equal(t, 1, withSector)
+}
+
+func TestListActiveTickers(t *testing.T) {
+	db := openTemp(t)
+	ctx := t.Context()
+	seedAsset(t, db, "WEGE3", domain.ClassStock)
+	seedAsset(t, db, "ITUB4", domain.ClassStock)
+	seedAsset(t, db, "MXRF11", domain.ClassFII)
+
+	dead, _, err := db.GetAsset(ctx, "ITUB4")
+	require.NoError(t, err)
+	require.NoError(t, db.UpdateAssetLiquidity(ctx, dead.AssetID, false, time.Now().UTC()))
+
+	tickers, err := db.ListActiveTickers(ctx, domain.ClassStock)
+	require.NoError(t, err)
+	require.Equal(t, []string{"WEGE3"}, tickers, "inativo e outra classe ficam de fora")
+}
+
 func TestStartRunPerSource(t *testing.T) {
 	db := openTemp(t)
 	ctx := t.Context()
