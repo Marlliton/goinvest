@@ -24,6 +24,10 @@ type HeaderView struct {
 	// Resolvida aqui para que a renderização não precise de relógio.
 	Age   time.Duration
 	Stale bool
+	// Papel sem liquidez fica fora de ranking e de comparação, mas os números
+	// continuam à vista como último retrato.
+	Inactive     bool
+	LastLiquidAt *time.Time
 }
 
 type LineView struct {
@@ -72,10 +76,14 @@ func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string
 		}
 	}
 
+	h := header(collected, now)
+	h.Inactive = !asset.IsActive
+	h.LastLiquidAt = asset.LastLiquidAt
+
 	return Report{
 		Ticker: asset.Ticker,
 		Class:  asset.Class,
-		Header: header(collected, now),
+		Header: h,
 		Blocks: blocks(cat, asset.Class, merged),
 	}, nil
 }

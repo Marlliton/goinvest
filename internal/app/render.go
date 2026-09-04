@@ -21,6 +21,9 @@ func RenderText(r Report) string {
 	if r.Header.Stale {
 		fmt.Fprintf(&b, "⚠ dado de %s · rode 'goinvest sync'\n", r.Header.FetchedAt.Format("02/01"))
 	}
+	if r.Header.Inactive {
+		fmt.Fprintf(&b, "⚠ papel %s · fora de rankings e comparações\n", liquidityText(r.Header))
+	}
 
 	sawAbsent, sawDerived := false, false
 	for _, block := range r.Blocks {
@@ -56,6 +59,15 @@ func legend(sawAbsent, sawDerived bool) string {
 		parts = append(parts, markDerived+" = calculado por goinvest")
 	}
 	return strings.Join(parts, " · ")
+}
+
+// Sem data registrada o aviso não pode inventar uma: dizer "desde" sem saber
+// desde quando afirmaria um fato que ninguém observou.
+func liquidityText(h HeaderView) string {
+	if h.LastLiquidAt == nil {
+		return "sem liquidez registrada"
+	}
+	return "sem liquidez desde " + h.LastLiquidAt.Format("02/01/2006")
 }
 
 func headerLine(h HeaderView) string {
