@@ -23,5 +23,8 @@ type Asset struct {
 	Subsector string
 	Segment   string
 	SectorSrc string
-	UpdatedAt time.Time
+	// Ativo morto ou ilíquido fica fora de ranking e de estatística setorial.
+	IsActive     bool
+	LastLiquidAt *time.Time
+	UpdatedAt    time.Time
 }

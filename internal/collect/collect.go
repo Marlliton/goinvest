@@ -19,6 +19,15 @@ const (
 	StatusPartial = "partial"
 )
 
+// Pisos de volume médio diário em reais, abaixo dos quais o papel sai de
+// ranking e de estatística setorial. São constantes de código de propósito:
+// mexer neles muda o significado de toda comparação já exibida, e uma chave de
+// config esconderia isso do usuário.
+const (
+	minLiquidityStock = 1_000_000.0
+	minLiquidityFII   = 200_000.0
+)
+
 type SourceResult struct {
 	Source     string
 	AssetCount int
@@ -96,25 +105,32 @@ func ingest(ctx context.Context, cfg Config, class domain.AssetClass, p provider
 	}
 
 	at := cfg.Now()
+	values := metricsByTicker(obs)
 	seen := make(map[string]struct{})
 	for _, o := range obs {
 		if _, dup := seen[o.Ticker]; dup {
 			continue
 		}
 		seen[o.Ticker] = struct{}{}
-		// A observação referencia asset(ticker): sem o upsert antes, a
+		// A observação referencia asset(asset_id): sem o upsert antes, a
 		// inserção em lote inteira falha na chave estrangeira.
 		if err := cfg.DB.UpsertAsset(ctx, o.Ticker, class, "", at); err != nil {
 			return 0, 0, err
 		}
-		if class != domain.ClassStock {
-			continue
-		}
+
 		assetID, found, err := cfg.DB.AssetIDByTicker(ctx, o.Ticker)
 		if err != nil {
 			return 0, 0, err
 		}
 		if !found {
+			continue
+		}
+
+		if err := cfg.DB.UpdateAssetLiquidity(ctx, assetID, isActive(class, values[o.Ticker]), at); err != nil {
+			return 0, 0, err
+		}
+
+		if class != domain.ClassStock {
 			continue
 		}
 		if err := cfg.DB.UpsertAssetAlias(ctx, identity.FractionalAlias(o.Ticker), assetID); err != nil {
@@ -127,3 +143,43 @@ func ingest(ctx context.Context, cfg Config, class domain.AssetClass, p provider
 	}
 	return len(seen), len(obs), nil
 }
+
+func metricsByTicker(obs []domain.Observation) map[string]map[domain.MetricID]*float64 {
+	values := make(map[string]map[domain.MetricID]*float64)
+	for _, o := range obs {
+		if values[o.Ticker] == nil {
+			values[o.Ticker] = make(map[domain.MetricID]*float64, 2)
+		}
+		values[o.Ticker][o.Metric] = o.Value
+	}
+	return values
+}
+
+// A régua tem dois cortes: morto (cotação ou liquidez zerada) e ilíquido
+// (liquidez acima de zero mas abaixo do piso). Métrica ausente não marca nada:
+// só um zero lido da fonte é evidência de que o papel não negocia.
+func isActive(class domain.AssetClass, values map[domain.MetricID]*float64) bool {
+	quote := values["cotacao"]
+	liquidity := values[liquidityMetric(class)]
+
+	if isZero(quote) || isZero(liquidity) {
+		return false
+	}
+	return liquidity == nil || *liquidity >= minLiquidity(class)
+}
+
+func liquidityMetric(class domain.AssetClass) domain.MetricID {
+	if class == domain.ClassFII {
+		return "liquidez_fii"
+	}
+	return "liq_2meses"
+}
+
+func minLiquidity(class domain.AssetClass) float64 {
+	if class == domain.ClassFII {
+		return minLiquidityFII
+	}
+	return minLiquidityStock
+}
+
+func isZero(v *float64) bool { return v != nil && *v == 0 }

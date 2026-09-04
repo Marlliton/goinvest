@@ -8,14 +8,20 @@ ON CONFLICT(ticker) DO UPDATE SET
 RETURNING asset_id;
 
 -- name: GetAssetByTicker :one
-SELECT asset_id, ticker, class, name, cnpj, isin, cd_cvm, sector, subsector, segment, sector_src, updated_at
+SELECT asset_id, ticker, class, name, cnpj, isin, cd_cvm, sector, subsector, segment, sector_src, updated_at, is_active, last_liquid_at
 FROM asset
 WHERE ticker = ?;
 
 -- name: GetAssetByID :one
-SELECT asset_id, ticker, class, name, cnpj, isin, cd_cvm, sector, subsector, segment, sector_src, updated_at
+SELECT asset_id, ticker, class, name, cnpj, isin, cd_cvm, sector, subsector, segment, sector_src, updated_at, is_active, last_liquid_at
 FROM asset
 WHERE asset_id = ?;
 
 -- name: ListAssetIDsByTicker :many
 SELECT asset_id, ticker FROM asset;
+
+-- name: UpdateAssetLiquidity :exec
+UPDATE asset
+SET is_active      = ?1,
+    last_liquid_at = CASE WHEN ?1 = 1 THEN ?2 ELSE last_liquid_at END
+WHERE asset_id = ?3;

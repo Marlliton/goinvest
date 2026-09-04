@@ -13,7 +13,7 @@ import (
 )
 
 const getAssetByID = `-- name: GetAssetByID :one
-SELECT asset_id, ticker, class, name, cnpj, isin, cd_cvm, sector, subsector, segment, sector_src, updated_at
+SELECT asset_id, ticker, class, name, cnpj, isin, cd_cvm, sector, subsector, segment, sector_src, updated_at, is_active, last_liquid_at
 FROM asset
 WHERE asset_id = ?
 `
@@ -34,12 +34,14 @@ func (q *Queries) GetAssetByID(ctx context.Context, assetID int64) (Asset, error
 		&i.Segment,
 		&i.SectorSrc,
 		&i.UpdatedAt,
+		&i.IsActive,
+		&i.LastLiquidAt,
 	)
 	return i, err
 }
 
 const getAssetByTicker = `-- name: GetAssetByTicker :one
-SELECT asset_id, ticker, class, name, cnpj, isin, cd_cvm, sector, subsector, segment, sector_src, updated_at
+SELECT asset_id, ticker, class, name, cnpj, isin, cd_cvm, sector, subsector, segment, sector_src, updated_at, is_active, last_liquid_at
 FROM asset
 WHERE ticker = ?
 `
@@ -60,6 +62,8 @@ func (q *Queries) GetAssetByTicker(ctx context.Context, ticker string) (Asset, e
 		&i.Segment,
 		&i.SectorSrc,
 		&i.UpdatedAt,
+		&i.IsActive,
+		&i.LastLiquidAt,
 	)
 	return i, err
 }
@@ -94,6 +98,24 @@ func (q *Queries) ListAssetIDsByTicker(ctx context.Context) ([]ListAssetIDsByTic
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateAssetLiquidity = `-- name: UpdateAssetLiquidity :exec
+UPDATE asset
+SET is_active      = ?1,
+    last_liquid_at = CASE WHEN ?1 = 1 THEN ?2 ELSE last_liquid_at END
+WHERE asset_id = ?3
+`
+
+type UpdateAssetLiquidityParams struct {
+	IsActive     int64
+	LastLiquidAt *time.Time
+	AssetID      int64
+}
+
+func (q *Queries) UpdateAssetLiquidity(ctx context.Context, arg UpdateAssetLiquidityParams) error {
+	_, err := q.db.ExecContext(ctx, updateAssetLiquidity, arg.IsActive, arg.LastLiquidAt, arg.AssetID)
+	return err
 }
 
 const upsertAsset = `-- name: UpsertAsset :one

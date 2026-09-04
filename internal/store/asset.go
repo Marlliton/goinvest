@@ -86,17 +86,37 @@ func (db *DB) UpsertAssetAlias(ctx context.Context, aliasTicker string, assetID 
 
 func assetFromRow(a gen.Asset) domain.Asset {
 	return domain.Asset{
-		AssetID:   a.AssetID,
-		Ticker:    a.Ticker,
-		Class:     a.Class,
-		Name:      deref(a.Name),
-		CNPJ:      deref(a.Cnpj),
-		ISIN:      deref(a.Isin),
-		CDCVM:     deref(a.CdCvm),
-		Sector:    deref(a.Sector),
-		Subsector: deref(a.Subsector),
-		Segment:   deref(a.Segment),
-		SectorSrc: deref(a.SectorSrc),
-		UpdatedAt: a.UpdatedAt,
+		AssetID:      a.AssetID,
+		Ticker:       a.Ticker,
+		Class:        a.Class,
+		Name:         deref(a.Name),
+		CNPJ:         deref(a.Cnpj),
+		ISIN:         deref(a.Isin),
+		CDCVM:        deref(a.CdCvm),
+		Sector:       deref(a.Sector),
+		Subsector:    deref(a.Subsector),
+		Segment:      deref(a.Segment),
+		SectorSrc:    deref(a.SectorSrc),
+		IsActive:     a.IsActive != 0,
+		LastLiquidAt: a.LastLiquidAt,
+		UpdatedAt:    a.UpdatedAt,
 	}
+}
+
+// UpdateAssetLiquidity só avança last_liquid_at quando o ativo está líquido:
+// ficar inativo não apaga a memória de quando ele ainda negociava.
+func (db *DB) UpdateAssetLiquidity(ctx context.Context, assetID int64, isActive bool, at time.Time) error {
+	var active int64
+	if isActive {
+		active = 1
+	}
+	err := db.q.UpdateAssetLiquidity(ctx, gen.UpdateAssetLiquidityParams{
+		IsActive:     active,
+		LastLiquidAt: &at,
+		AssetID:      assetID,
+	})
+	if err != nil {
+		return fmt.Errorf("update asset liquidity %d: %w", assetID, err)
+	}
+	return nil
 }

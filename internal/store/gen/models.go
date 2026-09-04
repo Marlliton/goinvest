@@ -11,18 +11,20 @@ import (
 )
 
 type Asset struct {
-	AssetID   int64
-	Ticker    string
-	Class     domain.AssetClass
-	Name      *string
-	Cnpj      *string
-	Isin      *string
-	CdCvm     *string
-	Sector    *string
-	Subsector *string
-	Segment   *string
-	SectorSrc *string
-	UpdatedAt time.Time
+	AssetID      int64
+	Ticker       string
+	Class        domain.AssetClass
+	Name         *string
+	Cnpj         *string
+	Isin         *string
+	CdCvm        *string
+	Sector       *string
+	Subsector    *string
+	Segment      *string
+	SectorSrc    *string
+	UpdatedAt    time.Time
+	IsActive     int64
+	LastLiquidAt *time.Time
 }
 
 type AssetAlias struct {
