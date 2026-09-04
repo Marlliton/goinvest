@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,15 +25,24 @@ const testRateEvery = time.Millisecond
 // cópias divergem no dia em que a fonte mudar de layout.
 const stockFixture = "../provider/fundamentus/testdata/resultado_min.html"
 
+// Fixture sintética: cotação, liquidez zerada e liquidez abaixo do piso, os três
+// casos da régua.
+const liquidityFixture = "../provider/fundamentus/testdata/resultado_liquidity.html"
+
 var seededAt = time.Date(2026, 8, 30, 12, 0, 0, 0, time.UTC)
 
 // A fonte de ações responde 200 com a fixture; a de FIIs responde 503.
 func newSource(t *testing.T) *httptest.Server {
 	t.Helper()
+	return newSourceFrom(t, stockFixture)
+}
+
+func newSourceFrom(t *testing.T, fixture string) *httptest.Server {
+	t.Helper()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/resultado.php", func(w http.ResponseWriter, _ *http.Request) {
-		body, err := os.ReadFile(filepath.FromSlash(stockFixture))
+		body, err := os.ReadFile(filepath.FromSlash(fixture))
 		require.NoError(t, err)
 		w.Header().Set("Content-Type", "text/html; charset=iso-8859-1")
 		_, _ = w.Write(body)
@@ -130,6 +140,88 @@ func TestSyncRegistersFractionalAliasForStocksOnly(t *testing.T) {
 	_, found, err = db.GetAsset(t.Context(), "MXRF11F")
 	require.NoError(t, err)
 	require.False(t, found, "FII não tem mercado fracionário")
+}
+
+func syncStocks(t *testing.T, db *store.DB, srv *httptest.Server, now func() time.Time) {
+	t.Helper()
+	client := fetch.NewClient(fetch.Config{RateEvery: testRateEvery})
+	p := fundamentus.NewProvider(client, srv.URL, time.Now)
+
+	_, err := collect.Sync(t.Context(), collect.Config{
+		Providers: map[domain.AssetClass]provider.UniverseProvider{domain.ClassStock: p},
+		DB:        db,
+		Now:       now,
+	})
+	require.NoError(t, err)
+}
+
+func assetOf(t *testing.T, db *store.DB, ticker string) domain.Asset {
+	t.Helper()
+	a, found, err := db.GetAsset(t.Context(), ticker)
+	require.NoError(t, err)
+	require.True(t, found, ticker)
+	return a
+}
+
+// Papel morto e papel ilíquido saem do sync já marcados: um ranking nunca chega
+// a vê-los.
+func TestSyncMarksInactiveByLiquidityRule(t *testing.T) {
+	db := openDB(t)
+	syncStocks(t, db, newSourceFrom(t, liquidityFixture), nil)
+
+	require.False(t, assetOf(t, db, "DEAD3").IsActive, "liquidez zerada é morto, mesmo com cotação")
+	require.False(t, assetOf(t, db, "ILIQ3").IsActive, "abaixo do piso é ilíquido")
+	require.True(t, assetOf(t, db, "LIQ3").IsActive)
+
+	require.NotNil(t, assetOf(t, db, "LIQ3").LastLiquidAt)
+	require.Nil(t, assetOf(t, db, "DEAD3").LastLiquidAt, "nunca esteve líquido")
+}
+
+// Cotação zerada é a outra metade do OU: o papel morre mesmo que a liquidez não
+// esteja zerada.
+func TestSyncMarksInactiveByZeroQuote(t *testing.T) {
+	db := openDB(t)
+	syncStocks(t, db, newSource(t), nil)
+
+	require.False(t, assetOf(t, db, "CLAN3").IsActive)
+	require.True(t, assetOf(t, db, "WEGE3").IsActive)
+}
+
+// A data do último dia líquido é memória: perdê-la ao ficar inativo apagaria a
+// única evidência de quando o papel ainda negociava.
+func TestSyncPreservesLastLiquidAtWhenTickerGoesInactive(t *testing.T) {
+	db := openDB(t)
+
+	liquidAt := time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)
+	syncStocks(t, db, newSourceFrom(t, stockFixture), func() time.Time { return liquidAt })
+
+	before := assetOf(t, db, "WEGE3")
+	require.True(t, before.IsActive)
+	require.NotNil(t, before.LastLiquidAt)
+
+	// O mesmo ticker volta sem liquidez num sync posterior.
+	dead := newSourceFrom(t, wege3DeadFixture(t))
+	syncStocks(t, db, dead, func() time.Time { return liquidAt.AddDate(0, 1, 0) })
+
+	after := assetOf(t, db, "WEGE3")
+	require.False(t, after.IsActive)
+	require.NotNil(t, after.LastLiquidAt, "a data do último dia líquido é preservada")
+	require.Equal(t, before.LastLiquidAt.UTC(), after.LastLiquidAt.UTC())
+}
+
+// Reescreve a fixture real trocando a liquidez de WEGE3 por zero, para que o
+// mesmo ticker atravesse os dois estados sem depender de duas fixtures.
+func wege3DeadFixture(t *testing.T) string {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.FromSlash(stockFixture))
+	require.NoError(t, err)
+
+	body := strings.Replace(string(raw), "354.626.000,00", "0,00", 1)
+	require.NotEqual(t, string(raw), body, "a liquidez de WEGE3 mudou de formato na fixture")
+
+	path := filepath.Join(t.TempDir(), "resultado_dead.html")
+	require.NoError(t, os.WriteFile(path, []byte(body), 0o600))
+	return path
 }
 
 func TestSyncIsolatesPartialFailure(t *testing.T) {

@@ -58,6 +58,35 @@ func TestMigrationsUpDownUp(t *testing.T) {
 	require.Equal(t, 5, n)
 }
 
+// Ativo nasce ativo: só o sync tem dado para dizer o contrário, e ele roda
+// depois do cadastro.
+func TestUpdateAssetLiquidity(t *testing.T) {
+	db := openTemp(t)
+	ctx := t.Context()
+	seedAsset(t, db, "WEGE3", domain.ClassStock)
+
+	a, _, err := db.GetAsset(ctx, "WEGE3")
+	require.NoError(t, err)
+	require.True(t, a.IsActive)
+	require.Nil(t, a.LastLiquidAt)
+
+	liquidAt := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
+	require.NoError(t, db.UpdateAssetLiquidity(ctx, a.AssetID, true, liquidAt))
+
+	a, _, err = db.GetAsset(ctx, "WEGE3")
+	require.NoError(t, err)
+	require.True(t, a.IsActive)
+	require.NotNil(t, a.LastLiquidAt)
+	require.Equal(t, liquidAt, a.LastLiquidAt.UTC())
+
+	require.NoError(t, db.UpdateAssetLiquidity(ctx, a.AssetID, false, liquidAt.AddDate(0, 1, 0)))
+
+	a, _, err = db.GetAsset(ctx, "WEGE3")
+	require.NoError(t, err)
+	require.False(t, a.IsActive)
+	require.Equal(t, liquidAt, a.LastLiquidAt.UTC(), "ficar inativo não apaga a data do último dia líquido")
+}
+
 func TestInsertObservationsAndLatestMetrics(t *testing.T) {
 	db := openTemp(t)
 	ctx := t.Context()

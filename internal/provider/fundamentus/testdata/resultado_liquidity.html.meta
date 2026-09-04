@@ -1,0 +1,9 @@
+url: https://www.fundamentus.com.br/resultado.php
+captured_at: sintético — não é captura real
+user_agent: n/a
+encoding: ISO-8859-1 (mesmo do original; <thead> copiado de resultado_min.html)
+estrutura: <thead> do original; <tbody> com 3 linhas sintéticas para exercitar a régua de liquidez
+tickers:
+  - DEAD3  # cotação não-zero, Liq.2meses = 0,00 (morto pela via da liquidez)
+  - ILIQ3  # cotação e liquidez não-zero, mas Liq.2meses abaixo do piso
+  - LIQ3   # Liq.2meses acima do piso
