@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/marlliton/goinvest/internal/domain"
+	"github.com/marlliton/goinvest/internal/identity"
 	"github.com/marlliton/goinvest/internal/provider"
 	"github.com/marlliton/goinvest/internal/store"
 )
@@ -104,6 +105,19 @@ func ingest(ctx context.Context, cfg Config, class domain.AssetClass, p provider
 		// A observação referencia asset(ticker): sem o upsert antes, a
 		// inserção em lote inteira falha na chave estrangeira.
 		if err := cfg.DB.UpsertAsset(ctx, o.Ticker, class, "", at); err != nil {
+			return 0, 0, err
+		}
+		if class != domain.ClassStock {
+			continue
+		}
+		assetID, found, err := cfg.DB.AssetIDByTicker(ctx, o.Ticker)
+		if err != nil {
+			return 0, 0, err
+		}
+		if !found {
+			continue
+		}
+		if err := cfg.DB.UpsertAssetAlias(ctx, identity.FractionalAlias(o.Ticker), assetID); err != nil {
 			return 0, 0, err
 		}
 	}
