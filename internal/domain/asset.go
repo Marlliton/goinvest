@@ -26,5 +26,9 @@ type Asset struct {
 	// Ativo morto ou ilíquido fica fora de ranking e de estatística setorial.
 	IsActive     bool
 	LastLiquidAt *time.Time
-	UpdatedAt    time.Time
+	// Grupo contra o qual os indicadores deste ativo são posicionados.
+	PeerGroupLevel string
+	PeerGroupKey   string
+	PeerGroupN     *int
+	UpdatedAt      time.Time
 }

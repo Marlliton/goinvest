@@ -11,25 +11,39 @@ import (
 )
 
 type Asset struct {
-	AssetID      int64
-	Ticker       string
-	Class        domain.AssetClass
-	Name         *string
-	Cnpj         *string
-	Isin         *string
-	CdCvm        *string
-	Sector       *string
-	Subsector    *string
-	Segment      *string
-	SectorSrc    *string
-	UpdatedAt    time.Time
-	IsActive     int64
-	LastLiquidAt *time.Time
+	AssetID        int64
+	Ticker         string
+	Class          domain.AssetClass
+	Name           *string
+	Cnpj           *string
+	Isin           *string
+	CdCvm          *string
+	Sector         *string
+	Subsector      *string
+	Segment        *string
+	SectorSrc      *string
+	UpdatedAt      time.Time
+	IsActive       int64
+	LastLiquidAt   *time.Time
+	PeerGroupLevel *string
+	PeerGroupKey   *string
+	PeerGroupN     *int64
 }
 
 type AssetAlias struct {
 	AliasTicker string
 	AssetID     int64
+}
+
+type AssetPercentile struct {
+	AssetID          int64
+	MetricID         string
+	Percentile       float64
+	GroupLevel       string
+	GroupKey         string
+	N                int64
+	FellBackToMarket int64
+	ComputedAt       time.Time
 }
 
 type CollectionRun struct {
@@ -64,4 +78,18 @@ type RawDoc struct {
 	LastModified *string
 	Sha256       string
 	Body         []byte
+}
+
+type SectorStat struct {
+	GroupLevel string
+	GroupKey   string
+	Class      string
+	MetricID   string
+	N          int64
+	P10        *float64
+	P25        *float64
+	Median     *float64
+	P75        *float64
+	P90        *float64
+	ComputedAt time.Time
 }

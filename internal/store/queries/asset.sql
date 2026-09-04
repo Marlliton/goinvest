@@ -8,12 +8,12 @@ ON CONFLICT(ticker) DO UPDATE SET
 RETURNING asset_id;
 
 -- name: GetAssetByTicker :one
-SELECT asset_id, ticker, class, name, cnpj, isin, cd_cvm, sector, subsector, segment, sector_src, updated_at, is_active, last_liquid_at
+SELECT asset_id, ticker, class, name, cnpj, isin, cd_cvm, sector, subsector, segment, sector_src, updated_at, is_active, last_liquid_at, peer_group_level, peer_group_key, peer_group_n
 FROM asset
 WHERE ticker = ?;
 
 -- name: GetAssetByID :one
-SELECT asset_id, ticker, class, name, cnpj, isin, cd_cvm, sector, subsector, segment, sector_src, updated_at, is_active, last_liquid_at
+SELECT asset_id, ticker, class, name, cnpj, isin, cd_cvm, sector, subsector, segment, sector_src, updated_at, is_active, last_liquid_at, peer_group_level, peer_group_key, peer_group_n
 FROM asset
 WHERE asset_id = ?;
 

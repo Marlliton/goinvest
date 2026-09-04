@@ -13,7 +13,7 @@ import (
 )
 
 const getAssetByID = `-- name: GetAssetByID :one
-SELECT asset_id, ticker, class, name, cnpj, isin, cd_cvm, sector, subsector, segment, sector_src, updated_at, is_active, last_liquid_at
+SELECT asset_id, ticker, class, name, cnpj, isin, cd_cvm, sector, subsector, segment, sector_src, updated_at, is_active, last_liquid_at, peer_group_level, peer_group_key, peer_group_n
 FROM asset
 WHERE asset_id = ?
 `
@@ -36,12 +36,15 @@ func (q *Queries) GetAssetByID(ctx context.Context, assetID int64) (Asset, error
 		&i.UpdatedAt,
 		&i.IsActive,
 		&i.LastLiquidAt,
+		&i.PeerGroupLevel,
+		&i.PeerGroupKey,
+		&i.PeerGroupN,
 	)
 	return i, err
 }
 
 const getAssetByTicker = `-- name: GetAssetByTicker :one
-SELECT asset_id, ticker, class, name, cnpj, isin, cd_cvm, sector, subsector, segment, sector_src, updated_at, is_active, last_liquid_at
+SELECT asset_id, ticker, class, name, cnpj, isin, cd_cvm, sector, subsector, segment, sector_src, updated_at, is_active, last_liquid_at, peer_group_level, peer_group_key, peer_group_n
 FROM asset
 WHERE ticker = ?
 `
@@ -64,6 +67,9 @@ func (q *Queries) GetAssetByTicker(ctx context.Context, ticker string) (Asset, e
 		&i.UpdatedAt,
 		&i.IsActive,
 		&i.LastLiquidAt,
+		&i.PeerGroupLevel,
+		&i.PeerGroupKey,
+		&i.PeerGroupN,
 	)
 	return i, err
 }

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/marlliton/goinvest/internal/catalog"
 	"github.com/marlliton/goinvest/internal/domain"
 	"github.com/marlliton/goinvest/internal/identity"
 	"github.com/marlliton/goinvest/internal/provider"
@@ -39,11 +40,14 @@ type SourceResult struct {
 type Report struct {
 	Stocks SourceResult
 	FIIs   SourceResult
+	// Vazio quando a referência estatística foi recalculada com sucesso.
+	SectorStats string
 }
 
 type Config struct {
 	Providers map[domain.AssetClass]provider.UniverseProvider
 	DB        *store.DB
+	Catalog   *catalog.Catalog
 	Force     bool
 	Now       func() time.Time
 }
@@ -58,10 +62,34 @@ func Sync(ctx context.Context, cfg Config) (Report, error) {
 		cfg.Now = time.Now
 	}
 
-	return Report{
+	report := Report{
 		Stocks: collectClass(ctx, cfg, domain.ClassStock),
 		FIIs:   collectClass(ctx, cfg, domain.ClassFII),
-	}, nil
+	}
+
+	// Recalcula com o que existir: estatística desatualizada é melhor que
+	// estatística misturando coleta nova com grupo de pares velho.
+	if cfg.Catalog != nil {
+		if err := cfg.DB.RecomputeSectorStats(ctx, metricRules(cfg.Catalog), cfg.Now()); err != nil {
+			report.SectorStats = err.Error()
+		}
+	}
+	return report, nil
+}
+
+func metricRules(cat *catalog.Catalog) []store.MetricRule {
+	rules := make([]store.MetricRule, 0, len(cat.Metrics))
+	for _, m := range cat.Metrics {
+		if !m.Percentile {
+			continue
+		}
+		rules = append(rules, store.MetricRule{
+			MetricID:         m.ID,
+			ExcludeNegative:  m.ExcludeNegative,
+			SentinelSegments: m.SentinelSegments,
+		})
+	}
+	return rules
 }
 
 func collectClass(ctx context.Context, cfg Config, class domain.AssetClass) SourceResult {

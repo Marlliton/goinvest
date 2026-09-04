@@ -86,20 +86,23 @@ func (db *DB) UpsertAssetAlias(ctx context.Context, aliasTicker string, assetID 
 
 func assetFromRow(a gen.Asset) domain.Asset {
 	return domain.Asset{
-		AssetID:      a.AssetID,
-		Ticker:       a.Ticker,
-		Class:        a.Class,
-		Name:         deref(a.Name),
-		CNPJ:         deref(a.Cnpj),
-		ISIN:         deref(a.Isin),
-		CDCVM:        deref(a.CdCvm),
-		Sector:       deref(a.Sector),
-		Subsector:    deref(a.Subsector),
-		Segment:      deref(a.Segment),
-		SectorSrc:    deref(a.SectorSrc),
-		IsActive:     a.IsActive != 0,
-		LastLiquidAt: a.LastLiquidAt,
-		UpdatedAt:    a.UpdatedAt,
+		AssetID:        a.AssetID,
+		Ticker:         a.Ticker,
+		Class:          a.Class,
+		Name:           deref(a.Name),
+		CNPJ:           deref(a.Cnpj),
+		ISIN:           deref(a.Isin),
+		CDCVM:          deref(a.CdCvm),
+		Sector:         deref(a.Sector),
+		Subsector:      deref(a.Subsector),
+		Segment:        deref(a.Segment),
+		SectorSrc:      deref(a.SectorSrc),
+		IsActive:       a.IsActive != 0,
+		LastLiquidAt:   a.LastLiquidAt,
+		PeerGroupLevel: deref(a.PeerGroupLevel),
+		PeerGroupKey:   deref(a.PeerGroupKey),
+		PeerGroupN:     intPtr(a.PeerGroupN),
+		UpdatedAt:      a.UpdatedAt,
 	}
 }
 

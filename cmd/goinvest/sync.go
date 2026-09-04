@@ -21,6 +21,7 @@ func newSyncCmd(deps rootDeps) *cobra.Command {
 			report, err := app.Sync(cmd.Context(), app.SyncConfig{
 				Providers: deps.Providers,
 				DB:        deps.DB,
+				Catalog:   deps.Catalog,
 				Force:     force,
 				Now:       time.Now,
 			})
@@ -31,6 +32,9 @@ func newSyncCmd(deps rootDeps) *cobra.Command {
 			out := cmd.OutOrStdout()
 			fmt.Fprintln(out, stageLine("ações", report.Stocks))
 			fmt.Fprintln(out, stageLine("FIIs", report.FIIs))
+			if report.SectorStats != "" {
+				fmt.Fprintf(out, "✗ referência setorial · %s\n", report.SectorStats)
+			}
 			return nil
 		},
 	}

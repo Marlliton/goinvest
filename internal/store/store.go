@@ -68,3 +68,11 @@ func deref(s *string) string {
 	}
 	return *s
 }
+
+func intPtr(v *int64) *int {
+	if v == nil {
+		return nil
+	}
+	n := int(*v)
+	return &n
+}
