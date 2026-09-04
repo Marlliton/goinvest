@@ -92,3 +92,29 @@ func blockIDs(blocks []Block) []string {
 	}
 	return ids
 }
+
+// Percentil de cotação não significa nada: o preço unitário depende do tamanho
+// do lote, não de o papel estar caro ou barato.
+func TestPercentileDeclarations(t *testing.T) {
+	cat, err := Load()
+	require.NoError(t, err)
+
+	byID := make(map[domain.MetricID]Metric, len(cat.Metrics))
+	for _, m := range cat.Metrics {
+		byID[m.ID] = m
+	}
+
+	require.True(t, byID["pl"].Percentile)
+	require.True(t, byID["pl"].ExcludeNegative, "P/L negativo não tem lugar na distribuição")
+	require.True(t, byID["pvp"].ExcludeNegative)
+
+	require.False(t, byID["cotacao"].Percentile)
+	require.False(t, byID["liq_2meses"].Percentile)
+	// Derivado não é gravado em observation, então não entra na materialização.
+	require.False(t, byID["dl_ebitda"].Percentile)
+
+	require.Contains(t, byID["psr"].SentinelSegments, "Bancos")
+	require.Contains(t, byID["ev_ebitda"].SentinelSegments, "Bancos")
+	require.Empty(t, byID["pl"].SentinelSegments, "P/L de banco é número real, não sentinela")
+	require.Empty(t, byID["dy"].SentinelSegments)
+}
