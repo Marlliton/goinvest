@@ -29,3 +29,10 @@ type IdentityProvider interface {
 	Companies(ctx context.Context, force bool) ([]identity.CompanyRef, error)
 	Detail(ctx context.Context, codeCVM string, force bool) (identity.CompanyDetail, error)
 }
+
+// FIIISINProvider existe separada porque a B3 não cobre fundos: a identidade de
+// FII vem do informe da CVM, por outro caminho.
+type FIIISINProvider interface {
+	Namer
+	ISINByCNPJ(ctx context.Context, force bool) (map[string]string, error)
+}
