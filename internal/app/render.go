@@ -24,6 +24,11 @@ func RenderText(r Report) string {
 	if r.Header.Inactive {
 		fmt.Fprintf(&b, "⚠ papel %s · fora de rankings e comparações\n", liquidityText(r.Header))
 	}
+	b.WriteString(sectorLine(r.Header) + "\n")
+	if r.Header.IncompleteRegistry > 0 {
+		fmt.Fprintf(&b, "cadastro incompleto: %d de %d\n",
+			r.Header.IncompleteRegistry, r.Header.TotalInClass)
+	}
 
 	sawAbsent, sawDerived := false, false
 	for _, block := range r.Blocks {
@@ -61,6 +66,17 @@ func legend(sawAbsent, sawDerived bool) string {
 	return strings.Join(parts, " · ")
 }
 
+// Três barras soltas dariam a impressão de que a fonte respondeu vazio, quando
+// o que houve foi o cadastro nunca ter rodado.
+func sectorLine(h HeaderView) string {
+	if h.Sector == "" {
+		return "Setor: desconhecido"
+	}
+	return fmt.Sprintf("Setor: %s / %s / %s", h.Sector, h.Subsector, h.Segment)
+}
+
+// Sem data registrada o aviso não afirma uma: dizer "desde" sem saber desde
+// quando inventaria um fato que ninguém observou.
 func liquidityText(h HeaderView) string {
 	if h.LastLiquidAt == nil {
 		return "sem liquidez registrada"

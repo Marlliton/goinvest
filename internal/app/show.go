@@ -25,6 +25,14 @@ type HeaderView struct {
 	Stale        bool
 	Inactive     bool
 	LastLiquidAt *time.Time
+	// Taxonomia oficial de três níveis. Vazia enquanto o cadastro não rodou.
+	Sector    string
+	Subsector string
+	Segment   string
+	// Cobertura do cadastro na classe do ativo consultado: sem o total, a
+	// contagem de faltantes não diz se falta muito ou quase nada.
+	IncompleteRegistry int
+	TotalInClass       int
 }
 
 type LineView struct {
@@ -73,9 +81,17 @@ func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string
 		}
 	}
 
+	total, withSector, err := db.SectorCoverage(ctx, asset.Class)
+	if err != nil {
+		return Report{}, err
+	}
+
 	h := header(collected, now)
 	h.Inactive = !asset.IsActive
 	h.LastLiquidAt = asset.LastLiquidAt
+	h.Sector, h.Subsector, h.Segment = asset.Sector, asset.Subsector, asset.Segment
+	h.TotalInClass = total
+	h.IncompleteRegistry = total - withSector
 
 	return Report{
 		Ticker: asset.Ticker,
