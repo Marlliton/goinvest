@@ -82,11 +82,20 @@ func legend(sawAbsent, sawDerived, sawFallback bool) string {
 	return strings.Join(parts, " · ")
 }
 
+const sectorLevelSep = " / "
+
 func sectorLine(h HeaderView) string {
 	if h.Sector == "" {
 		return "Setor: desconhecido"
 	}
-	return fmt.Sprintf("Setor: %s / %s / %s", h.Sector, h.Subsector, h.Segment)
+	levels := []string{h.Sector}
+	if h.Subsector != "" {
+		levels = append(levels, h.Subsector)
+	}
+	if h.Segment != "" {
+		levels = append(levels, h.Segment)
+	}
+	return "Setor: " + strings.Join(levels, sectorLevelSep)
 }
 
 func liquidityText(h HeaderView) string {

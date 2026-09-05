@@ -187,6 +187,19 @@ func TestShowSectorFromRegistry(t *testing.T) {
 		"Setor: Bens Industriais / Máquinas e Equipamentos / Motores. Compressores e Outros")
 }
 
+func TestShowSectorSingleLevelTaxonomy(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "MXRF11", domain.ClassFII, wege3Values())
+	setIdentity(t, db, "MXRF11", "Shoppings", "", "")
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "MXRF11", now)
+	require.NoError(t, err)
+
+	text := app.RenderText(report)
+	require.Contains(t, text, "Setor: Shoppings\n")
+	require.NotContains(t, text, " / ")
+}
+
 func TestShowSectorUnknownWithoutRegistry(t *testing.T) {
 	db := openTemp(t)
 	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
