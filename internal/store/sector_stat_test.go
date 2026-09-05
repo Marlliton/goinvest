@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -152,6 +153,47 @@ func TestRecomputeSectorStatsExcludesSentinelBySegment(t *testing.T) {
 	pcts, err = db.GetAssetPercentiles(t.Context(), ok.AssetID)
 	require.NoError(t, err)
 	require.Equal(t, 5, pcts[0].N)
+}
+
+func TestRecomputeSectorStatsSectorGroupIncludesAllLiquidMembers(t *testing.T) {
+	db := openTemp(t)
+
+	for i := 0; i < 11; i++ {
+		ticker := fmt.Sprintf("SEG%02d3", i)
+		seedGraded(t, db, ticker, domain.ClassStock, "Bens Industriais", "Máquinas", "Motores",
+			map[domain.MetricID]float64{"pl": float64(10 + i)})
+	}
+	for i := 0; i < 5; i++ {
+		ticker := fmt.Sprintf("RES%02d3", i)
+		seedGraded(t, db, ticker, domain.ClassStock, "Bens Industriais", "", "",
+			map[domain.MetricID]float64{"pl": float64(100 + i)})
+	}
+
+	require.NoError(t, db.RecomputeSectorStats(t.Context(), plRules(), computedAt))
+
+	res := assetOf(t, db, "RES003")
+	require.Equal(t, "setor", res.PeerGroupLevel)
+	require.Equal(t, "Bens Industriais", res.PeerGroupKey)
+
+	pcts, err := db.GetAssetPercentiles(t.Context(), res.AssetID)
+	require.NoError(t, err)
+	require.Len(t, pcts, 1)
+	require.Equal(t, 16, pcts[0].N,
+		"o grupo do setor deve conter os 16 líquidos, inclusive quem resolveu em segmento")
+
+	var setorN int64
+	require.NoError(t, db.QueryRow(
+		`SELECT n FROM sector_stat WHERE group_level = 'setor' AND group_key = 'Bens Industriais' AND metric_id = 'pl'`,
+	).Scan(&setorN))
+	require.Equal(t, int64(16), setorN,
+		"sector_stat do setor não pode ficar truncado nos 5 que resolveram ali")
+
+	var subsetorN int64
+	require.NoError(t, db.QueryRow(
+		`SELECT n FROM sector_stat WHERE group_level = 'subsetor' AND group_key = 'Máquinas' AND metric_id = 'pl'`,
+	).Scan(&subsetorN))
+	require.Equal(t, int64(11), subsetorN,
+		"subsetor precisa existir com o n do próprio nível mesmo quando ninguém resolveu ali")
 }
 
 func TestRecomputeSectorStatsFallsBackPerMetricWhenSparse(t *testing.T) {
