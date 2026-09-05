@@ -3,11 +3,14 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/marlliton/goinvest/internal/catalog"
 	"github.com/marlliton/goinvest/internal/domain"
 	"github.com/marlliton/goinvest/internal/identity"
 	"github.com/marlliton/goinvest/internal/store"
@@ -72,7 +75,10 @@ func testDeps(t *testing.T) rootDeps {
 
 	require.NoError(t, db.UpsertAsset(ctx, "FVPQ11", domain.ClassFII, "", collectedAt))
 
-	return rootDeps{DB: db, B3: fakeIdentity{}, CVM: fakeFII{}, Fundamentus: fakeFII{}}
+	cat, err := catalog.Load()
+	require.NoError(t, err)
+
+	return rootDeps{DB: db, Catalog: cat, B3: fakeIdentity{}, CVM: fakeFII{}, Fundamentus: fakeFII{}}
 }
 
 func TestRegistryCmdPrintsOneLinePerProgressOutsideTTY(t *testing.T) {
@@ -113,4 +119,105 @@ func TestRegistryCmdCoversStocksAndFIIs(t *testing.T) {
 	a, _, err := deps.DB.GetAsset(t.Context(), "FVPQ11")
 	require.NoError(t, err)
 	require.Equal(t, "Shoppings", a.Sector)
+}
+
+type cancellingIdentityLeaksRawError struct {
+	cancel context.CancelFunc
+}
+
+func (cancellingIdentityLeaksRawError) Name() string { return "fake-cancel-leak" }
+
+func (f cancellingIdentityLeaksRawError) Companies(context.Context, bool) ([]identity.CompanyRef, error) {
+	f.cancel()
+	return nil, fmt.Errorf("rate limiter %s: %w",
+		"https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetInitialCompanies/eyJsYW5n",
+		context.Canceled)
+}
+
+func (cancellingIdentityLeaksRawError) Detail(context.Context, string, bool) (identity.CompanyDetail, error) {
+	return identity.CompanyDetail{}, errors.New("não deve ser chamado")
+}
+
+func TestRegistryCmdCancelledDuringIdentityDoesNotLeakRawError(t *testing.T) {
+	var out bytes.Buffer
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	deps := testDeps(t)
+	deps.B3 = cancellingIdentityLeaksRawError{cancel: cancel}
+
+	cmd := newRegistryCmd(deps)
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs(nil)
+
+	err := cmd.ExecuteContext(ctx)
+
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "context canceled")
+	require.NotContains(t, err.Error(), "b3.com.br")
+	text := out.String()
+	require.NotContains(t, text, "context canceled")
+	require.NotContains(t, text, "b3.com.br")
+	require.Contains(t, text, "interromp")
+}
+
+type cancellingIdentityAfterCompanies struct {
+	cancel context.CancelFunc
+}
+
+func (cancellingIdentityAfterCompanies) Name() string { return "fake-cancel-after-companies" }
+
+func (cancellingIdentityAfterCompanies) Companies(context.Context, bool) ([]identity.CompanyRef, error) {
+	return []identity.CompanyRef{
+		{IssuingCompany: "WEGE", CodeCVM: "5410"},
+		{IssuingCompany: "ITUB", CodeCVM: "19348"},
+	}, nil
+}
+
+func (f cancellingIdentityAfterCompanies) Detail(context.Context, string, bool) (identity.CompanyDetail, error) {
+	f.cancel()
+	return identity.CompanyDetail{}, errors.New("simulado")
+}
+
+func TestRegistryCmdSkipsFIIStageWhenStocksInterrupted(t *testing.T) {
+	var out bytes.Buffer
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	deps := testDeps(t)
+	deps.B3 = cancellingIdentityAfterCompanies{cancel: cancel}
+
+	cmd := newRegistryCmd(deps)
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs(nil)
+
+	err := cmd.ExecuteContext(ctx)
+
+	require.Error(t, err)
+	text := out.String()
+	require.Contains(t, text, "FIIs")
+	require.Contains(t, text, "pulado")
+
+	a, _, err := deps.DB.GetAsset(t.Context(), "FVPQ11")
+	require.NoError(t, err)
+	require.Equal(t, "", a.Sector)
+}
+
+func TestRegistryCmdRecomputesSectorReferenceAfterRun(t *testing.T) {
+	var out bytes.Buffer
+	deps := testDeps(t)
+
+	cmd := newRegistryCmd(deps)
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs(nil)
+	require.NoError(t, cmd.ExecuteContext(t.Context()))
+
+	a, _, err := deps.DB.GetAsset(t.Context(), "WEGE3")
+	require.NoError(t, err)
+	// Antes deste plano, `registry` nunca chamava RecomputeSectorStats: essa
+	// asserção prova o recálculo porque PeerGroupLevel fica em "" sem ele.
+	require.NotEmpty(t, a.PeerGroupLevel)
 }
