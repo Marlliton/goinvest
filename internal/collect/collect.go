@@ -64,14 +64,14 @@ func Sync(ctx context.Context, cfg Config) (Report, error) {
 	}
 
 	if cfg.Catalog != nil {
-		if err := cfg.DB.RecomputeSectorStats(ctx, metricRules(cfg.Catalog), cfg.Now()); err != nil {
+		if err := cfg.DB.RecomputeSectorStats(ctx, MetricRules(cfg.Catalog), cfg.Now()); err != nil {
 			report.SectorStats = err.Error()
 		}
 	}
 	return report, nil
 }
 
-func metricRules(cat *catalog.Catalog) []store.MetricRule {
+func MetricRules(cat *catalog.Catalog) []store.MetricRule {
 	rules := make([]store.MetricRule, 0, len(cat.Metrics))
 	for _, m := range cat.Metrics {
 		if !m.Percentile {
