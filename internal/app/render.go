@@ -190,6 +190,11 @@ func RenderSectors(groups []ClassSectors) string {
 }
 
 func RenderSectorsDescend(sector string, d SectorDescend) string {
+	if d.SingleLevel {
+		return fmt.Sprintf("%s — %s: taxonomia de FII tem um nível só, não há subsetor para descer\n",
+			sector, plural(d.N, "papel líquido", "papéis líquidos"))
+	}
+
 	fallback := fallbackToSector
 	if d.BelowThreshold {
 		fallback = fallbackToMarket
@@ -197,6 +202,9 @@ func RenderSectorsDescend(sector string, d SectorDescend) string {
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s · subsetores\n", sector)
+	if d.AlsoFII {
+		b.WriteString("este nome também é setor de FII, taxonomia de nível único\n")
+	}
 	for _, s := range d.Groups {
 		b.WriteString("  " + sectorGroupLine(s, fallback) + "\n")
 	}

@@ -49,38 +49,61 @@ func Sectors(ctx context.Context, db *store.DB) ([]ClassSectors, error) {
 // SectorDescend lista os subsetores de um setor. BelowThreshold é do
 // setor-pai, não dos subsetores: decide para onde a queda de percentil de
 // cada subsetor aponta (setor-pai acima do piso vira o destino; abaixo,
-// a queda continua para o mercado).
+// a queda continua para o mercado). SingleLevel e N cobrem a taxonomia de
+// FII, que não tem subsetor: N só é populado nesse caso. AlsoFII avisa que
+// o mesmo nome, além de setor de ação com subsetores, também é setor de FII.
 type SectorDescend struct {
 	BelowThreshold bool
 	Groups         []SectorGroup
+	SingleLevel    bool
+	N              int
+	AlsoFII        bool
 }
 
 func SectorsDescend(ctx context.Context, db *store.DB, sector string) (SectorDescend, error) {
-	exists, err := db.SectorExists(ctx, domain.ClassStock, sector)
+	stockExists, err := db.SectorExists(ctx, domain.ClassStock, sector)
 	if err != nil {
 		return SectorDescend{}, err
 	}
-	if !exists {
+	fiiExists, err := db.SectorExists(ctx, domain.ClassFII, sector)
+	if err != nil {
+		return SectorDescend{}, err
+	}
+	if !stockExists && !fiiExists {
 		return SectorDescend{}, ErrSectorNotFound
 	}
 
-	sectorCounts, err := db.ListSectorCounts(ctx, domain.ClassStock)
+	if !stockExists && fiiExists {
+		fiiCounts, err := db.ListSectorCounts(ctx, domain.ClassFII)
+		if err != nil {
+			return SectorDescend{}, err
+		}
+		return SectorDescend{SingleLevel: true, N: sectorN(fiiCounts, sector)}, nil
+	}
+
+	stockCounts, err := db.ListSectorCounts(ctx, domain.ClassStock)
 	if err != nil {
 		return SectorDescend{}, err
-	}
-	sectorN := 0
-	for _, c := range sectorCounts {
-		if c.Name == sector {
-			sectorN = c.N
-			break
-		}
 	}
 
 	counts, err := db.ListSubsectorCounts(ctx, domain.ClassStock, sector)
 	if err != nil {
 		return SectorDescend{}, err
 	}
-	return SectorDescend{BelowThreshold: sectorN < store.MinPeerGroup, Groups: toGroups(counts)}, nil
+	return SectorDescend{
+		BelowThreshold: sectorN(stockCounts, sector) < store.MinPeerGroup,
+		Groups:         toGroups(counts),
+		AlsoFII:        fiiExists,
+	}, nil
+}
+
+func sectorN(counts []store.SectorCount, name string) int {
+	for _, c := range counts {
+		if c.Name == name {
+			return c.N
+		}
+	}
+	return 0
 }
 
 func toGroups(counts []store.SectorCount) []SectorGroup {
