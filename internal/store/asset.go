@@ -26,8 +26,7 @@ func (db *DB) UpsertAsset(ctx context.Context, ticker string, class domain.Asset
 	return nil
 }
 
-// GetAsset devolve found=false para ticker inexistente. Ausência não é erro:
-// distinguir "nunca sincronizado" de "não existe na B3" é escopo da Fase 2.
+// GetAsset devolve found=false para ticker inexistente. Ausência não é erro.
 // Ticker desconhecido cai no alias e devolve o ativo canônico, não o alias
 // consultado.
 func (db *DB) GetAsset(ctx context.Context, ticker string) (domain.Asset, bool, error) {

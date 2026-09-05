@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,7 +8,6 @@ import (
 	"time"
 
 	"github.com/marlliton/goinvest/internal/app"
-	"github.com/marlliton/goinvest/internal/collect"
 	"github.com/marlliton/goinvest/internal/registry"
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
@@ -30,70 +27,50 @@ func newRegistryCmd(deps rootDeps) *cobra.Command {
 			out := cmd.OutOrStdout()
 			interactive := isatty.IsTerminal(os.Stdout.Fd())
 
-			_, cancelled, err := runStage(ctx, out, interactive, "ações", func() (registry.Report, error) {
-				return app.Registry(ctx, app.RegistryConfig{
+			result, err := app.RegistryAll(ctx, app.RegistryAllConfig{
+				Stocks: app.RegistryConfig{
 					DB:         deps.DB,
 					Identity:   deps.B3,
 					Force:      force,
 					Now:        time.Now,
 					OnProgress: progressWriter(out, interactive, "ações"),
-				})
+				},
+				FIIs: app.RegistryFIIConfig{
+					DB:          deps.DB,
+					CVM:         deps.CVM,
+					Fundamentus: deps.Fundamentus,
+					Force:       force,
+					Now:         time.Now,
+					OnProgress:  progressWriter(out, interactive, "FIIs"),
+				},
+				Catalog: deps.Catalog,
+				Now:     time.Now,
 			})
-			if err != nil {
-				return err
-			}
+			endProgress(out, interactive)
 
-			if cancelled {
+			printStageOutcome(out, "ações", result.Stocks, result.StocksCancelled)
+			if result.FIIsSkipped {
 				fmt.Fprintln(out, "⚠ cadastro de FIIs pulado: coleta de ações foi interrompida")
 			} else {
-				_, cancelled, err = runStage(ctx, out, interactive, "FIIs", func() (registry.Report, error) {
-					return app.RegistryFII(ctx, app.RegistryFIIConfig{
-						DB:          deps.DB,
-						CVM:         deps.CVM,
-						Fundamentus: deps.Fundamentus,
-						Force:       force,
-						Now:         time.Now,
-						OnProgress:  progressWriter(out, interactive, "FIIs"),
-					})
-				})
-				if err != nil {
-					return err
-				}
+				printStageOutcome(out, "FIIs", result.FIIs, result.FIIsCancelled)
 			}
 
-			if deps.Catalog != nil {
-				if err := deps.DB.RecomputeSectorStats(context.WithoutCancel(ctx), collect.MetricRules(deps.Catalog), time.Now()); err != nil {
-					return fmt.Errorf("recalcular referência setorial: %w", err)
-				}
-			}
-
-			if cancelled {
-				return errors.New("cadastro interrompido pelo usuário")
-			}
-			return nil
+			return err
 		},
 	}
 	cmd.Flags().BoolVar(&force, "force", false, "ignora o cache e rebate na fonte")
 	return cmd
 }
 
-// runStage isola a detecção de cancelamento do erro cru devolvido pela fonte:
-// um Ctrl-C durante a coleta propaga context.Canceled envolto na URL da
-// requisição em andamento, e esse texto nunca deve chegar ao usuário.
-func runStage(ctx context.Context, out io.Writer, interactive bool, label string, run func() (registry.Report, error)) (report registry.Report, cancelled bool, err error) {
-	report, runErr := run()
-	endProgress(out, interactive)
-
-	if runErr != nil {
-		if ctx.Err() != nil {
-			fmt.Fprintf(out, "⚠ cadastro de %s interrompido pelo usuário\n", label)
-			return registry.Report{}, true, nil
-		}
-		return registry.Report{}, false, runErr
+// printStageOutcome cobre o caso em que o cancelamento chegou como erro cru
+// embrulhado (sem relatório) e o caso em que já veio limpo dentro de
+// registry.Report.
+func printStageOutcome(out io.Writer, label string, report registry.Report, cancelled bool) {
+	if cancelled && !report.Cancelled {
+		fmt.Fprintf(out, "⚠ cadastro de %s interrompido pelo usuário\n", label)
+		return
 	}
-
 	fmt.Fprintln(out, registrySummary(label, report))
-	return report, report.Cancelled, nil
 }
 
 func progressWriter(out io.Writer, interactive bool, label string) func(registry.Progress) {

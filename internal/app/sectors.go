@@ -46,20 +46,41 @@ func Sectors(ctx context.Context, db *store.DB) ([]ClassSectors, error) {
 	return out, nil
 }
 
-func SectorsDescend(ctx context.Context, db *store.DB, sector string) ([]SectorGroup, error) {
+// SectorDescend lista os subsetores de um setor. BelowThreshold é do
+// setor-pai, não dos subsetores: decide para onde a queda de percentil de
+// cada subsetor aponta (setor-pai acima do piso vira o destino; abaixo,
+// a queda continua para o mercado).
+type SectorDescend struct {
+	BelowThreshold bool
+	Groups         []SectorGroup
+}
+
+func SectorsDescend(ctx context.Context, db *store.DB, sector string) (SectorDescend, error) {
 	exists, err := db.SectorExists(ctx, domain.ClassStock, sector)
 	if err != nil {
-		return nil, err
+		return SectorDescend{}, err
 	}
 	if !exists {
-		return nil, ErrSectorNotFound
+		return SectorDescend{}, ErrSectorNotFound
+	}
+
+	sectorCounts, err := db.ListSectorCounts(ctx, domain.ClassStock)
+	if err != nil {
+		return SectorDescend{}, err
+	}
+	sectorN := 0
+	for _, c := range sectorCounts {
+		if c.Name == sector {
+			sectorN = c.N
+			break
+		}
 	}
 
 	counts, err := db.ListSubsectorCounts(ctx, domain.ClassStock, sector)
 	if err != nil {
-		return nil, err
+		return SectorDescend{}, err
 	}
-	return toGroups(counts), nil
+	return SectorDescend{BelowThreshold: sectorN < store.MinPeerGroup, Groups: toGroups(counts)}, nil
 }
 
 func toGroups(counts []store.SectorCount) []SectorGroup {
