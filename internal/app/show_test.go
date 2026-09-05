@@ -220,6 +220,20 @@ func TestShowOmitsWarningWhenRegistryComplete(t *testing.T) {
 	require.NotContains(t, app.RenderText(report), "cadastro incompleto")
 }
 
+func TestShowOmitsWarningWhenOnlyIlliquidAssetsLackSector(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
+	setIdentity(t, db, "WEGE3", "Bens Industriais", "Máquinas e Equipamentos", "Motores")
+	seed(t, db, "DEAD3", domain.ClassStock, wege3Values())
+	dead3, _, err := db.GetAsset(t.Context(), "DEAD3")
+	require.NoError(t, err)
+	require.NoError(t, db.UpdateAssetLiquidity(t.Context(), dead3.AssetID, false, collectedAt))
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	require.NoError(t, err)
+	require.NotContains(t, app.RenderText(report), "cadastro incompleto")
+}
+
 func seedPeerGroup(t *testing.T, db *store.DB, tickers []string, sector, subsector, segment string, pl []float64) {
 	t.Helper()
 	for i, ticker := range tickers {
