@@ -121,6 +121,7 @@ func TestSectorsDescend(t *testing.T) {
 	require.Equal(t, 5, descend.Groups[0].N)
 	require.False(t, descend.Groups[0].BelowThreshold)
 	require.True(t, descend.Groups[1].BelowThreshold)
+	require.False(t, descend.AlsoFII)
 }
 
 func TestSectorsDescendUnknownSector(t *testing.T) {
@@ -129,4 +130,31 @@ func TestSectorsDescendUnknownSector(t *testing.T) {
 
 	_, err := app.SectorsDescend(t.Context(), db, "Setor Inexistente")
 	require.ErrorIs(t, err, app.ErrSectorNotFound)
+}
+
+func TestSectorsDescendFIISectorHasSingleLevelTaxonomy(t *testing.T) {
+	db := openTemp(t)
+	seedSector(t, db, "AAAA11", domain.ClassFII, "Logística", "", true)
+	seedSector(t, db, "BBBB11", domain.ClassFII, "Logística", "", true)
+
+	descend, err := app.SectorsDescend(t.Context(), db, "Logística")
+	require.NoError(t, err)
+	require.True(t, descend.SingleLevel)
+	require.Equal(t, 2, descend.N)
+	require.Empty(t, descend.Groups)
+}
+
+func TestSectorsDescendNamesFIICollisionWhenDescendingIntoStockSector(t *testing.T) {
+	db := openTemp(t)
+	for _, ticker := range []string{"AAAA3", "BBBB3", "CCCC3", "DDDD3", "EEEE3"} {
+		seedSector(t, db, ticker, domain.ClassStock, "Outros", "Diversos", true)
+	}
+	seedSector(t, db, "AAAA11", domain.ClassFII, "Outros", "", true)
+
+	descend, err := app.SectorsDescend(t.Context(), db, "Outros")
+	require.NoError(t, err)
+	require.False(t, descend.SingleLevel)
+	require.True(t, descend.AlsoFII)
+	require.Len(t, descend.Groups, 1)
+	require.Equal(t, "Diversos", descend.Groups[0].Name)
 }

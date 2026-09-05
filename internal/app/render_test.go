@@ -49,3 +49,61 @@ func TestRenderSectorsStillFallsBackToMarketForTopLevelSector(t *testing.T) {
 	text := app.RenderSectors(groups)
 	require.Contains(t, text, "referência de mercado")
 }
+
+func TestRenderSectorsDescendFIISingleLevelExplainsAbsenceOfSubsector(t *testing.T) {
+	text := app.RenderSectorsDescend("Logística", app.SectorDescend{SingleLevel: true, N: 16})
+	require.Contains(t, text, "nível só")
+	require.Contains(t, text, "16")
+	require.NotContains(t, text, "subsetores")
+}
+
+func TestRenderSectorsDescendNotesFIICollisionForStockSector(t *testing.T) {
+	text := app.RenderSectorsDescend("Outros", app.SectorDescend{
+		Groups:  []app.SectorGroup{{Name: "Diversos", N: 5}},
+		AlsoFII: true,
+	})
+	require.Contains(t, text, "FII")
+}
+
+func peerN(n int) *int { return &n }
+
+func TestRenderTextExplainsSmallerPeerN(t *testing.T) {
+	report := app.Report{
+		Ticker: "WEGE3",
+		Class:  domain.ClassStock,
+		Header: app.HeaderView{PeerGroupLabel: "Bens Industriais", PeerGroupN: 25},
+		Blocks: []app.BlockView{{
+			Label: "Valuation",
+			Lines: []app.LineView{{
+				Label:      "P/L",
+				Value:      ptr(34.94),
+				Percentile: ptr(0.6),
+				PeerN:      peerN(18),
+			}},
+		}},
+	}
+
+	text := app.RenderText(report)
+	require.Contains(t, text, "n=18")
+	require.Contains(t, text, "quantos papéis")
+}
+
+func TestRenderTextOmitsPeerNExplanationWhenLineNMatchesHeader(t *testing.T) {
+	report := app.Report{
+		Ticker: "WEGE3",
+		Class:  domain.ClassStock,
+		Header: app.HeaderView{PeerGroupLabel: "Bens Industriais", PeerGroupN: 25},
+		Blocks: []app.BlockView{{
+			Label: "Valuation",
+			Lines: []app.LineView{{
+				Label:      "P/L",
+				Value:      ptr(34.94),
+				Percentile: ptr(0.6),
+				PeerN:      peerN(25),
+			}},
+		}},
+	}
+
+	text := app.RenderText(report)
+	require.NotContains(t, text, "quantos papéis")
+}
