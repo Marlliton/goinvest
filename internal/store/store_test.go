@@ -205,6 +205,37 @@ func TestUpdateAssetIdentitiesAndCoverage(t *testing.T) {
 	require.Equal(t, 1, withSector)
 }
 
+func TestSectorCoverageExcludesInactiveAssets(t *testing.T) {
+	db := openTemp(t)
+	ctx := t.Context()
+	seedAsset(t, db, "WEGE3", domain.ClassStock)
+	seedAsset(t, db, "ITUB4", domain.ClassStock)
+	seedAsset(t, db, "DEAD1", domain.ClassStock)
+	seedAsset(t, db, "DEAD2", domain.ClassStock)
+
+	wege3, _, err := db.GetAsset(ctx, "WEGE3")
+	require.NoError(t, err)
+	itub4, _, err := db.GetAsset(ctx, "ITUB4")
+	require.NoError(t, err)
+	at := time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
+	require.NoError(t, db.UpdateAssetIdentities(ctx, []AssetIdentityUpdate{
+		{AssetID: wege3.AssetID, Sector: "Bens Industriais", UpdatedAt: at},
+		{AssetID: itub4.AssetID, Sector: "Bens Industriais", UpdatedAt: at},
+	}))
+
+	dead1, _, err := db.GetAsset(ctx, "DEAD1")
+	require.NoError(t, err)
+	dead2, _, err := db.GetAsset(ctx, "DEAD2")
+	require.NoError(t, err)
+	require.NoError(t, db.UpdateAssetLiquidity(ctx, dead1.AssetID, false, at))
+	require.NoError(t, db.UpdateAssetLiquidity(ctx, dead2.AssetID, false, at))
+
+	total, withSector, err := db.SectorCoverage(ctx, domain.ClassStock)
+	require.NoError(t, err)
+	require.Equal(t, 2, total, "inativas somem por completo da conta, não só do numerador")
+	require.Equal(t, 2, withSector)
+}
+
 func TestListActiveTickers(t *testing.T) {
 	db := openTemp(t)
 	ctx := t.Context()
