@@ -49,3 +49,18 @@ func TestRenderSectorsStillFallsBackToMarketForTopLevelSector(t *testing.T) {
 	text := app.RenderSectors(groups)
 	require.Contains(t, text, "referência de mercado")
 }
+
+func TestRenderSectorsDescendFIISingleLevelExplainsAbsenceOfSubsector(t *testing.T) {
+	text := app.RenderSectorsDescend("Logística", app.SectorDescend{SingleLevel: true, N: 16})
+	require.Contains(t, text, "nível só")
+	require.Contains(t, text, "16")
+	require.NotContains(t, text, "subsetores")
+}
+
+func TestRenderSectorsDescendNotesFIICollisionForStockSector(t *testing.T) {
+	text := app.RenderSectorsDescend("Outros", app.SectorDescend{
+		Groups:  []app.SectorGroup{{Name: "Diversos", N: 5}},
+		AlsoFII: true,
+	})
+	require.Contains(t, text, "FII")
+}

@@ -62,6 +62,19 @@ func TestSectorsCommandDescend(t *testing.T) {
 	require.Contains(t, out.String(), "Máquinas")
 }
 
+func TestSectorsCommandDescendFIISingleLevel(t *testing.T) {
+	var out bytes.Buffer
+
+	cmd := newSectorsCmd(sectorDeps(t))
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{"Shoppings"})
+	require.NoError(t, cmd.ExecuteContext(t.Context()))
+
+	text := out.String()
+	require.Contains(t, text, "nível só")
+	require.NotContains(t, text, "não encontrado")
+}
+
 func TestSectorsCommandDescendUnknownSector(t *testing.T) {
 	cmd := newSectorsCmd(sectorDeps(t))
 	cmd.SetOut(&bytes.Buffer{})
