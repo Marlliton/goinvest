@@ -113,13 +113,14 @@ func TestSectorsDescend(t *testing.T) {
 	}
 	seedSector(t, db, "FFFF3", domain.ClassStock, "Bens Industriais", "Transporte", true)
 
-	subs, err := app.SectorsDescend(t.Context(), db, "Bens Industriais")
+	descend, err := app.SectorsDescend(t.Context(), db, "Bens Industriais")
 	require.NoError(t, err)
-	require.Len(t, subs, 2)
-	require.Equal(t, "Máquinas", subs[0].Name)
-	require.Equal(t, 5, subs[0].N)
-	require.False(t, subs[0].BelowThreshold)
-	require.True(t, subs[1].BelowThreshold)
+	require.False(t, descend.BelowThreshold, "o setor tem 6 ativos líquidos no total, acima do piso")
+	require.Len(t, descend.Groups, 2)
+	require.Equal(t, "Máquinas", descend.Groups[0].Name)
+	require.Equal(t, 5, descend.Groups[0].N)
+	require.False(t, descend.Groups[0].BelowThreshold)
+	require.True(t, descend.Groups[1].BelowThreshold)
 }
 
 func TestSectorsDescendUnknownSector(t *testing.T) {

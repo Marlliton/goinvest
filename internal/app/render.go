@@ -167,6 +167,11 @@ func formatBR(v float64, decimals int) string {
 	return out
 }
 
+const (
+	fallbackToMarket = "a referência de mercado"
+	fallbackToSector = "a referência do setor"
+)
+
 func RenderSectors(groups []ClassSectors) string {
 	var b strings.Builder
 	for i, g := range groups {
@@ -178,17 +183,22 @@ func RenderSectors(groups []ClassSectors) string {
 			fmt.Fprintf(&b, "cadastro incompleto: %d de %d\n", g.IncompleteRegistry, g.TotalAssets)
 		}
 		for _, s := range g.Groups {
-			b.WriteString("  " + sectorGroupLine(s) + "\n")
+			b.WriteString("  " + sectorGroupLine(s, fallbackToMarket) + "\n")
 		}
 	}
 	return b.String()
 }
 
-func RenderSectorsDescend(sector string, groups []SectorGroup) string {
+func RenderSectorsDescend(sector string, d SectorDescend) string {
+	fallback := fallbackToSector
+	if d.BelowThreshold {
+		fallback = fallbackToMarket
+	}
+
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s · subsetores\n", sector)
-	for _, s := range groups {
-		b.WriteString("  " + sectorGroupLine(s) + "\n")
+	for _, s := range d.Groups {
+		b.WriteString("  " + sectorGroupLine(s, fallback) + "\n")
 	}
 	return b.String()
 }
@@ -200,10 +210,10 @@ func sectionLabel(c domain.AssetClass) string {
 	return "Ações"
 }
 
-func sectorGroupLine(s SectorGroup) string {
+func sectorGroupLine(s SectorGroup, fallback string) string {
 	if s.BelowThreshold {
-		return fmt.Sprintf("%s — %s: percentil cai para a referência de mercado",
-			s.Name, plural(s.N, "papel líquido", "papéis líquidos"))
+		return fmt.Sprintf("%s — %s: percentil cai para %s",
+			s.Name, plural(s.N, "papel líquido", "papéis líquidos"), fallback)
 	}
 	return fmt.Sprintf("%s — %s", s.Name, plural(s.N, "ativo líquido", "ativos líquidos"))
 }

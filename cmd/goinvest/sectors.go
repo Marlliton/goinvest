@@ -26,14 +26,14 @@ func newSectorsCmd(deps rootDeps) *cobra.Command {
 			}
 
 			sector := args[0]
-			groups, err := app.SectorsDescend(cmd.Context(), deps.DB, sector)
+			descend, err := app.SectorsDescend(cmd.Context(), deps.DB, sector)
 			if err != nil {
 				if errors.Is(err, app.ErrSectorNotFound) {
 					return fmt.Errorf("setor %q não encontrado. Rode 'goinvest sectors' para ver os setores disponíveis", sector)
 				}
 				return err
 			}
-			fmt.Fprint(out, app.RenderSectorsDescend(sector, groups))
+			fmt.Fprint(out, app.RenderSectorsDescend(sector, descend))
 			return nil
 		},
 	}
