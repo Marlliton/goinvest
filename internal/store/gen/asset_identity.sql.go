@@ -70,7 +70,7 @@ const sectorCoverage = `-- name: SectorCoverage :one
 SELECT COUNT(*)                                                     AS total,
        COUNT(CASE WHEN sector IS NOT NULL AND sector != '' THEN 1 END) AS with_sector
 FROM asset
-WHERE class = ?
+WHERE class = ? AND is_active = 1
 `
 
 type SectorCoverageRow struct {

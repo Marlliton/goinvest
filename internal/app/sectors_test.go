@@ -60,7 +60,7 @@ func TestSectorsListsByClassWithSampleMark(t *testing.T) {
 	require.True(t, fiis.Groups[0].BelowThreshold)
 }
 
-func TestSectorsExcludesInactiveFromCountButNotFromCoverage(t *testing.T) {
+func TestSectorsCoverageExcludesInactiveAssets(t *testing.T) {
 	db := openTemp(t)
 	seedSector(t, db, "AAAA3", domain.ClassStock, "Bens Industriais", "Máquinas", true)
 	seedSector(t, db, "BBBB3", domain.ClassStock, "Bens Industriais", "Máquinas", false)
@@ -70,8 +70,25 @@ func TestSectorsExcludesInactiveFromCountButNotFromCoverage(t *testing.T) {
 
 	stocks := classOf(t, groups, domain.ClassStock)
 	require.Equal(t, 1, stocks.Groups[0].N)
-	require.Equal(t, 2, stocks.TotalAssets)
+	require.Equal(t, 1, stocks.TotalAssets, "só a ação ativa entra na conta")
 	require.Zero(t, stocks.IncompleteRegistry)
+}
+
+func TestSectorsFIILiquidAssetWithoutSectorCountsAsIncomplete(t *testing.T) {
+	db := openTemp(t)
+	seedSector(t, db, "MXRF11", domain.ClassFII, "Shoppings", "", true)
+	seedSector(t, db, "SEMS11", domain.ClassFII, "", "", true)
+	seedSector(t, db, "DEAD11", domain.ClassFII, "", "", false)
+
+	groups, err := app.Sectors(t.Context(), db)
+	require.NoError(t, err)
+
+	fiis := classOf(t, groups, domain.ClassFII)
+	require.Equal(t, 2, fiis.TotalAssets, "só os dois ativos entram na conta")
+	require.Equal(t, 1, fiis.IncompleteRegistry)
+	require.Len(t, fiis.Groups, 1)
+	require.Equal(t, "Shoppings", fiis.Groups[0].Name)
+	require.Equal(t, 1, fiis.Groups[0].N)
 }
 
 func TestSectorsCountsAssetWithoutSectorOnlyAsIncomplete(t *testing.T) {

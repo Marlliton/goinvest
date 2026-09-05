@@ -17,7 +17,7 @@ SELECT ticker FROM asset WHERE class = ? AND is_active = 1 ORDER BY ticker;
 SELECT COUNT(*)                                                     AS total,
        COUNT(CASE WHEN sector IS NOT NULL AND sector != '' THEN 1 END) AS with_sector
 FROM asset
-WHERE class = ?;
+WHERE class = ? AND is_active = 1;
 
 -- name: ListTickersForClass :many
 SELECT ticker FROM asset WHERE class = ? ORDER BY ticker;

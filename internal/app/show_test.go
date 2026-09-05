@@ -187,6 +187,19 @@ func TestShowSectorFromRegistry(t *testing.T) {
 		"Setor: Bens Industriais / Máquinas e Equipamentos / Motores. Compressores e Outros")
 }
 
+func TestShowSectorSingleLevelTaxonomy(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "MXRF11", domain.ClassFII, wege3Values())
+	setIdentity(t, db, "MXRF11", "Shoppings", "", "")
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "MXRF11", now)
+	require.NoError(t, err)
+
+	text := app.RenderText(report)
+	require.Contains(t, text, "Setor: Shoppings\n")
+	require.NotContains(t, text, " / ")
+}
+
 func TestShowSectorUnknownWithoutRegistry(t *testing.T) {
 	db := openTemp(t)
 	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
@@ -214,6 +227,20 @@ func TestShowOmitsWarningWhenRegistryComplete(t *testing.T) {
 	db := openTemp(t)
 	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
 	setIdentity(t, db, "WEGE3", "Bens Industriais", "Máquinas e Equipamentos", "Motores")
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	require.NoError(t, err)
+	require.NotContains(t, app.RenderText(report), "cadastro incompleto")
+}
+
+func TestShowOmitsWarningWhenOnlyIlliquidAssetsLackSector(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
+	setIdentity(t, db, "WEGE3", "Bens Industriais", "Máquinas e Equipamentos", "Motores")
+	seed(t, db, "DEAD3", domain.ClassStock, wege3Values())
+	dead3, _, err := db.GetAsset(t.Context(), "DEAD3")
+	require.NoError(t, err)
+	require.NoError(t, db.UpdateAssetLiquidity(t.Context(), dead3.AssetID, false, collectedAt))
 
 	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
 	require.NoError(t, err)
