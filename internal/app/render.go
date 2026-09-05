@@ -36,7 +36,7 @@ func RenderText(r Report) string {
 			r.Header.PeerGroupLabel, r.Header.PeerGroupN)
 	}
 
-	sawAbsent, sawDerived, sawFallback := false, false, false
+	sawAbsent, sawDerived, sawFallback, sawSmallerPeerN := false, false, false, false
 	for _, block := range r.Blocks {
 		fmt.Fprintf(&b, "\n%s\n", block.Label)
 		for _, line := range block.Lines {
@@ -49,6 +49,9 @@ func RenderText(r Report) string {
 			b.WriteString(formatValue(*line.Value, line.Unit))
 			if line.Percentile != nil {
 				fmt.Fprintf(&b, " · p%d · n=%d", int(*line.Percentile*100), *line.PeerN)
+				if *line.PeerN < r.Header.PeerGroupN {
+					sawSmallerPeerN = true
+				}
 				if line.FellBackToMarket {
 					sawFallback = true
 					b.WriteString(" " + markFallback)
@@ -62,13 +65,13 @@ func RenderText(r Report) string {
 		}
 	}
 
-	if legend := legend(sawAbsent, sawDerived, sawFallback); legend != "" {
+	if legend := legend(sawAbsent, sawDerived, sawFallback, sawSmallerPeerN); legend != "" {
 		fmt.Fprintf(&b, "\n%s\n", legend)
 	}
 	return b.String()
 }
 
-func legend(sawAbsent, sawDerived, sawFallback bool) string {
+func legend(sawAbsent, sawDerived, sawFallback, sawSmallerPeerN bool) string {
 	var parts []string
 	if sawAbsent {
 		parts = append(parts, markAbsent+" = fonte não informa")
@@ -78,6 +81,9 @@ func legend(sawAbsent, sawDerived, sawFallback bool) string {
 	}
 	if sawFallback {
 		parts = append(parts, markFallback+" = comparado com o mercado inteiro; o setor tem poucos papéis com esta métrica")
+	}
+	if sawSmallerPeerN {
+		parts = append(parts, "n = quantos papéis do grupo têm este indicador; pode ser menor que o total do cabeçalho")
 	}
 	return strings.Join(parts, " · ")
 }
