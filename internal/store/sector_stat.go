@@ -180,8 +180,20 @@ func materializeMetric(ctx context.Context, q *gen.Queries, rule MetricRule, byI
 			continue
 		}
 		eligible[r.AssetID] = *r.Value
-		byGroup[groupID{asset.level, asset.key, asset.class}] = append(
-			byGroup[groupID{asset.level, asset.key, asset.class}], *r.Value)
+
+		// Taxonomia setorial é hierárquica (GICS): o ativo pertence a segmento,
+		// subsetor e setor ao mesmo tempo, não só ao nível que a cascata
+		// escolheu para ele comparar.
+		if asset.segment != "" {
+			byGroup[groupID{levelSegment, asset.segment, asset.class}] = append(
+				byGroup[groupID{levelSegment, asset.segment, asset.class}], *r.Value)
+		}
+		if asset.subsector != "" {
+			byGroup[groupID{levelSubsector, asset.subsector, asset.class}] = append(
+				byGroup[groupID{levelSubsector, asset.subsector, asset.class}], *r.Value)
+		}
+		byGroup[groupID{levelSector, asset.sector, asset.class}] = append(
+			byGroup[groupID{levelSector, asset.sector, asset.class}], *r.Value)
 		byMarket[asset.class] = append(byMarket[asset.class], *r.Value)
 	}
 
