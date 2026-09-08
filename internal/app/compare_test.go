@@ -208,7 +208,7 @@ func TestCompare_RunsWithoutTerminal(t *testing.T) {
 		[]string{"WEGE3", "ROMI3", "KEPL3"}, now)
 	require.NoError(t, err)
 	require.NotEmpty(t, report.Tables)
-	require.NotEmpty(t, app.RenderCompareText(report))
+	require.NotEmpty(t, tableOf(t, report, domain.ClassStock).Columns)
 }
 
 func TestCompare_AllTickersInvalid(t *testing.T) {

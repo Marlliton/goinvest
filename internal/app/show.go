@@ -94,21 +94,72 @@ type Report struct {
 }
 
 func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string, now func() time.Time) (Report, error) {
-	asset, found, err := db.GetAsset(ctx, ticker)
-	if err != nil {
-		return Report{}, err
-	}
-	if !found {
-		return Report{}, ErrNoData
-	}
-
-	collected, err := db.LatestMetrics(ctx, asset.AssetID, asset.Ticker)
+	data, found, err := loadAsset(ctx, db, ticker)
 	if err != nil {
 		return Report{}, err
 	}
 	// Cadastrado e nunca coletado pede do usuário a mesma ação que ausente.
-	if len(collected) == 0 {
+	if !found || len(data.collected) == 0 {
 		return Report{}, ErrNoData
+	}
+	asset := data.asset
+
+	total, withSector, err := db.SectorCoverage(ctx, asset.Class)
+	if err != nil {
+		return Report{}, err
+	}
+
+	h := header(data.collected, now)
+	h.Inactive = !asset.IsActive
+	h.LastLiquidAt = asset.LastLiquidAt
+	h.Sector, h.Subsector, h.Segment = asset.Sector, asset.Subsector, asset.Segment
+	h.TotalInClass = total
+	h.IncompleteRegistry = total - withSector
+
+	rate, selicAt, found, err := selic(ctx, db)
+	if err != nil {
+		return Report{}, err
+	}
+	if found {
+		h.SelicRate, h.SelicAt = rate, selicAt
+	}
+	if asset.IsActive {
+		h.PeerGroupLabel, h.PeerGroupN = peerGroup(asset)
+	}
+
+	alerts := evaluate.Detect(alertInput(cat, asset, data.merged, data.percentiles, h, data.hasDetail))
+
+	return Report{
+		Ticker: asset.Ticker,
+		Class:  asset.Class,
+		Header: h,
+		Blocks: blocks(cat, asset, data.merged, data.percentiles, h, data.hasDetail, alerts),
+		Bazin:  bazinView(data.events, data.merged, h, asset.Ticker, now()),
+		Alerts: alerts,
+	}, nil
+}
+
+// assetData é tudo que uma tela precisa de um ativo. Show e Compare leem o
+// mesmo conjunto pelo mesmo caminho: duas leituras diferentes fariam as duas
+// telas discordarem sobre o mesmo ticker sem que nada acusasse.
+type assetData struct {
+	asset       domain.Asset
+	collected   domain.MetricSet
+	merged      domain.MetricSet
+	hasDetail   bool
+	percentiles map[domain.MetricID]store.AssetPercentile
+	events      []domain.DividendEvent
+}
+
+func loadAsset(ctx context.Context, db *store.DB, ticker string) (assetData, bool, error) {
+	asset, found, err := db.GetAsset(ctx, ticker)
+	if err != nil || !found {
+		return assetData{}, false, err
+	}
+
+	collected, err := db.LatestMetrics(ctx, asset.AssetID, asset.Ticker)
+	if err != nil {
+		return assetData{}, false, err
 	}
 
 	merged := maps.Clone(collected)
@@ -118,53 +169,37 @@ func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string
 		}
 	}
 
-	total, withSector, err := db.SectorCoverage(ctx, asset.Class)
-	if err != nil {
-		return Report{}, err
-	}
-
-	h := header(collected, now)
-	h.Inactive = !asset.IsActive
-	h.LastLiquidAt = asset.LastLiquidAt
-	h.Sector, h.Subsector, h.Segment = asset.Sector, asset.Subsector, asset.Segment
-	h.TotalInClass = total
-	h.IncompleteRegistry = total - withSector
-
-	if rate, referenceAt, _, found, err := db.GetSelic(ctx); err != nil {
-		return Report{}, err
-	} else if found {
-		h.SelicRate, h.SelicAt = rate, referenceAt
-	}
-
 	hasDetail, err := db.HasDetail(ctx, asset.AssetID)
 	if err != nil {
-		return Report{}, err
+		return assetData{}, false, err
 	}
 
 	var percentiles map[domain.MetricID]store.AssetPercentile
 	if asset.IsActive {
-		h.PeerGroupLabel, h.PeerGroupN = peerGroup(asset)
 		percentiles, err = assetPercentiles(ctx, db, asset.AssetID)
 		if err != nil {
-			return Report{}, err
+			return assetData{}, false, err
 		}
 	}
 
 	events, err := db.ListDividendEvents(ctx, asset.AssetID)
 	if err != nil {
-		return Report{}, err
+		return assetData{}, false, err
 	}
 
-	alerts := evaluate.Detect(alertInput(cat, asset, merged, percentiles, h, hasDetail))
+	return assetData{
+		asset:       asset,
+		collected:   collected,
+		merged:      merged,
+		hasDetail:   hasDetail,
+		percentiles: percentiles,
+		events:      events,
+	}, true, nil
+}
 
-	return Report{
-		Ticker: asset.Ticker,
-		Class:  asset.Class,
-		Header: h,
-		Blocks: blocks(cat, asset, merged, percentiles, h, hasDetail, alerts),
-		Bazin:  bazinView(events, merged, h, asset.Ticker, now()),
-		Alerts: alerts,
-	}, nil
+func selic(ctx context.Context, db *store.DB) (rate *float64, at *time.Time, found bool, err error) {
+	rate, at, _, found, err = db.GetSelic(ctx)
+	return rate, at, found, err
 }
 
 func alertInput(cat *catalog.Catalog, asset domain.Asset, merged domain.MetricSet, percentiles map[domain.MetricID]store.AssetPercentile, h HeaderView, hasDetail bool) evaluate.Input {
