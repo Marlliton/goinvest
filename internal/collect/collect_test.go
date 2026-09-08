@@ -271,15 +271,40 @@ func syncWithSelic(t *testing.T, db *store.DB, selic provider.SelicProvider) col
 	t.Helper()
 
 	client := fetch.NewClient(fetch.Config{RateEvery: testRateEvery})
-	p := fundamentus.NewProvider(client, newSource(t).URL, time.Now)
+	p := fundamentus.NewProvider(client, newHealthySource(t).URL, time.Now)
 
 	report, err := collect.Sync(t.Context(), collect.Config{
-		Providers: map[domain.AssetClass]provider.UniverseProvider{domain.ClassStock: p},
-		DB:        db,
-		Selic:     selic,
+		Providers: map[domain.AssetClass]provider.UniverseProvider{
+			domain.ClassStock: p,
+			domain.ClassFII:   p,
+		},
+		DB:    db,
+		Selic: selic,
 	})
 	require.NoError(t, err)
 	return report
+}
+
+// As duas classes respondem 200: aqui o único estágio que pode falhar é a Selic.
+func newHealthySource(t *testing.T) *httptest.Server {
+	t.Helper()
+
+	serve := func(fixture string) http.HandlerFunc {
+		return func(w http.ResponseWriter, _ *http.Request) {
+			body, err := os.ReadFile(filepath.FromSlash(fixture))
+			require.NoError(t, err)
+			w.Header().Set("Content-Type", "text/html; charset=iso-8859-1")
+			_, _ = w.Write(body)
+		}
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/resultado.php", serve(stockFixture))
+	mux.HandleFunc("/fii_resultado.php", serve("../provider/fundamentus/testdata/fii_resultado_min.html"))
+
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
 }
 
 func TestSyncWritesSelicStage(t *testing.T) {
@@ -307,6 +332,7 @@ func TestSyncIsolatesSelicFailure(t *testing.T) {
 	report := syncWithSelic(t, db, fakeSelic{err: errors.New("bcb fora do ar")})
 
 	require.Equal(t, collect.StatusOK, report.Stocks.Status)
+	require.Equal(t, collect.StatusOK, report.FIIs.Status)
 	require.Equal(t, collect.StatusPartial, report.Selic.Status)
 	require.Contains(t, report.Selic.Reason, "bcb fora do ar")
 

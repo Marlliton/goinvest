@@ -22,6 +22,7 @@ func newSyncCmd(deps rootDeps) *cobra.Command {
 				Providers: deps.Providers,
 				DB:        deps.DB,
 				Catalog:   deps.Catalog,
+				Selic:     deps.Selic,
 				Force:     force,
 				Now:       time.Now,
 			})
@@ -32,6 +33,7 @@ func newSyncCmd(deps rootDeps) *cobra.Command {
 			out := cmd.OutOrStdout()
 			fmt.Fprintln(out, stageLine("ações", report.Stocks))
 			fmt.Fprintln(out, stageLine("FIIs", report.FIIs))
+			fmt.Fprintln(out, rateLine("Selic", report.Selic))
 			if report.SectorStats != "" {
 				fmt.Fprintf(out, "✗ referência setorial · %s\n", report.SectorStats)
 			}
@@ -47,6 +49,14 @@ func stageLine(label string, r collect.SourceResult) string {
 		return fmt.Sprintf("✓ %s · %d ativos · %s", label, r.AssetCount, formatSeconds(r.Duration))
 	}
 	return fmt.Sprintf("✗ %s · %s — dados anteriores preservados", label, r.Reason)
+}
+
+// A Selic não tem dimensão de ativos: "0 ativos" seria ruído inventado.
+func rateLine(label string, r collect.SourceResult) string {
+	if r.Status == collect.StatusOK {
+		return fmt.Sprintf("✓ %s · %s", label, formatSeconds(r.Duration))
+	}
+	return fmt.Sprintf("✗ %s · %s — valor anterior preservado", label, r.Reason)
 }
 
 func formatSeconds(d time.Duration) string {

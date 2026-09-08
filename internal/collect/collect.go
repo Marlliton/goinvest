@@ -37,6 +37,7 @@ type SourceResult struct {
 type Report struct {
 	Stocks      SourceResult
 	FIIs        SourceResult
+	Selic       SourceResult
 	SectorStats string
 }
 
@@ -44,6 +45,7 @@ type Config struct {
 	Providers map[domain.AssetClass]provider.UniverseProvider
 	DB        *store.DB
 	Catalog   *catalog.Catalog
+	Selic     provider.SelicProvider
 	Force     bool
 	Now       func() time.Time
 }
@@ -61,6 +63,9 @@ func Sync(ctx context.Context, cfg Config) (Report, error) {
 	report := Report{
 		Stocks: collectClass(ctx, cfg, domain.ClassStock),
 		FIIs:   collectClass(ctx, cfg, domain.ClassFII),
+	}
+	if cfg.Selic != nil {
+		report.Selic = collectSelic(ctx, cfg)
 	}
 
 	if cfg.Catalog != nil {
@@ -84,6 +89,26 @@ func MetricRules(cat *catalog.Catalog) []store.MetricRule {
 		})
 	}
 	return rules
+}
+
+// A gravação vem depois das classes: a Selic é âncora de leitura, e uma queda
+// do BCB não pode custar a coleta do mercado inteiro.
+func collectSelic(ctx context.Context, cfg Config) SourceResult {
+	started := cfg.Now()
+	res := SourceResult{Source: cfg.Selic.Name(), Status: StatusOK}
+
+	rate, referenceAt, err := cfg.Selic.Selic(ctx, cfg.Force)
+	if err != nil {
+		res.Status, res.Reason, res.Duration = StatusPartial, err.Error(), cfg.Now().Sub(started)
+		return res
+	}
+
+	if err := cfg.DB.PutSelic(ctx, rate, referenceAt, cfg.Now()); err != nil {
+		res.Status, res.Reason = StatusPartial, err.Error()
+	}
+
+	res.Duration = cfg.Now().Sub(started)
+	return res
 }
 
 func collectClass(ctx context.Context, cfg Config, class domain.AssetClass) SourceResult {

@@ -17,6 +17,7 @@ import (
 	_ "github.com/marlliton/goinvest/internal/identity"
 	_ "github.com/marlliton/goinvest/internal/norm"
 	_ "github.com/marlliton/goinvest/internal/provider/b3"
+	_ "github.com/marlliton/goinvest/internal/provider/bcb"
 	_ "github.com/marlliton/goinvest/internal/provider/cvm"
 	_ "github.com/marlliton/goinvest/internal/registry"
 )
@@ -67,6 +68,7 @@ func TestAppCannotReachTheNetwork(t *testing.T) {
 		"net/http",
 		modulePath + "/internal/fetch",
 		modulePath + "/internal/provider/fundamentus",
+		modulePath + "/internal/provider/bcb",
 	})
 }
 
