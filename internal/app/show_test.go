@@ -395,3 +395,76 @@ func requireGolden(t *testing.T, name, got string) {
 	require.NoError(t, err, "golden ausente: rode `go test ./internal/app/... -update`")
 	require.Equal(t, string(want), got)
 }
+
+func lineOf(t *testing.T, r app.Report, id domain.MetricID) app.LineView {
+	t.Helper()
+	for _, b := range r.Blocks {
+		for _, l := range b.Lines {
+			if l.MetricID == id {
+				return l
+			}
+		}
+	}
+	t.Fatalf("métrica %s não está no relatório", id)
+	return app.LineView{}
+}
+
+func TestShowAnchorsDividendYieldOnSelic(t *testing.T) {
+	db := openTemp(t)
+	values := wege3Values()
+	values["dy"] = ptr(0.06)
+	seed(t, db, "WEGE3", domain.ClassStock, values)
+
+	referenceAt := time.Date(2026, 9, 16, 0, 0, 0, 0, time.UTC)
+	require.NoError(t, db.PutSelic(t.Context(), 0.14, referenceAt, collectedAt))
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	require.NoError(t, err)
+
+	require.NotNil(t, report.Header.SelicRate)
+	require.InDelta(t, 0.14, *report.Header.SelicRate, 1e-9)
+	require.NotNil(t, report.Header.SelicAt)
+	require.Equal(t, referenceAt, report.Header.SelicAt.UTC())
+
+	dy := lineOf(t, report, "dy")
+	require.NotNil(t, dy.SelicDelta)
+	require.InDelta(t, -0.08, *dy.SelicDelta, 1e-9)
+
+	require.Nil(t, lineOf(t, report, "roe").SelicDelta, "só o DY é ancorado")
+
+	text := app.RenderText(report)
+	require.Contains(t, text, "Selic: 14,00% (16/09/2026)")
+	require.Contains(t, text, "DY−Selic: -8,00pp")
+}
+
+func TestShowSelicUnknownIsNotEvaluated(t *testing.T) {
+	db := openTemp(t)
+	values := wege3Values()
+	values["dy"] = ptr(0.06)
+	seed(t, db, "WEGE3", domain.ClassStock, values)
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	require.NoError(t, err)
+
+	require.Nil(t, report.Header.SelicRate)
+	require.Nil(t, report.Header.SelicAt)
+	require.Nil(t, lineOf(t, report, "dy").SelicDelta)
+
+	text := app.RenderText(report)
+	require.Contains(t, text, "Selic: desconhecida")
+	require.NotContains(t, text, "DY−Selic")
+}
+
+func TestShowAnchorIsAbsentWhenDividendYieldIsAbsent(t *testing.T) {
+	db := openTemp(t)
+	values := wege3Values()
+	values["dy"] = nil
+	seed(t, db, "WEGE3", domain.ClassStock, values)
+	require.NoError(t, db.PutSelic(t.Context(), 0.14, collectedAt, collectedAt))
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	require.NoError(t, err)
+
+	require.Nil(t, lineOf(t, report, "dy").SelicDelta)
+	require.NotContains(t, app.RenderText(report), "DY−Selic")
+}

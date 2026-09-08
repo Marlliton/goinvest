@@ -311,7 +311,7 @@ func TestSyncWritesSelicStage(t *testing.T) {
 	db := openDB(t)
 	ref := time.Date(2026, 9, 16, 0, 0, 0, 0, time.UTC)
 
-	report := syncWithSelic(t, db, fakeSelic{rate: 14.00, referenceAt: ref})
+	report := syncWithSelic(t, db, fakeSelic{rate: 0.14, referenceAt: ref})
 
 	require.Equal(t, collect.StatusOK, report.Selic.Status)
 	require.Equal(t, "bcb", report.Selic.Source)
@@ -319,7 +319,7 @@ func TestSyncWritesSelicStage(t *testing.T) {
 	value, referenceAt, _, found, err := db.GetSelic(t.Context())
 	require.NoError(t, err)
 	require.True(t, found)
-	require.InDelta(t, 14.00, *value, 1e-9)
+	require.InDelta(t, 0.14, *value, 1e-9)
 	require.Equal(t, ref, referenceAt.UTC())
 }
 
@@ -327,7 +327,7 @@ func TestSyncIsolatesSelicFailure(t *testing.T) {
 	db := openDB(t)
 	ref := time.Date(2026, 9, 16, 0, 0, 0, 0, time.UTC)
 
-	require.NoError(t, db.PutSelic(t.Context(), 14.00, ref, ref))
+	require.NoError(t, db.PutSelic(t.Context(), 0.14, ref, ref))
 
 	report := syncWithSelic(t, db, fakeSelic{err: errors.New("bcb fora do ar")})
 
@@ -339,7 +339,7 @@ func TestSyncIsolatesSelicFailure(t *testing.T) {
 	value, _, _, found, err := db.GetSelic(t.Context())
 	require.NoError(t, err)
 	require.True(t, found, "estágio que falha preserva a Selic anterior")
-	require.InDelta(t, 14.00, *value, 1e-9)
+	require.InDelta(t, 0.14, *value, 1e-9)
 }
 
 // Sem provider registrado o estágio não existe: o campo fica zerado, e o sync

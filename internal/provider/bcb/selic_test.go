@@ -45,7 +45,7 @@ func TestSelicReturnsMostRecentPoint(t *testing.T) {
 
 	value, referenceAt, err := newProvider(t, srv.URL).Selic(t.Context(), false)
 	require.NoError(t, err)
-	require.InDelta(t, 14.00, value, 1e-9)
+	require.InDelta(t, 0.14, value, 1e-9, "percentual é fração em todo o pipeline")
 	require.Equal(t, time.Date(2026, 9, 16, 0, 0, 0, 0, time.UTC), referenceAt)
 }
 

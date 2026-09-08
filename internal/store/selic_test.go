@@ -23,22 +23,22 @@ func TestPutSelicOverwritesSingleRow(t *testing.T) {
 	ref := time.Date(2026, 9, 16, 0, 0, 0, 0, time.UTC)
 	fetched := time.Date(2026, 9, 17, 10, 30, 0, 0, time.UTC)
 
-	require.NoError(t, db.PutSelic(t.Context(), 14.00, ref, fetched))
+	require.NoError(t, db.PutSelic(t.Context(), 0.14, ref, fetched))
 
 	value, referenceAt, fetchedAt, found, err := db.GetSelic(t.Context())
 	require.NoError(t, err)
 	require.True(t, found)
-	require.InDelta(t, 14.00, *value, 1e-9)
+	require.InDelta(t, 0.14, *value, 1e-9)
 	require.Equal(t, ref, referenceAt.UTC())
 	require.Equal(t, fetched, fetchedAt.UTC())
 
 	newRef := ref.AddDate(0, 0, 30)
-	require.NoError(t, db.PutSelic(t.Context(), 13.75, newRef, fetched.AddDate(0, 0, 30)))
+	require.NoError(t, db.PutSelic(t.Context(), 0.1375, newRef, fetched.AddDate(0, 0, 30)))
 
 	value, referenceAt, _, found, err = db.GetSelic(t.Context())
 	require.NoError(t, err)
 	require.True(t, found)
-	require.InDelta(t, 13.75, *value, 1e-9)
+	require.InDelta(t, 0.1375, *value, 1e-9)
 	require.Equal(t, newRef, referenceAt.UTC())
 
 	var rows int
