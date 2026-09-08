@@ -4,10 +4,14 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"maps"
 	"slices"
+	"strconv"
+	"strings"
 	"time"
 
+	"github.com/marlliton/goinvest/internal/bazin"
 	"github.com/marlliton/goinvest/internal/catalog"
 	"github.com/marlliton/goinvest/internal/derive"
 	"github.com/marlliton/goinvest/internal/domain"
@@ -18,7 +22,10 @@ var ErrNoData = errors.New("nenhum dado local. Rode 'goinvest sync' primeiro")
 
 const stalenessThreshold = 7 * 24 * time.Hour
 
-const dividendYieldID = domain.MetricID("dy")
+const (
+	dividendYieldID = domain.MetricID("dy")
+	priceID         = domain.MetricID("cotacao")
+)
 
 type HeaderView struct {
 	ReferenceAt        *time.Time
@@ -60,11 +67,24 @@ type BlockView struct {
 	Lines []LineView
 }
 
+// Bazin é família, não linha: teto, ágio/deságio, anos usados e a lista anual
+// contam a mesma história e não cabem no esquema de LineView.
+type BazinView struct {
+	Ceiling             float64
+	CurrentPrice        float64
+	PremiumDiscount     float64
+	YearsUsed           int
+	Years               []bazin.YearlyDividend
+	AtypicalYears       []int
+	NotApplicableReason string
+}
+
 type Report struct {
 	Ticker string
 	Class  domain.AssetClass
 	Header HeaderView
 	Blocks []BlockView
+	Bazin  *BazinView
 }
 
 func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string, now func() time.Time) (Report, error) {
@@ -124,12 +144,76 @@ func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string
 		}
 	}
 
+	events, err := db.ListDividendEvents(ctx, asset.AssetID)
+	if err != nil {
+		return Report{}, err
+	}
+
 	return Report{
 		Ticker: asset.Ticker,
 		Class:  asset.Class,
 		Header: h,
 		Blocks: blocks(cat, asset, merged, percentiles, h, hasDetail),
+		Bazin:  bazinView(events, merged, h, asset.Ticker, now()),
 	}, nil
+}
+
+func bazinView(events []domain.DividendEvent, merged domain.MetricSet, h HeaderView, ticker string, now time.Time) *BazinView {
+	if len(events) == 0 {
+		return &BazinView{NotApplicableReason: "nenhum provento coletado; rode 'goinvest detalhar " + ticker + "'"}
+	}
+
+	result, ok := bazin.Compute(events, now)
+	if !ok {
+		return &BazinView{NotApplicableReason: ceilingRefusal(result)}
+	}
+
+	price, hasPrice := presentValue(merged, priceID)
+	if !hasPrice {
+		return &BazinView{NotApplicableReason: "cotação não coletada"}
+	}
+	// O teto nunca sai sozinho: sem a âncora ao lado, um R$ 20,00 de teto se lê
+	// como veredito, e é justamente a comparação com a renda fixa que decide se
+	// o dividendo compensa.
+	if h.SelicRate == nil {
+		return &BazinView{NotApplicableReason: "Selic desconhecida; rode 'goinvest sync'"}
+	}
+	if _, hasYield := presentValue(merged, dividendYieldID); !hasYield {
+		return &BazinView{NotApplicableReason: "DY não coletado; o teto não sai sem o DY−Selic ao lado"}
+	}
+	if result.Ceiling <= 0 {
+		return &BazinView{NotApplicableReason: "os proventos da janela somam zero"}
+	}
+
+	return &BazinView{
+		Ceiling:         result.Ceiling,
+		CurrentPrice:    price,
+		PremiumDiscount: (price - result.Ceiling) / result.Ceiling,
+		YearsUsed:       result.YearsAvailable,
+		Years:           result.Years,
+		AtypicalYears:   result.AtypicalYears,
+	}
+}
+
+func ceilingRefusal(result bazin.Result) string {
+	if len(result.MissingYears) > 0 {
+		years := make([]string, 0, len(result.MissingYears))
+		for _, y := range result.MissingYears {
+			years = append(years, strconv.Itoa(y))
+		}
+		return "sem provento em " + strings.Join(years, ", ") +
+			"; o método não vale para quem não paga com consistência"
+	}
+	return fmt.Sprintf("só %s com provento; o método pede ao menos %d",
+		plural(result.YearsAvailable, "exercício fechado", "exercícios fechados"), bazin.MinYears)
+}
+
+func presentValue(merged domain.MetricSet, id domain.MetricID) (float64, bool) {
+	o, ok := merged[id]
+	if !ok || o.Value == nil {
+		return 0, false
+	}
+	return *o.Value, true
 }
 
 func peerGroup(asset domain.Asset) (label string, n int) {

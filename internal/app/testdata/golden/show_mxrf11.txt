@@ -22,3 +22,5 @@ Rentabilidade
 Dividendos
   Dividend Yield: 13,20%
   FFO Yield: 12,80%
+
+Preço-teto (Bazin): não aplicável (nenhum provento coletado; rode 'goinvest detalhar MXRF11')

@@ -38,4 +38,6 @@ Dividendos
   Dividend Yield: 1,20%
   Payout: 36,00% ƒ (DY × P/L)
 
+Preço-teto (Bazin): não aplicável (nenhum provento coletado; rode 'goinvest detalhar ITUB4')
+
 ◌ = não se aplica a este ativo/setor · ƒ = calculado por goinvest

@@ -21,7 +21,8 @@ const (
 	// ano é considerado concentração atípica.
 	atypicalEventShare = 0.5
 
-	minYears = 3
+	// MinYears é o piso: abaixo dele a média não suaviza nada.
+	MinYears = 3
 	// WindowYears é a janela do método: cinco exercícios fechados.
 	WindowYears = 5
 )
@@ -92,7 +93,7 @@ func Compute(events []domain.DividendEvent, now time.Time) (Result, bool) {
 	if len(out.MissingYears) > 0 {
 		return Result{MissingYears: out.MissingYears}, false
 	}
-	if out.YearsAvailable < minYears {
+	if out.YearsAvailable < MinYears {
 		return Result{YearsAvailable: out.YearsAvailable}, false
 	}
 

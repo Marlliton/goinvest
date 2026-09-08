@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/marlliton/goinvest/internal/bazin"
 	"github.com/marlliton/goinvest/internal/domain"
 )
 
@@ -82,8 +83,40 @@ func RenderText(r Report) string {
 		}
 	}
 
+	if r.Bazin != nil {
+		b.WriteString("\n" + bazinText(*r.Bazin))
+	}
+
 	if legend := legend(sawAbsent, sawNotApplicable, sawDerived, sawFallback, sawSmallerPeerN); legend != "" {
 		fmt.Fprintf(&b, "\n%s\n", legend)
+	}
+	return b.String()
+}
+
+const bazinLabel = "Preço-teto (Bazin)"
+
+func bazinText(v BazinView) string {
+	// O motivo entre parênteses, e nunca depois de um travessão: "—" já é o
+	// símbolo de "fonte não informa" que a legenda define.
+	if v.NotApplicableReason != "" {
+		return fmt.Sprintf("%s: não aplicável (%s)\n", bazinLabel, v.NotApplicableReason)
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s\n", bazinLabel)
+	fmt.Fprintf(&b, "  Teto: %s · Cotação: %s · Ágio/deságio: %s%%\n",
+		formatValue(v.Ceiling, domain.UnitBRL),
+		formatValue(v.CurrentPrice, domain.UnitBRL),
+		formatSignedBR(v.PremiumDiscount*100, 2))
+
+	fmt.Fprintf(&b, "  Anos usados: %d de %d", v.YearsUsed, bazin.WindowYears)
+	for _, year := range v.AtypicalYears {
+		fmt.Fprintf(&b, " · ano %d concentrado", year)
+	}
+	b.WriteString("\n")
+
+	for _, y := range v.Years {
+		fmt.Fprintf(&b, "  %d: %s\n", y.Year, formatValue(y.Total, domain.UnitBRL))
 	}
 	return b.String()
 }
