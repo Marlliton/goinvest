@@ -64,6 +64,9 @@ func (p *Provider) Selic(ctx context.Context, force bool) (rate float64, referen
 	if err != nil {
 		return 0, time.Time{}, fmt.Errorf("bcb: selic: valor %q não é numérico: %w", last.Valor, err)
 	}
+	// O SGS publica "14.00" para 14% ao ano, e percentual é fração no resto do
+	// pipeline. Sem esta divisão, DY − Selic compara escalas diferentes.
+	value /= 100
 
 	ref, err := time.Parse("02/01/2006", last.Data)
 	if err != nil {

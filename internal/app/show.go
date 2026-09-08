@@ -18,6 +18,10 @@ var ErrNoData = errors.New("nenhum dado local. Rode 'goinvest sync' primeiro")
 
 const stalenessThreshold = 7 * 24 * time.Hour
 
+// A âncora de renda fixa vale para o rendimento distribuído, não para as
+// demais métricas.
+const dividendYieldID = domain.MetricID("dy")
+
 type HeaderView struct {
 	ReferenceAt        *time.Time
 	FetchedAt          time.Time
@@ -32,6 +36,8 @@ type HeaderView struct {
 	TotalInClass       int
 	PeerGroupLabel     string
 	PeerGroupN         int
+	SelicRate          *float64
+	SelicAt            *time.Time
 }
 
 type LineView struct {
@@ -44,6 +50,7 @@ type LineView struct {
 	Percentile       *float64
 	PeerN            *int
 	FellBackToMarket bool
+	SelicDelta       *float64
 }
 
 type BlockView struct {
@@ -95,6 +102,12 @@ func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string
 	h.TotalInClass = total
 	h.IncompleteRegistry = total - withSector
 
+	if rate, referenceAt, _, found, err := db.GetSelic(ctx); err != nil {
+		return Report{}, err
+	} else if found {
+		h.SelicRate, h.SelicAt = rate, referenceAt
+	}
+
 	var percentiles map[domain.MetricID]store.AssetPercentile
 	if asset.IsActive {
 		h.PeerGroupLabel, h.PeerGroupN = peerGroup(asset)
@@ -108,7 +121,7 @@ func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string
 		Ticker: asset.Ticker,
 		Class:  asset.Class,
 		Header: h,
-		Blocks: blocks(cat, asset.Class, merged, percentiles),
+		Blocks: blocks(cat, asset.Class, merged, percentiles, h),
 	}, nil
 }
 
@@ -182,7 +195,7 @@ func referenceKey(t *time.Time) int64 {
 	return t.UTC().Unix()
 }
 
-func blocks(cat *catalog.Catalog, class domain.AssetClass, merged domain.MetricSet, percentiles map[domain.MetricID]store.AssetPercentile) []BlockView {
+func blocks(cat *catalog.Catalog, class domain.AssetClass, merged domain.MetricSet, percentiles map[domain.MetricID]store.AssetPercentile, h HeaderView) []BlockView {
 	applicable := cat.MetricsFor(class)
 
 	out := make([]BlockView, 0, len(cat.Blocks))
@@ -204,6 +217,10 @@ func blocks(cat *catalog.Catalog, class domain.AssetClass, merged domain.MetricS
 				Unit:     m.Unit,
 				Derived:  m.Derived,
 				Formula:  m.Formula,
+			}
+			if m.ID == dividendYieldID && h.SelicRate != nil && o.Value != nil {
+				delta := *o.Value - *h.SelicRate
+				line.SelicDelta = &delta
 			}
 			if p, ok := percentiles[m.ID]; ok && m.Percentile {
 				n := p.N

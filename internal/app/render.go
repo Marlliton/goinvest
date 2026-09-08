@@ -26,6 +26,7 @@ func RenderText(r Report) string {
 		fmt.Fprintf(&b, "⚠ papel %s · fora de rankings e comparações\n", liquidityText(r.Header))
 	}
 	b.WriteString(sectorLine(r.Header) + "\n")
+	b.WriteString(selicLine(r.Header) + "\n")
 	if r.Header.IncompleteRegistry > 0 {
 		fmt.Fprintf(&b, "cadastro incompleto: %d de %d\n",
 			r.Header.IncompleteRegistry, r.Header.TotalInClass)
@@ -47,6 +48,9 @@ func RenderText(r Report) string {
 				continue
 			}
 			b.WriteString(formatValue(*line.Value, line.Unit))
+			if line.SelicDelta != nil {
+				fmt.Fprintf(&b, " · DY−Selic: %spp", formatSignedBR(*line.SelicDelta*100, 2))
+			}
 			if line.Percentile != nil {
 				fmt.Fprintf(&b, " · p%d · n=%d", int(*line.Percentile*100), *line.PeerN)
 				if *line.PeerN < r.Header.PeerGroupN {
@@ -104,6 +108,16 @@ func sectorLine(h HeaderView) string {
 	return "Setor: " + strings.Join(levels, sectorLevelSep)
 }
 
+// Sempre impressa: o silêncio seria lido como "não há âncora", e não como
+// "ninguém coletou".
+func selicLine(h HeaderView) string {
+	if h.SelicRate == nil {
+		return "Selic: desconhecida"
+	}
+	return fmt.Sprintf("Selic: %s (%s)",
+		formatValue(*h.SelicRate, domain.UnitPercent), h.SelicAt.Format("02/01/2006"))
+}
+
 func liquidityText(h HeaderView) string {
 	if h.LastLiquidAt == nil {
 		return "sem liquidez registrada"
@@ -147,6 +161,15 @@ func formatValue(v float64, unit domain.Unit) string {
 	default:
 		return formatBR(v, 2)
 	}
+}
+
+// O sinal positivo é informação: sem ele "2,00pp" e "-2,00pp" parecem a mesma
+// leitura com escala diferente.
+func formatSignedBR(v float64, decimals int) string {
+	if v >= 0 {
+		return "+" + formatBR(v, decimals)
+	}
+	return formatBR(v, decimals)
 }
 
 // Inverso de norm.ParseBRNumber.
