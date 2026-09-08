@@ -21,8 +21,9 @@ const (
 	// ano é considerado concentração atípica.
 	atypicalEventShare = 0.5
 
-	minYears    = 3
-	windowYears = 5
+	minYears = 3
+	// WindowYears é a janela do método: cinco exercícios fechados.
+	WindowYears = 5
 )
 
 type YearlyDividend struct {
@@ -36,8 +37,16 @@ type Result struct {
 	Years          []YearlyDividend
 	YearsAvailable int
 	AtypicalYears  []int
+	// Exercícios da janela em que o ativo não pagou nada. Preenchido junto com
+	// ok == false: o método é declaradamente inaplicável a quem não paga com
+	// consistência, e a média sobre os anos restantes sairia inflada.
+	MissingYears []int
 }
 
+// Compute agrupa os eventos por ano de data-com, usa até cinco exercícios
+// fechados e devolve false quando o piso de três anos não é atingido: uma média
+// de um ou dois anos não suaviza distribuição extraordinária nenhuma, que é
+// justamente o que a média existe para fazer.
 // Compute agrupa os eventos por ano de data-com, usa até cinco exercícios
 // fechados e devolve false quando o piso de três anos não é atingido: uma média
 // de um ou dois anos não suaviza distribuição extraordinária nenhuma, que é
@@ -58,25 +67,36 @@ func Compute(events []domain.DividendEvent, now time.Time) (Result, bool) {
 		totals[year] += v
 		largest[year] = math.Max(largest[year], v)
 	}
-
-	years := slices.SortedFunc(maps.Keys(totals), func(a, b int) int { return b - a })
-	if len(years) > windowYears {
-		years = years[:windowYears]
-	}
-	if len(years) < minYears {
+	if len(totals) == 0 {
 		return Result{}, false
 	}
 
-	out := Result{YearsAvailable: len(years)}
-	for _, year := range years {
-		total := totals[year]
+	// A janela é contígua e termina no último exercício fechado: contar só os
+	// anos que têm linha faria um ano sem pagamento sumir da conta.
+	latest := now.Year() - 1
+	first := max(slices.Min(slices.Collect(maps.Keys(totals))), latest-WindowYears+1)
+
+	out := Result{YearsAvailable: latest - first + 1}
+	for year := latest; year >= first; year-- {
+		total, paid := totals[year]
+		if !paid {
+			out.MissingYears = append(out.MissingYears, year)
+			continue
+		}
 		out.Years = append(out.Years, YearlyDividend{Year: year, Total: total})
 		out.AverageAnnual += total
 		if total > 0 && largest[year]/total > atypicalEventShare {
 			out.AtypicalYears = append(out.AtypicalYears, year)
 		}
 	}
-	out.AverageAnnual /= float64(len(years))
+	if len(out.MissingYears) > 0 {
+		return Result{MissingYears: out.MissingYears}, false
+	}
+	if out.YearsAvailable < minYears {
+		return Result{YearsAvailable: out.YearsAvailable}, false
+	}
+
+	out.AverageAnnual /= float64(out.YearsAvailable)
 	out.Ceiling = out.AverageAnnual / targetYield
 	if !finite(out.AverageAnnual, out.Ceiling) {
 		return Result{}, false
