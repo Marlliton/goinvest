@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// As páginas por ticker precisam do papel na chave: ao contrário das tabelas
-// bulk, o mesmo path serve conteúdo diferente por ativo.
+// Ao contrário das tabelas bulk, o mesmo path serve conteúdo diferente por
+// ativo, então o papel entra na chave.
 var tickerFixtures = map[string]string{
 	"/detalhes.php?WEGE3":       "detalhes_wege3.html",
 	"/detalhes.php?ITUB4":       "detalhes_itub4.html",
@@ -70,9 +70,8 @@ func TestParseDetail_Industrial(t *testing.T) {
 	}
 }
 
-// O mesmo rótulo aparece duas vezes na página, 12 meses à esquerda e 3 meses à
-// direita. Ler o da direita passaria despercebido: o número existe e é
-// plausível, só responde a outra pergunta.
+// Ler a coluna de 3 meses passaria despercebido: o número existe e é plausível,
+// só responde a outra pergunta.
 func TestParseDetailReadsTwelveMonthsColumn(t *testing.T) {
 	wege3 := detail(t, "WEGE3", domain.ClassStock)
 
@@ -80,9 +79,8 @@ func TestParseDetailReadsTwelveMonthsColumn(t *testing.T) {
 	require.NotEqual(t, 1_558_630_000.0, *wege3["lucro_liquido"].Value)
 }
 
-// Banco não publica EBIT nesta fonte. A métrica sai de fora do MetricSet, não
-// entra com valor nulo: quem lê precisa distinguir "a fonte não tem" de "a
-// fonte disse que não há".
+// Banco não publica EBIT nesta fonte, e quem lê precisa distinguir isso de "a
+// fonte publicou e o valor é nulo".
 func TestParseDetail_Bank(t *testing.T) {
 	itub4 := detail(t, "ITUB4", domain.ClassStock)
 
@@ -116,8 +114,8 @@ func TestParseDetailStampsProvenance(t *testing.T) {
 	}
 }
 
-// Página sem nenhuma das métricas e sem o papel esperado é a fonte tendo
-// mudado de forma, não um ativo sem dado.
+// Página sem nenhuma das métricas e sem o papel esperado é a fonte tendo mudado
+// de forma, não um ativo sem dado.
 func TestParseDetailFailsOnForeignPage(t *testing.T) {
 	_, err := newTickerProvider(t).Detail(t.Context(), "QUEBRA3", domain.ClassStock, false)
 	require.Error(t, err)

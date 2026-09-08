@@ -7,9 +7,8 @@ import (
 
 const brDateLayout = "02/01/2006"
 
-// ParseBRDate lê uma data no formato dd/mm/aaaa. O bool separa ausência de
-// data zero, pelo mesmo motivo que ParseBRNumber separa ausência de zero: a
-// fonte escreve "-" nos eventos antigos que nunca tiveram data publicada.
+// ParseBRDate lê dd/mm/aaaa. O "-" que a fonte escreve onde nunca publicou data
+// volta como ausência, não como erro.
 func ParseBRDate(s string) (time.Time, bool) {
 	s = strings.TrimSpace(s)
 	switch s {

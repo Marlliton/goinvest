@@ -27,8 +27,6 @@ const (
 	factorLabel  = "Por quantas ações"
 )
 
-// Quem decide a classe é o path. O parâmetro "tipo" da URL é decorativo: os
-// três valores devolvem a mesma página.
 type dividendSpec struct {
 	path      string
 	source    string
@@ -52,6 +50,8 @@ func (p *Provider) Dividends(ctx context.Context, ticker string, class domain.As
 		return nil, err
 	}
 
+	// Sem o parâmetro "tipo": os três valores que a fonte aceita devolvem a
+	// mesma página, e é o path que decide a classe.
 	pageURL := p.baseURL + sp.path + "?papel=" + url.QueryEscape(ticker)
 	body, err := p.client.Get(ctx, pageURL, dividendsDocKind, dividendsTTL, force)
 	if err != nil {
@@ -149,8 +149,8 @@ func parseDividendRow(cells *goquery.Selection, cols dividendColumns, sp dividen
 		return domain.DividendEvent{}, false
 	}
 
-	// Sem fator declarado a linha inteira é descartada: assumir 1 num evento
-	// cotado em lote de mil ações multiplicaria o provento por mil.
+	// Assumir 1 num evento cotado em lote de mil ações multiplicaria o provento
+	// por mil, então a linha inteira cai.
 	factor := 1.0
 	if sp.hasFactor {
 		if factor, ok = norm.ParseBRNumber(cellText(cells.Eq(cols.factor))); !ok {
@@ -171,9 +171,8 @@ func parseDividendRow(cells *goquery.Selection, cols dividendColumns, sp dividen
 	return event, true
 }
 
-// A fonte varia caixa e acento no mesmo campo ao longo dos anos. O texto
-// original sobrevive em TypeRaw: o bucket serve ao cálculo, a grafia à
-// exibição. Nada é descartado por não casar com nenhum dos dois.
+// A fonte varia caixa e acento no mesmo campo ao longo dos anos. O bucket serve
+// ao cálculo; a grafia da fonte sobrevive em TypeRaw, para exibição.
 func classifyDividend(raw string) domain.DividendType {
 	folded := norm.FoldUpper(raw)
 	switch {

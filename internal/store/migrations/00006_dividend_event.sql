@@ -12,10 +12,9 @@ CREATE TABLE dividend_event (
   fetched_at    TIMESTAMP NOT NULL
 );
 
--- A chave natural é a linha inteira que a fonte publica: mesma data-com e
--- mesmo valor com datas de pagamento diferentes são parcelas distintas.
--- COALESCE porque NULL não colide com NULL em índice único, e a maioria dos
--- eventos antigos não tem data de pagamento.
+-- Mesma data-com e mesmo valor em datas de pagamento diferentes são parcelas
+-- distintas, por isso a chave é a linha inteira. COALESCE porque NULL não colide
+-- com NULL em índice único, e a maioria dos eventos antigos não tem pagamento.
 CREATE UNIQUE INDEX ux_dividend_event ON dividend_event(
   asset_id, ex_date, COALESCE(payment_date, ''), type_raw, value_raw, source);
 

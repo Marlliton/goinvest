@@ -35,19 +35,18 @@ type Metric struct {
 	Formula string
 	Inputs  []domain.MetricID
 	// Em que situação o número é calculável mas a pergunta que ele responde
-	// não faz sentido, indexado pela origem da regra: "classe", "setor" ou
-	// "ativo". Obrigatório em derivado: é o campo que força a decisão a ser
-	// tomada quando a métrica nasce, não quando o usuário se confunde.
-	// Separar por origem preserva a diferença entre "a pergunta não cabe
-	// aqui" e "este ativo está em situação anômala".
+	// não faz sentido, indexado pela origem: "classe", "setor" ou "ativo".
+	// Obrigatório em derivado: é o campo que força a decisão a ser tomada
+	// quando a métrica nasce, não quando o usuário se confunde. A origem
+	// separada preserva a diferença entre "a pergunta não cabe aqui" e "este
+	// ativo está em situação anômala".
 	NotApplicable map[string]string
 	Percentile    bool
 	// Damodaran: múltiplo com denominador negativo sai da distribuição em vez
 	// de virar cauda, senão a mediana do setor desloca sem significado.
 	ExcludeNegative bool
 	// Segmentos em que a fonte publica 0,00 no lugar de "não se aplica".
-	SentinelSegments []string
-	// Métrica que deixa de responder quando o patrimônio líquido é negativo.
+	SentinelSegments    []string
 	NegativeEquityCheck bool
 }
 

@@ -19,9 +19,8 @@ const (
 	detailTTL     = 24 * time.Hour
 )
 
-// As chaves são os rótulos da página, exatamente como a fonte os escreve.
-// "Receita" só aparece em FII; a página de ação usa "Receita Líquida", que é
-// outra métrica e não entra aqui.
+// "Receita" só existe na página de FII; a de ação traz "Receita Líquida", que é
+// outra métrica.
 var detailColumns = map[string]domain.MetricID{
 	"Lucro Líquido":     "lucro_liquido",
 	"EBIT":              "ebit",
@@ -31,7 +30,6 @@ var detailColumns = map[string]domain.MetricID{
 	"Receita":           "receita",
 }
 
-// A célula que ancora o papel muda de rótulo por classe.
 func detailTickerLabel(class domain.AssetClass) (string, error) {
 	switch class {
 	case domain.ClassStock:
@@ -42,10 +40,8 @@ func detailTickerLabel(class domain.AssetClass) (string, error) {
 	return "", fmt.Errorf("fundamentus: unsupported asset class %q", class)
 }
 
-// Detail devolve o que a página do ticker publica das seis métricas do
-// detalhe. Rótulo ausente não vira chave no MetricSet: separar "a fonte não
-// publica" de "não avaliamos" é decisão da camada de aplicação, que cruza com
-// o documento em cache.
+// Rótulo ausente não vira chave no MetricSet: separar "a fonte não publica" de
+// "não avaliamos" depende do documento em cache, e essa leitura é da aplicação.
 func (p *Provider) Detail(ctx context.Context, ticker string, class domain.AssetClass, force bool) (domain.MetricSet, error) {
 	tickerLabel, err := detailTickerLabel(class)
 	if err != nil {
@@ -110,7 +106,7 @@ func (p *Provider) parseDetail(body []byte, ticker, tickerLabel string) (domain.
 	return set, nil
 }
 
-// O rótulo da célula convive com o "?" da ajuda; só o span do texto interessa.
+// cell.Text() traria junto o "?" da ajuda que abre a célula.
 func spanText(cell *goquery.Selection) string {
 	return cellText(cell.Find("span.txt").First())
 }

@@ -10,13 +10,12 @@ const (
 	DividendUnknown DividendType = "DESCONHECIDO"
 )
 
-// DividendEvent guarda o valor como a fonte publicou e o fator ao lado, sem
-// dividir: um evento antigo cotado em lote de mil ações fica reconhecível como
-// tal, e a conversão vira decisão de quem lê.
+// O fator fica ao lado do valor em vez de já aplicado: um evento antigo cotado
+// em lote de mil ações continua reconhecível como tal.
 type DividendEvent struct {
 	Ticker           string
 	ExDate           time.Time
-	PaymentDate      *time.Time // nil quando a fonte não publica a data
+	PaymentDate      *time.Time
 	Type             DividendType
 	TypeRaw          string
 	ValuePerShareRaw float64

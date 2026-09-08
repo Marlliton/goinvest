@@ -79,8 +79,8 @@ func TestParseDividendsClassifiesAccentAndCaseVariants(t *testing.T) {
 	}, byRaw)
 }
 
-// O fator 1000 é do evento, não do ticker: a mesma tabela mistura eventos
-// antigos em lote de mil ações com os recentes por ação.
+// O fator é do evento, não do ticker: a mesma tabela mistura lote de mil ações
+// com valor por ação.
 func TestParseDividendsKeepsRawValueAndFactorSeparate(t *testing.T) {
 	var found bool
 	for _, e := range dividends(t, "BBAS3", domain.ClassStock) {
@@ -92,8 +92,8 @@ func TestParseDividendsKeepsRawValueAndFactorSeparate(t *testing.T) {
 	require.True(t, found, "evento com fator 1000 não encontrado")
 }
 
-// Cinco pares (data-com, valor) se repetem em PETR4 com datas de pagamento
-// distintas: são parcelas do mesmo provento, não linhas duplicadas.
+// Os pares (data-com, valor) que se repetem em PETR4 são parcelas do mesmo
+// provento, não linhas duplicadas.
 func TestParseDividends_NoDuplicateDrop(t *testing.T) {
 	events := dividends(t, "PETR4", domain.ClassStock)
 	require.Len(t, events, 128)
@@ -123,8 +123,8 @@ func TestParseDividends_NoDuplicateDrop(t *testing.T) {
 	require.Equal(t, 5, installments)
 }
 
-// A fonte não publica data de pagamento para a maior parte dos eventos
-// antigos: é ausência de dado histórico, não falha de parse.
+// A fonte não publica data de pagamento na maior parte dos eventos antigos: é
+// ausência de dado histórico, não falha de parse.
 func TestParseDividendsAcceptsMissingPaymentDate(t *testing.T) {
 	missing := 0
 	for _, e := range dividends(t, "BBAS3", domain.ClassStock) {
@@ -153,8 +153,8 @@ func TestParseFIIDividends(t *testing.T) {
 	require.Equal(t, "fundamentus:fii_proventos", first.Source)
 }
 
-// A página de ação tem colunas na ordem própria dela; servir a página errada
-// não pode produzir uma série vazia que se lê como "ativo sem proventos".
+// Página errada não pode virar série vazia, que se leria como "ativo sem
+// proventos".
 func TestParseDividendsFailsOnForeignPage(t *testing.T) {
 	_, err := newTickerProvider(t).Dividends(t.Context(), "QUEBRA3", domain.ClassStock, false)
 	require.Error(t, err)
