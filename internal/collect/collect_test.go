@@ -285,7 +285,6 @@ func syncWithSelic(t *testing.T, db *store.DB, selic provider.SelicProvider) col
 	return report
 }
 
-// As duas classes respondem 200: aqui o único estágio que pode falhar é a Selic.
 func newHealthySource(t *testing.T) *httptest.Server {
 	t.Helper()
 
@@ -342,8 +341,6 @@ func TestSyncIsolatesSelicFailure(t *testing.T) {
 	require.InDelta(t, 0.14, *value, 1e-9)
 }
 
-// Sem provider registrado o estágio não existe: o campo fica zerado, e o sync
-// não inventa uma falha.
 func TestSyncWithoutSelicProvider(t *testing.T) {
 	db := openDB(t)
 

@@ -10,7 +10,6 @@ import (
 	"github.com/marlliton/goinvest/internal/store/gen"
 )
 
-// macro_rate guarda o valor corrente de cada taxa, não a série histórica.
 const selicRateID = "selic"
 
 func (db *DB) GetSelic(ctx context.Context) (value *float64, referenceAt, fetchedAt *time.Time, found bool, err error) {

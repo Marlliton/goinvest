@@ -108,8 +108,6 @@ func sectorLine(h HeaderView) string {
 	return "Setor: " + strings.Join(levels, sectorLevelSep)
 }
 
-// Sempre impressa: o silêncio seria lido como "não há âncora", e não como
-// "ninguém coletou".
 func selicLine(h HeaderView) string {
 	if h.SelicRate == nil {
 		return "Selic: desconhecida"
@@ -163,8 +161,6 @@ func formatValue(v float64, unit domain.Unit) string {
 	}
 }
 
-// O sinal positivo é informação: sem ele "2,00pp" e "-2,00pp" parecem a mesma
-// leitura com escala diferente.
 func formatSignedBR(v float64, decimals int) string {
 	if v >= 0 {
 		return "+" + formatBR(v, decimals)

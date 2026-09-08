@@ -1,5 +1,4 @@
-// Package bcb lê séries do SGS do Banco Central. Aqui ele serve só como fonte
-// da Meta Selic, que é a âncora de renda fixa do dividend yield.
+// Package bcb lê séries do SGS do Banco Central.
 package bcb
 
 import (
@@ -13,7 +12,6 @@ import (
 	"github.com/marlliton/goinvest/internal/fetch"
 )
 
-// A meta muda por reunião do Copom, a cada 45 dias.
 const selicTTL = 24 * time.Hour
 
 const selicPath = "/dados/serie/bcdata.sgs.432/dados/ultimos/5?formato=json"
@@ -38,7 +36,6 @@ type sgsPoint struct {
 	Valor string `json:"valor"`
 }
 
-// A série 432 já vem anualizada; a 11 exigiria compor a taxa diária.
 func (p *Provider) Selic(ctx context.Context, force bool) (rate float64, referenceAt time.Time, err error) {
 	url := p.baseURL + selicPath
 
@@ -59,13 +56,11 @@ func (p *Provider) Selic(ctx context.Context, force bool) (rate float64, referen
 
 	last := points[len(points)-1]
 
-	// Ponto decimal, não vírgula: aqui ParseBRNumber estaria errado.
 	value, err := strconv.ParseFloat(last.Valor, 64)
 	if err != nil {
 		return 0, time.Time{}, fmt.Errorf("bcb: selic: valor %q não é numérico: %w", last.Valor, err)
 	}
-	// O SGS publica "14.00" para 14% ao ano, e percentual é fração no resto do
-	// pipeline. Sem esta divisão, DY − Selic compara escalas diferentes.
+	// O SGS publica "14.00" para 14% a.a.; percentual é fração no resto do pipeline.
 	value /= 100
 
 	ref, err := time.Parse("02/01/2006", last.Data)

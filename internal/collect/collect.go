@@ -91,8 +91,6 @@ func MetricRules(cat *catalog.Catalog) []store.MetricRule {
 	return rules
 }
 
-// A gravação vem depois das classes: a Selic é âncora de leitura, e uma queda
-// do BCB não pode custar a coleta do mercado inteiro.
 func collectSelic(ctx context.Context, cfg Config) SourceResult {
 	started := cfg.Now()
 	res := SourceResult{Source: cfg.Selic.Name(), Status: StatusOK}

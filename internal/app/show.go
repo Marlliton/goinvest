@@ -18,8 +18,6 @@ var ErrNoData = errors.New("nenhum dado local. Rode 'goinvest sync' primeiro")
 
 const stalenessThreshold = 7 * 24 * time.Hour
 
-// A âncora de renda fixa vale para o rendimento distribuído, não para as
-// demais métricas.
 const dividendYieldID = domain.MetricID("dy")
 
 type HeaderView struct {
