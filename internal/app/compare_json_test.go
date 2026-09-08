@@ -6,9 +6,7 @@ import (
 	"time"
 
 	"github.com/marlliton/goinvest/internal/app"
-	"github.com/marlliton/goinvest/internal/bazin"
 	"github.com/marlliton/goinvest/internal/domain"
-	"github.com/marlliton/goinvest/internal/evaluate"
 	"github.com/stretchr/testify/require"
 )
 
@@ -68,8 +66,10 @@ func TestRenderCompareJSON_NumbersAreNumbers(t *testing.T) {
 func TestRenderCompareJSON_FourAbsenceStates(t *testing.T) {
 	db := openTemp(t)
 	values := wege3Values()
-	// A fonte informou ausência: coletado, sem valor.
-	values["psr"] = nil
+	// A fonte informou ausência num indicador sem sentinela para bancos:
+	// coletado, sem valor, e nada a ver com o setor.
+	values["cresc_rec_5a"] = nil
+	values["ev_ebitda"] = nil
 	seedStocks(t, db, "ROMI3", "KEPL3")
 	seed(t, db, "ITUB4", domain.ClassStock, values)
 	setIdentity(t, db, "ITUB4", "Financeiro", "Bancos", "Bancos")
@@ -78,7 +78,7 @@ func TestRenderCompareJSON_FourAbsenceStates(t *testing.T) {
 	col := firstColumn(t, decodeJSON(t, compareOf(t, db, "ITUB4", "ROMI3", "KEPL3")))
 
 	require.Equal(t, "presente", metricDoc(t, col, "pl")["status"])
-	require.Equal(t, "nao_informado", metricDoc(t, col, "psr")["status"])
+	require.Equal(t, "nao_informado", metricDoc(t, col, "cresc_rec_5a")["status"])
 	require.Equal(t, "nao_avaliado", metricDoc(t, col, "ebit")["status"])
 
 	notApplicable := metricDoc(t, col, "ev_ebitda")
@@ -177,6 +177,3 @@ func TestRenderCompareJSON_IsDeterministic(t *testing.T) {
 		require.Equal(t, string(first), string(again))
 	}
 }
-
-var _ = bazin.Result{}
-var _ = evaluate.Finding{}
