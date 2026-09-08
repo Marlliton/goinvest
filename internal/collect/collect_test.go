@@ -2,6 +2,7 @@ package collect_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -252,4 +253,78 @@ func TestSyncIsolatesPartialFailure(t *testing.T) {
 	require.Contains(t, fiis, domain.MetricID("dy"))
 	require.NotNil(t, fiis["dy"].Value)
 	require.InDelta(t, 0.1234, *fiis["dy"].Value, 1e-9)
+}
+
+type fakeSelic struct {
+	rate        float64
+	referenceAt time.Time
+	err         error
+}
+
+func (f fakeSelic) Name() string { return "bcb" }
+
+func (f fakeSelic) Selic(context.Context, bool) (float64, time.Time, error) {
+	return f.rate, f.referenceAt, f.err
+}
+
+func syncWithSelic(t *testing.T, db *store.DB, selic provider.SelicProvider) collect.Report {
+	t.Helper()
+
+	client := fetch.NewClient(fetch.Config{RateEvery: testRateEvery})
+	p := fundamentus.NewProvider(client, newSource(t).URL, time.Now)
+
+	report, err := collect.Sync(t.Context(), collect.Config{
+		Providers: map[domain.AssetClass]provider.UniverseProvider{domain.ClassStock: p},
+		DB:        db,
+		Selic:     selic,
+	})
+	require.NoError(t, err)
+	return report
+}
+
+func TestSyncWritesSelicStage(t *testing.T) {
+	db := openDB(t)
+	ref := time.Date(2026, 9, 16, 0, 0, 0, 0, time.UTC)
+
+	report := syncWithSelic(t, db, fakeSelic{rate: 14.00, referenceAt: ref})
+
+	require.Equal(t, collect.StatusOK, report.Selic.Status)
+	require.Equal(t, "bcb", report.Selic.Source)
+
+	value, referenceAt, _, found, err := db.GetSelic(t.Context())
+	require.NoError(t, err)
+	require.True(t, found)
+	require.InDelta(t, 14.00, *value, 1e-9)
+	require.Equal(t, ref, referenceAt.UTC())
+}
+
+func TestSyncIsolatesSelicFailure(t *testing.T) {
+	db := openDB(t)
+	ref := time.Date(2026, 9, 16, 0, 0, 0, 0, time.UTC)
+
+	require.NoError(t, db.PutSelic(t.Context(), 14.00, ref, ref))
+
+	report := syncWithSelic(t, db, fakeSelic{err: errors.New("bcb fora do ar")})
+
+	require.Equal(t, collect.StatusOK, report.Stocks.Status)
+	require.Equal(t, collect.StatusPartial, report.Selic.Status)
+	require.Contains(t, report.Selic.Reason, "bcb fora do ar")
+
+	value, _, _, found, err := db.GetSelic(t.Context())
+	require.NoError(t, err)
+	require.True(t, found, "estágio que falha preserva a Selic anterior")
+	require.InDelta(t, 14.00, *value, 1e-9)
+}
+
+// Sem provider registrado o estágio não existe: o campo fica zerado, e o sync
+// não inventa uma falha.
+func TestSyncWithoutSelicProvider(t *testing.T) {
+	db := openDB(t)
+
+	report := syncWithSelic(t, db, nil)
+
+	require.Empty(t, report.Selic.Status)
+	_, _, _, found, err := db.GetSelic(t.Context())
+	require.NoError(t, err)
+	require.False(t, found)
 }
