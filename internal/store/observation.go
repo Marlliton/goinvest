@@ -20,8 +20,6 @@ func (db *DB) StartRun(ctx context.Context, source string) (int64, error) {
 	return id, nil
 }
 
-// FinishRun é a única escrita destrutiva legítima do schema: fecha a linha de
-// collection_run aberta por StartRun.
 func (db *DB) FinishRun(ctx context.Context, runID int64, status string, nObs int, errMsg string) error {
 	now := time.Now().UTC()
 	n := int64(nObs)
@@ -38,8 +36,6 @@ func (db *DB) FinishRun(ctx context.Context, runID int64, status string, nObs in
 	return nil
 }
 
-// HasDetail responde se a página de detalhe daquele ativo já foi coletada. É
-// o que separa "a fonte não publica esta métrica" de "ainda não fomos buscar".
 func (db *DB) HasDetail(ctx context.Context, assetID int64) (bool, error) {
 	has, err := db.q.HasDetailSource(ctx, assetID)
 	if err != nil {
@@ -92,10 +88,6 @@ func (db *DB) InsertObservations(ctx context.Context, runID int64, obs []domain.
 	return nil
 }
 
-// LatestMetrics devolve a observação corrente de cada métrica do ativo.
-// Métrica nunca coletada não vira chave no mapa; métrica coletada sem valor
-// vira chave com Value nil. O ticker só preenche as linhas devolvidas: a
-// consulta em si é por asset_id.
 func (db *DB) LatestMetrics(ctx context.Context, assetID int64, ticker string) (domain.MetricSet, error) {
 	rows, err := db.q.LatestMetrics(ctx, assetID)
 	if err != nil {

@@ -1,5 +1,5 @@
-// Package bazin calcula o preço-teto do método de Décio Bazin a partir da
-// série de proventos. Nada aqui toca rede, banco ou catálogo.
+// Package bazin calcula o preço-teto do método de Décio Bazin a partir da série
+// de proventos.
 package bazin
 
 import (
@@ -22,8 +22,7 @@ const (
 	atypicalEventShare = 0.5
 
 	// MinYears é o piso: abaixo dele a média não suaviza nada.
-	MinYears = 3
-	// WindowYears é a janela do método: cinco exercícios fechados.
+	MinYears    = 3
 	WindowYears = 5
 )
 
@@ -38,16 +37,10 @@ type Result struct {
 	Years          []YearlyDividend
 	YearsAvailable int
 	AtypicalYears  []int
-	// Exercícios da janela em que o ativo não pagou nada. Preenchido junto com
-	// ok == false: o método é declaradamente inaplicável a quem não paga com
-	// consistência, e a média sobre os anos restantes sairia inflada.
+	// Vem junto com ok == false: a média sobre os anos restantes sairia inflada.
 	MissingYears []int
 }
 
-// Compute agrupa os eventos por ano de data-com, usa até cinco exercícios
-// fechados e devolve false quando o piso de três anos não é atingido: uma média
-// de um ou dois anos não suaviza distribuição extraordinária nenhuma, que é
-// justamente o que a média existe para fazer.
 func Compute(events []domain.DividendEvent, now time.Time) (Result, bool) {
 	totals := map[int]float64{}
 	largest := map[int]float64{}

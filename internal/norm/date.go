@@ -7,8 +7,8 @@ import (
 
 const brDateLayout = "02/01/2006"
 
-// ParseBRDate lê dd/mm/aaaa. O "-" que a fonte escreve onde nunca publicou data
-// volta como ausência, não como erro.
+// O "-" que a fonte escreve onde nunca publicou data volta como ausência, não
+// como erro.
 func ParseBRDate(s string) (time.Time, bool) {
 	s = strings.TrimSpace(s)
 	switch s {

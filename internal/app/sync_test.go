@@ -69,8 +69,6 @@ func TestSyncReportsAssetCount(t *testing.T) {
 	require.Equal(t, len(stockTickers), report.Stocks.AssetCount)
 	require.Equal(t, len(fiiTickers), report.FIIs.AssetCount)
 
-	// Sem esta segunda contagem, o teste provaria só o parser: é ela que pega o
-	// relatório afirmar um número que o banco não tem.
 	var distinct int
 	require.NoError(t, db.QueryRow(`SELECT COUNT(DISTINCT ticker) FROM asset`).Scan(&distinct))
 	require.Equal(t, len(stockTickers)+len(fiiTickers), distinct)

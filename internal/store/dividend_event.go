@@ -8,8 +8,6 @@ import (
 	"github.com/marlliton/goinvest/internal/store/gen"
 )
 
-// Idempotente para recoleta: a chave natural é a linha inteira que a fonte
-// publica, então só a linha idêntica é ignorada.
 func (db *DB) InsertDividendEvents(ctx context.Context, events []domain.DividendEvent) error {
 	if len(events) == 0 {
 		return nil
@@ -53,7 +51,6 @@ func (db *DB) InsertDividendEvents(ctx context.Context, events []domain.Dividend
 	return nil
 }
 
-// Ordena da data-com mais recente para a mais antiga.
 func (db *DB) ListDividendEvents(ctx context.Context, assetID int64) ([]domain.DividendEvent, error) {
 	rows, err := db.q.ListDividendEvents(ctx, assetID)
 	if err != nil {

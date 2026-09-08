@@ -217,7 +217,5 @@ func TestRegistryCmdRecomputesSectorReferenceAfterRun(t *testing.T) {
 
 	a, _, err := deps.DB.GetAsset(t.Context(), "WEGE3")
 	require.NoError(t, err)
-	// PeerGroupLevel só fica preenchido depois de RecomputeSectorStats: essa
-	// asserção prova que o comando dispara o recálculo.
 	require.NotEmpty(t, a.PeerGroupLevel)
 }

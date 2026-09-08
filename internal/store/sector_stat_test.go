@@ -62,8 +62,8 @@ func TestRecomputeSectorStatsCascade(t *testing.T) {
 		seedGraded(t, db, ticker, domain.ClassStock, "Bens Industriais", "Máquinas", "Motores",
 			map[domain.MetricID]float64{"pl": float64(10 + i)})
 	}
-	// Setor inteiro com 4 papéis: nem o segmento, nem o subsetor, nem o setor
-	// alcançam o piso, então a cascata desce até o mercado.
+	// Setor inteiro com 4 papéis: nenhum nível alcança o piso e a cascata desce
+	// até o mercado.
 	for i, ticker := range []string{"FFFF3", "GGGG3", "HHHH3", "IIII3"} {
 		seedGraded(t, db, ticker, domain.ClassStock, "Comunicações", "Telecom", "Telefonia",
 			map[domain.MetricID]float64{"pl": float64(20 + i)})

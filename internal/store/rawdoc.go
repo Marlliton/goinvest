@@ -23,8 +23,6 @@ func (db *DB) GetRawDoc(ctx context.Context, url string) (body []byte, fetchedAt
 	return row.Body, row.FetchedAt, true, nil
 }
 
-// PutRawDoc sobrescreve a entrada existente: raw_doc é cache, não fato
-// histórico.
 func (db *DB) PutRawDoc(ctx context.Context, url, docKind string, body []byte, fetchedAt time.Time) error {
 	sum := sha256.Sum256(body)
 	err := db.q.PutRawDoc(ctx, gen.PutRawDocParams{

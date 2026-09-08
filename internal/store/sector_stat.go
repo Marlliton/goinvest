@@ -12,8 +12,7 @@ import (
 	"github.com/marlliton/goinvest/internal/store/gen"
 )
 
-// Abaixo deste tamanho a distribuição do grupo não diz nada, e a comparação
-// sobe um nível na taxonomia.
+// Abaixo disso a distribuição do grupo não diz nada e a comparação sobe um nível.
 const MinPeerGroup = 5
 
 const (
@@ -181,9 +180,7 @@ func materializeMetric(ctx context.Context, q *gen.Queries, rule MetricRule, byI
 		}
 		eligible[r.AssetID] = *r.Value
 
-		// Taxonomia setorial é hierárquica (GICS): o ativo pertence a segmento,
-		// subsetor e setor ao mesmo tempo, não só ao nível que a cascata
-		// escolheu para ele comparar.
+		// GICS é hierárquica: o mesmo valor entra em segmento, subsetor e setor.
 		if asset.segment != "" {
 			byGroup[groupID{levelSegment, asset.segment, asset.class}] = append(
 				byGroup[groupID{levelSegment, asset.segment, asset.class}], *r.Value)
@@ -276,8 +273,7 @@ func insertStat(ctx context.Context, q *gen.Queries, g groupID, metric domain.Me
 	return nil
 }
 
-// Posto mais próximo, sem interpolação: o valor devolvido é sempre um número
-// que algum papel real tem.
+// Posto mais próximo, sem interpolação: o valor é sempre um que algum papel tem.
 func quantile(sorted []float64, p float64) *float64 {
 	if len(sorted) == 0 {
 		return nil
@@ -288,8 +284,7 @@ func quantile(sorted []float64, p float64) *float64 {
 	return &v
 }
 
-// CUME_DIST, não PERCENT_RANK: o pior papel da amostra fica em 1/n, não em
-// zero, que se leria como "não tem posição".
+// CUME_DIST, não PERCENT_RANK: o pior papel fica em 1/n, não em zero.
 func percentileOf(sorted []float64, value float64) float64 {
 	count := 0
 	for _, v := range sorted {

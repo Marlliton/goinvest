@@ -61,8 +61,6 @@ func TestParseDividends(t *testing.T) {
 	}
 }
 
-// "JRS CAP PRÓPRIO" e "JRS CAP PROPRIO" convivem na mesma tabela: classificar
-// pelo texto cru perderia metade dos eventos de JCP.
 func TestParseDividendsClassifiesAccentAndCaseVariants(t *testing.T) {
 	byRaw := map[string]domain.DividendType{}
 	for _, e := range dividends(t, "BBAS3", domain.ClassStock) {
@@ -79,8 +77,8 @@ func TestParseDividendsClassifiesAccentAndCaseVariants(t *testing.T) {
 	}, byRaw)
 }
 
-// O fator é do evento, não do ticker: a mesma tabela mistura lote de mil ações
-// com valor por ação.
+// O fator é do evento: a mesma tabela mistura lote de mil ações com valor por
+// ação.
 func TestParseDividendsKeepsRawValueAndFactorSeparate(t *testing.T) {
 	var found bool
 	for _, e := range dividends(t, "BBAS3", domain.ClassStock) {
@@ -92,8 +90,8 @@ func TestParseDividendsKeepsRawValueAndFactorSeparate(t *testing.T) {
 	require.True(t, found, "evento com fator 1000 não encontrado")
 }
 
-// Os pares (data-com, valor) que se repetem em PETR4 são parcelas do mesmo
-// provento, não linhas duplicadas.
+// Pares (data-com, valor) repetidos são parcelas do mesmo provento, não linhas
+// duplicadas.
 func TestParseDividends_NoDuplicateDrop(t *testing.T) {
 	events := dividends(t, "PETR4", domain.ClassStock)
 	require.Len(t, events, 128)
@@ -123,8 +121,7 @@ func TestParseDividends_NoDuplicateDrop(t *testing.T) {
 	require.Equal(t, 5, installments)
 }
 
-// A fonte não publica data de pagamento na maior parte dos eventos antigos: é
-// ausência de dado histórico, não falha de parse.
+// A fonte não publica data de pagamento na maior parte dos eventos antigos.
 func TestParseDividendsAcceptsMissingPaymentDate(t *testing.T) {
 	missing := 0
 	for _, e := range dividends(t, "BBAS3", domain.ClassStock) {
@@ -153,15 +150,13 @@ func TestParseFIIDividends(t *testing.T) {
 	require.Equal(t, "fundamentus:fii_proventos", first.Source)
 }
 
-// Página errada não pode virar série vazia, que se leria como "ativo sem
-// proventos".
 func TestParseDividendsFailsOnForeignPage(t *testing.T) {
 	_, err := newTickerProvider(t).Dividends(t.Context(), "QUEBRA3", domain.ClassStock, false)
 	require.Error(t, err)
 }
 
-// Fator zero passa por ParseBRNumber e chegaria ao banco como divisor: o valor
-// por ação viraria +Inf na tela.
+// Fator zero é numérico válido e chegaria ao banco como divisor: o valor por
+// ação viraria +Inf na tela.
 func TestParseDividendsDropsRowWithZeroFactor(t *testing.T) {
 	events := dividends(t, "ZEROF3", domain.ClassStock)
 

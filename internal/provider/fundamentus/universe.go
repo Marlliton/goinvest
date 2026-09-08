@@ -1,5 +1,3 @@
-// Package fundamentus lê as duas tabelas bulk do Fundamentus: uma requisição
-// por classe devolve o mercado inteiro.
 package fundamentus
 
 import (
@@ -15,11 +13,8 @@ import (
 	"github.com/marlliton/goinvest/internal/norm"
 )
 
-// Fundamentalista muda por trimestre; meio dia de cache ainda deixa o usuário
-// sincronizar de manhã e de tarde sem bater duas vezes na fonte.
 const universeTTL = 12 * time.Hour
 
-// A coluna do ticker é a âncora da linha: sem ela não há o que identificar.
 const tickerLabel = "Papel"
 
 type parser func(string) (float64, bool)
@@ -63,8 +58,7 @@ var stockColumns = map[string]column{
 	"Cresc. Rec.5a":    percent("cresc_rec_5a"),
 }
 
-// Segmento e Endereço ficam de fora por decisão de escopo do catálogo, não por
-// esquecimento.
+// Segmento e Endereço ficam de fora por escopo do catálogo, não por esquecimento.
 var fiiColumns = map[string]column{
 	"Cotação":          number("cotacao", domain.UnitBRL),
 	"FFO Yield":        percent("ffo_yield"),
@@ -133,8 +127,6 @@ func (p *Provider) Universe(ctx context.Context, class domain.AssetClass, force 
 
 const segmentLabel = "Segmento"
 
-// Mesma página que Universe já baixa para FIIs: dentro do TTL não custa
-// requisição nenhuma.
 func (p *Provider) Segments(ctx context.Context, force bool) (map[string]string, error) {
 	sp, err := specFor(domain.ClassFII)
 	if err != nil {
@@ -236,16 +228,13 @@ func (p *Provider) parse(body []byte, sp spec) ([]domain.Observation, error) {
 		})
 	})
 
-	// Uma linha quebrada é ruído da fonte; nenhuma linha aproveitável é a
-	// página tendo mudado de forma.
+	// Uma linha quebrada é ruído; nenhuma linha aproveitável é mudança de layout.
 	if len(out) == 0 {
 		return nil, fmt.Errorf("fundamentus: %s yielded no usable row (%d discarded without %q)", sp.path, skipped, tickerLabel)
 	}
 	return out, nil
 }
 
-// value devolve nil tanto para ausência declarada pela fonte quanto para o
-// valor numérico que aquela métrica usa como código de ausência.
 func (c column) value(text string) *float64 {
 	v, ok := c.parse(text)
 	if !ok || norm.IsAbsenceSentinel(c.metric, v) {
@@ -254,8 +243,7 @@ func (c column) value(text string) *float64 {
 	return &v
 }
 
-// O índice de colunas vem do <thead> a cada coleta: posição fixa quebraria em
-// silêncio no dia em que a fonte inserir uma coluna.
+// Posição fixa quebraria em silêncio no dia em que a fonte inserir uma coluna.
 func headerLabels(table *goquery.Selection) []string {
 	var labels []string
 	table.Find("thead th").Each(func(_ int, th *goquery.Selection) {

@@ -131,8 +131,8 @@ func TestRunCancellationPreservesCommittedBatches(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	// Os tickers são processados em ordem alfabética (ITUB4, TAEE11, WEGE3):
-	// cancelar no terceiro deixa o primeiro lote inteiro já commitado.
+	// Os tickers vêm em ordem alfabética (ITUB4, TAEE11, WEGE3): cancelar no
+	// terceiro deixa o primeiro lote inteiro já commitado.
 	stub := newStub()
 	seen := 0
 	stub.onDetail = func(string) {

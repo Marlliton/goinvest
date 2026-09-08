@@ -104,8 +104,6 @@ func TestCompare_InvalidTickerDoesNotAbort(t *testing.T) {
 		"formato inválido e nunca sincronizado pedem ações opostas")
 }
 
-// D-76: fonte não se mistura dentro de uma coluna. Se um ticker da comparação
-// não tem a coleta profunda, a métrica cai para todos, inclusive para quem tem.
 func TestCompare_DetailResolverAllOrNothing(t *testing.T) {
 	db := openTemp(t)
 	seedStocks(t, db, "WEGE3", "ROMI3", "KEPL3")
@@ -144,8 +142,6 @@ func TestCompare_DetailKeptWhenEveryTickerHasIt(t *testing.T) {
 	require.NotNil(t, columnOf(t, tableOf(t, report, domain.ClassStock), "KEPL3").Cells["ebit"].Value)
 }
 
-// Banco sem EBIT é ausência estrutural, não coleta pendente: ela sai como não
-// aplicável na própria célula, sem derrubar a métrica para os outros tickers.
 func TestCompare_StructuralAbsenceDoesNotDropTheMetric(t *testing.T) {
 	db := openTemp(t)
 	seedStocks(t, db, "WEGE3", "ROMI3")

@@ -33,8 +33,6 @@ func TestCompareCmd_RejectsMoreThanEight(t *testing.T) {
 	require.Error(t, err)
 }
 
-// Ticker desconhecido sai no rodapé, não como erro: com oito códigos digitados
-// à mão, derrubar tudo por causa de um é o comportamento mais caro.
 func TestCompareCmd_UnknownTickerDoesNotFail(t *testing.T) {
 	var out bytes.Buffer
 

@@ -81,7 +81,6 @@ func TestISINByCNPJPrefersMostRecentReference(t *testing.T) {
 		2024: zipWith(t, "inf_mensal_fii_geral_2024.csv", []byte(old)),
 	})
 
-	// O ano antigo é lido por último de propósito.
 	byCNPJ, err := newProvider(t, srv.URL, 2026, 2024).ISINByCNPJ(t.Context(), false)
 	require.NoError(t, err)
 	require.Equal(t, "BRFVPQCTF015", byCNPJ["00332266000131"])

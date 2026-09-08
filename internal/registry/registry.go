@@ -1,5 +1,3 @@
-// Package registry resolve quem é o ativo: casa o ticker com o cadastro de
-// companhias abertas e grava identidade e setor oficial.
 package registry
 
 import (
@@ -88,8 +86,7 @@ func Run(ctx context.Context, cfg Config) (Report, error) {
 		if len(batch) == 0 {
 			return nil
 		}
-		// O lote vai com um contexto próprio: o ctx cancelado abortaria a
-		// gravação do trabalho que já foi feito.
+		// Com o ctx cancelado, a gravação do trabalho já feito seria abortada.
 		if err := cfg.DB.UpdateAssetIdentities(context.WithoutCancel(ctx), batch); err != nil {
 			return err
 		}
@@ -109,8 +106,7 @@ func Run(ctx context.Context, cfg Config) (Report, error) {
 
 		update, ok := resolve(ctx, cfg, companies, ticker)
 		if !ok {
-			// Cancelar no meio de um ticker não é o mesmo que não achá-lo:
-			// contá-lo como sem correspondência faria o relatório mentir.
+			// Cancelar no meio de um ticker não é o mesmo que não achá-lo: o relatório mentiria.
 			if ctx.Err() != nil {
 				report.Cancelled = true
 				break
@@ -187,8 +183,7 @@ func resolve(ctx context.Context, cfg Config, companies []identity.CompanyRef, t
 	}, true
 }
 
-// Casar por raiz alfabética colide: WEGE4 não existe, mas a raiz WEGE bate.
-// Só otherCodes prova que o código é mesmo desta empresa.
+// A raiz alfabética colide (WEGE4 não existe, mas WEGE bate): só otherCodes prova.
 func confirmTicker(detail identity.CompanyDetail, ticker string) (isin string, ok bool) {
 	for _, c := range detail.OtherCodes {
 		if c.Code == ticker {
@@ -271,8 +266,7 @@ func RunFII(ctx context.Context, cfg FIIConfig) (Report, error) {
 		return nil
 	}
 
-	// A ordem do mapa é aleatória em Go, e um relatório que muda entre
-	// execuções idênticas não serve para comparar.
+	// Ordem de mapa é aleatória: um relatório que muda entre execuções não compara.
 	for _, cnpj := range slices.Sorted(maps.Keys(byCNPJ)) {
 		if ctx.Err() != nil {
 			report.Cancelled = true

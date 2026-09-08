@@ -11,8 +11,6 @@ import (
 	"github.com/marlliton/goinvest/internal/store/gen"
 )
 
-// UpsertAsset atualiza classe e nome. asset é dimensão, não fato histórico:
-// aqui sobrescrever é correto, diferente de observation.
 func (db *DB) UpsertAsset(ctx context.Context, ticker string, class domain.AssetClass, name string, updatedAt time.Time) error {
 	_, err := db.q.UpsertAsset(ctx, gen.UpsertAssetParams{
 		Ticker:    ticker,
@@ -26,9 +24,6 @@ func (db *DB) UpsertAsset(ctx context.Context, ticker string, class domain.Asset
 	return nil
 }
 
-// GetAsset devolve found=false para ticker inexistente. Ausência não é erro.
-// Ticker desconhecido cai no alias e devolve o ativo canônico, não o alias
-// consultado.
 func (db *DB) GetAsset(ctx context.Context, ticker string) (domain.Asset, bool, error) {
 	a, err := db.q.GetAssetByTicker(ctx, ticker)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -59,8 +54,6 @@ func (db *DB) getAssetByAlias(ctx context.Context, aliasTicker string) (domain.A
 	return assetFromRow(a), true, nil
 }
 
-// Busca direta, sem passar por alias: para quem já sabe que o ticker é o
-// canônico.
 func (db *DB) AssetIDByTicker(ctx context.Context, ticker string) (int64, bool, error) {
 	a, err := db.q.GetAssetByTicker(ctx, ticker)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -105,8 +98,6 @@ func assetFromRow(a gen.Asset) domain.Asset {
 	}
 }
 
-// last_liquid_at só avança quando o ativo está líquido: ficar inativo não
-// apaga a memória de quando ele ainda negociava.
 func (db *DB) UpdateAssetLiquidity(ctx context.Context, assetID int64, isActive bool, at time.Time) error {
 	var active int64
 	if isActive {
@@ -177,8 +168,6 @@ func (db *DB) ListActiveTickers(ctx context.Context, class domain.AssetClass) ([
 	return tickers, nil
 }
 
-// Sem filtro de liquidez, ao contrário de ListActiveTickers: casar identidade
-// é validar contra a lista real de ativos, não só contra os negociáveis.
 func (db *DB) ListTickersForClass(ctx context.Context, class domain.AssetClass) ([]string, error) {
 	tickers, err := db.q.ListTickersForClass(ctx, class)
 	if err != nil {

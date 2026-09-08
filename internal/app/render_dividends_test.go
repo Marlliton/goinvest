@@ -51,8 +51,6 @@ func TestRenderDividends_SeparatesTypes(t *testing.T) {
 	require.Contains(t, text, "01/06/2024 · DIVIDENDO · R$ 0,20")
 }
 
-// Um provento por ação de lote de mil ações arredondaria para zero com duas
-// casas fixas, e "R$ 0,00" se leria como "não pagou nada".
 func TestRenderDividends_SmallValueNeverRoundsToZero(t *testing.T) {
 	view := app.DividendsView{
 		Ticker: "BBAS3",

@@ -12,8 +12,6 @@ import (
 	"github.com/marlliton/goinvest/internal/store"
 )
 
-// As métricas que só a página de detalhe traz. Nenhuma tem equivalente no
-// bulk, então "cair para o bulk" aqui significa "não avaliado para todos".
 var detailMetrics = []domain.MetricID{
 	"lucro_liquido", "ebit", "venda_ativos", "receita", "ffo", "rend_distribuido",
 }
@@ -28,9 +26,6 @@ type TickerStatus struct {
 	Reason string
 }
 
-// A célula guarda valor e proveniência juntos. Mapas paralelos por métrica
-// seriam quatro chaves para manter em sincronia, e a primeira a divergir sairia
-// como um número sem data ou uma data sem número.
 type MetricCell struct {
 	Value               *float64
 	Source              string
@@ -43,11 +38,9 @@ type CompareColumn struct {
 	Ticker         string
 	PeerGroupLabel string
 	Cells          map[domain.MetricID]MetricCell
-	// O texto usa só teto e ágio (a lista anual não cabe em oito colunas), mas
-	// o contrato de máquina a exige por extenso: um campo só, uma verdade.
-	Bazin      *BazinView
-	SelicDelta *float64
-	Alerts     []evaluate.Finding
+	Bazin          *BazinView
+	SelicDelta     *float64
+	Alerts         []evaluate.Finding
 }
 
 type CompareTable struct {
@@ -68,10 +61,6 @@ type CompareReport struct {
 	DetailMissingFor []domain.MetricID
 }
 
-// Compare resolve cada ticker pelo mesmo caminho de Show e decide a
-// precedência por (métrica × comparação), nunca por célula: uma coluna com
-// metade das linhas vindas do detalhe e metade do bulk misturaria metodologias
-// e produziria ranking errado sem nenhum erro visível.
 func Compare(ctx context.Context, db *store.DB, cat *catalog.Catalog, tickers []string, now func() time.Time) (CompareReport, error) {
 	var report CompareReport
 
@@ -122,9 +111,6 @@ func Compare(ctx context.Context, db *store.DB, cat *catalog.Catalog, tickers []
 	return report, nil
 }
 
-// Um ticker sem a coleta profunda derruba a métrica para todo mundo. Ausência
-// estrutural não derruba: ela é uma resposta sobre aquele ativo, e vira não
-// aplicável na própria célula.
 func unresolvableDetail(cat *catalog.Catalog, loaded []assetData) []domain.MetricID {
 	var out []domain.MetricID
 	for _, id := range detailMetrics {

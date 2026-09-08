@@ -1,5 +1,3 @@
-// Package b3 lê o cadastro de companhias abertas da B3: identidade e
-// taxonomia setorial, não cotação.
 package b3
 
 import (
@@ -14,8 +12,7 @@ import (
 	"github.com/marlliton/goinvest/internal/identity"
 )
 
-// Cadastro muda por trimestre; um mês de cache ainda pega mudança de setor
-// antes de qualquer decisão de investimento.
+// Cadastro de companhia muda por trimestre.
 const registryTTL = 30 * 24 * time.Hour
 
 const pageSize = 120

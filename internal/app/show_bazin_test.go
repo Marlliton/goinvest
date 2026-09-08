@@ -153,7 +153,6 @@ func TestShow_BazinAtypicalYearIsVisible(t *testing.T) {
 	require.Contains(t, app.RenderText(report), "· ano 2025 concentrado")
 }
 
-// FII entra na mesma regra: sem provento coletado o teto não sai com número.
 func TestShow_BazinFIIWithoutDividends(t *testing.T) {
 	db := openTemp(t)
 	seed(t, db, "MXRF11", domain.ClassFII, map[domain.MetricID]*float64{

@@ -91,8 +91,8 @@ func TestCompaniesReadsRealFixture(t *testing.T) {
 		}
 		decodeFilter(t, r.URL.Path, &filter)
 		require.Equal(t, 120, filter.PageSize)
-		// A fixture real anuncia 30 páginas; servir só a primeira e mentir o
-		// totalPages mantém o teste curto sem falsear o formato do registro.
+		// A fixture real anuncia 30 páginas: servir só a primeira encurta o
+		// teste sem falsear o formato do registro.
 		body := strings.Replace(string(fixture), `"totalPages":30`, `"totalPages":1`, 1)
 		fmt.Fprint(w, body)
 	}))

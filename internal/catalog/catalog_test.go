@@ -24,8 +24,8 @@ func TestLoadEmbeddedCatalog(t *testing.T) {
 	require.Len(t, c.Glossary, 38)
 }
 
-// Chave faltando aqui apagaria o texto de um alerta sem nenhum erro: o
-// detector continua disparando, e só a explicação some da tela.
+// Chave faltando não gera erro: o detector continua disparando e só a
+// explicação some da tela.
 func TestLoadEmbeddedTrapText(t *testing.T) {
 	c, err := Load()
 	require.NoError(t, err)
@@ -64,16 +64,11 @@ func TestLoadRejectsDerivedWithoutFormula(t *testing.T) {
 	require.ErrorContains(t, err, "payout")
 }
 
-// O campo existe para forçar a pergunta "quando este número engana?" no
-// momento em que a métrica nasce. Sem a regra de carga, o campo vira opcional
-// na prática e o próximo derivado entra sem ela.
 func TestLoadRejectsDerivedWithoutNotApplicable(t *testing.T) {
 	_, err := loadFrom(fixture(t, "derived-no-not-applicable.metrics.yaml"), fixture(t, "valid.glossary.yaml"), trapsYAML)
 	require.ErrorContains(t, err, "does not declare when it does not apply")
 }
 
-// Sem o motivo de setor a tela imprimiria "não se aplica" sem dizer por quê, e
-// motivo de outra origem não serve de substituto.
 func TestLoad_SentinelWithoutSetorReason(t *testing.T) {
 	_, err := loadFrom(fixture(t, "sentinel-no-setor.metrics.yaml"), fixture(t, "valid.glossary.yaml"), trapsYAML)
 	require.ErrorContains(t, err, "no not_applicable[setor] reason")
@@ -174,9 +169,8 @@ func TestDetailMetricsAreDeclaredWithoutPercentile(t *testing.T) {
 	}
 }
 
-// EBIT nunca aparece como 0,00 para banco: o rótulo não existe na página. A
-// sentinela por segmento continua servindo porque a consequência é a mesma, a
-// métrica sai da distribuição do setor.
+// EBIT não aparece como 0,00 para banco: o rótulo não existe na página. A
+// sentinela por segmento serve porque a consequência é a mesma.
 func TestEbitCarriesSectorReason(t *testing.T) {
 	c, err := Load()
 	require.NoError(t, err)
@@ -192,8 +186,6 @@ func TestEbitCarriesSectorReason(t *testing.T) {
 	t.Fatal("métrica ebit ausente do catálogo")
 }
 
-// A regra só tem dente se valer para toda métrica com sentinela, não só para a
-// que a motivou.
 func TestEverySentinelMetricExplainsTheSector(t *testing.T) {
 	c, err := Load()
 	require.NoError(t, err)

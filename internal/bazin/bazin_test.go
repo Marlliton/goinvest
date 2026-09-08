@@ -33,9 +33,8 @@ const (
 	cash = domain.DividendCash
 )
 
-// Eventos reais de BBAS3 capturados na fixture proventos_bbas3.html. Os totais
-// esperados são os que a própria fonte publica em #resultado-anual, o que faz
-// deste um teste dourado contra a fonte, não contra uma soma feita à mão.
+// Eventos reais capturados da fixture proventos_bbas3.html, com os totais que a
+// própria fonte publica em #resultado-anual: o esperado não é soma feita à mão.
 func bbas3Events() []domain.DividendEvent {
 	return []domain.DividendEvent{
 		event("13/12/2021", 0.1750, jcp), event("22/11/2021", 0.3937, jcp),
@@ -72,7 +71,6 @@ func bbas3Events() []domain.DividendEvent {
 	}
 }
 
-// Totais publicados em #resultado-anual da mesma fixture.
 var bbas3AnnualGross = map[int]float64{
 	2021: 2.262, 2022: 4.139, 2023: 4.540, 2024: 3.219, 2025: 1.170,
 }
@@ -139,8 +137,8 @@ func TestCompute_FloorOfThreeYears(t *testing.T) {
 	require.True(t, ok)
 }
 
-// O ano corrente nunca entra na janela: um exercício ainda em curso soma menos
-// que os fechados e puxaria a média para baixo sem nada explicar por quê.
+// Um exercício ainda em curso soma menos que os fechados e puxaria a média para
+// baixo sem nada explicar por quê.
 func TestCompute_IgnoresCurrentYear(t *testing.T) {
 	events := []domain.DividendEvent{
 		event("10/03/2023", 1.00, cash),
@@ -183,8 +181,7 @@ func TestCompute_UsesOnlyFiveMostRecentClosedYears(t *testing.T) {
 
 func TestCompute_AtypicalYear(t *testing.T) {
 	events := []domain.DividendEvent{
-		// 2021 destoa dos demais no total, mas nenhum evento isolado passa de
-		// metade do próprio ano: não é concentração.
+		// Destoa no total, mas nenhum evento isolado passa de metade do ano.
 		event("10/03/2021", 1.60, cash), event("10/06/2021", 1.60, cash),
 		event("10/09/2021", 1.60, cash),
 
@@ -192,8 +189,7 @@ func TestCompute_AtypicalYear(t *testing.T) {
 		event("10/03/2023", 0.50, cash), event("10/06/2023", 0.50, cash),
 		event("10/03/2024", 0.50, cash), event("10/06/2024", 0.50, cash),
 
-		// 2025 tem o mesmo total dos anos vizinhos, mas um único evento
-		// responde por 90% dele.
+		// Total igual ao dos vizinhos, mas um evento responde por 90% dele.
 		event("10/03/2025", 0.90, cash), event("10/06/2025", 0.10, cash),
 	}
 
@@ -215,8 +211,6 @@ func TestCompute_CeilingFormula(t *testing.T) {
 	require.Equal(t, got.AverageAnnual/0.06, got.Ceiling)
 }
 
-// Fator zero derruba a linha em vez de virar infinito: é a mesma regra que a
-// leitura da série de proventos já aplica.
 func TestCompute_DropsNonPositiveSharesFactor(t *testing.T) {
 	events := []domain.DividendEvent{
 		event("10/03/2023", 0.50, cash), event("10/09/2023", 0.50, cash),
@@ -232,9 +226,8 @@ func TestCompute_DropsNonPositiveSharesFactor(t *testing.T) {
 	require.Empty(t, got.AtypicalYears)
 }
 
-// A regra é "um evento responde por mais da metade do que o ano pagou", e um
-// pagador anual satisfaz isso sempre. É o preço de aplicar o limiar na unidade
-// em que ele foi definido; o alternativo seria um limiar novo sem fonte.
+// Um pagador anual satisfaz sempre "um evento responde por mais da metade do
+// que o ano pagou". O alternativo seria um limiar novo sem fonte.
 func TestCompute_SingleEventYearIsAtypical(t *testing.T) {
 	events := []domain.DividendEvent{
 		event("10/03/2023", 1.00, cash),
@@ -260,9 +253,8 @@ func years(r bazin.Result) []int {
 	return out
 }
 
-// O método é inaplicável a quem não paga com consistência: um exercício sem
-// provento no meio da janela derruba o teto em vez de sumir da média, que é o
-// que o inflaria em silêncio.
+// O exercício vazio derruba o teto em vez de sumir da média, que o inflaria em
+// silêncio.
 func TestCompute_MissingYearInWindow(t *testing.T) {
 	events := []domain.DividendEvent{
 		event("10/03/2021", 1.00, cash), event("10/09/2021", 1.00, cash),
@@ -276,7 +268,6 @@ func TestCompute_MissingYearInWindow(t *testing.T) {
 	require.Equal(t, []int{2023}, got.MissingYears)
 }
 
-// Parar de pagar é o mesmo caso: os exercícios recentes vazios contam.
 func TestCompute_StoppedPaying(t *testing.T) {
 	events := []domain.DividendEvent{
 		event("10/03/2019", 1.00, cash), event("10/09/2019", 1.00, cash),
@@ -289,8 +280,7 @@ func TestCompute_StoppedPaying(t *testing.T) {
 	require.Equal(t, []int{2025, 2024, 2023, 2022}, got.MissingYears)
 }
 
-// Ano anterior ao primeiro provento conhecido não é ano sem pagamento: o ativo
-// pode nem estar listado, e afirmar o contrário seria inventar histórico.
+// Antes do primeiro provento conhecido o ativo pode nem estar listado.
 func TestCompute_YearsBeforeFirstDividendAreNotMissing(t *testing.T) {
 	events := []domain.DividendEvent{
 		event("10/03/2023", 1.00, cash), event("10/09/2023", 1.00, cash),
@@ -304,8 +294,6 @@ func TestCompute_YearsBeforeFirstDividendAreNotMissing(t *testing.T) {
 	require.Equal(t, 3, got.YearsAvailable)
 }
 
-// O piso continua sendo contado sobre a janela contígua, não sobre quantos anos
-// por acaso têm linha.
 func TestCompute_FloorCountsContiguousWindow(t *testing.T) {
 	events := []domain.DividendEvent{
 		event("10/03/2024", 1.00, cash), event("10/09/2024", 1.00, cash),

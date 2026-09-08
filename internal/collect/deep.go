@@ -40,8 +40,6 @@ type DeepConfig struct {
 	OnProgress func(Progress)
 }
 
-// Deep coleta detalhe e proventos ticker a ticker. O lote inteiro cabe num
-// collection_run só, mas a falha de um ticker fica contida no resultado dele.
 func Deep(ctx context.Context, cfg DeepConfig) (DeepReport, error) {
 	if cfg.DB == nil {
 		return DeepReport{}, errors.New("collect: db is required")
@@ -68,8 +66,7 @@ func Deep(ctx context.Context, cfg DeepConfig) (DeepReport, error) {
 		}
 
 		outcome, n := collectTicker(ctx, cfg, runID, ticker)
-		// Cancelar no meio de um ticker não é falha dele: registrar o resultado
-		// faria o relatório culpar a fonte pelo Ctrl-C do usuário.
+		// Cancelar no meio de um ticker não é falha dele: o resultado culparia a fonte pelo Ctrl-C.
 		if ctx.Err() != nil {
 			report.Cancelled = true
 			break
@@ -105,8 +102,7 @@ func collectTicker(ctx context.Context, cfg DeepConfig, runID int64, ticker stri
 		return fail("sem cadastro local: rode 'goinvest sync'")
 	}
 
-	// GetAsset resolve o alias e devolve o ativo canônico. A fonte não publica
-	// página do fracionário.
+	// A fonte não publica página do fracionário; GetAsset devolve o canônico.
 	canonical := asset.Ticker
 
 	metrics, err := cfg.Detail.Detail(ctx, canonical, asset.Class, cfg.Force)
@@ -129,8 +125,7 @@ func collectTicker(ctx context.Context, cfg DeepConfig, runID int64, ticker stri
 	return TickerOutcome{Ticker: ticker, Status: StatusOK}, len(obs)
 }
 
-// A ordem do mapa é aleatória em Go, e a mensagem de erro de uma gravação que
-// falha no meio mudaria entre execuções idênticas.
+// Ordem de mapa é aleatória: a mensagem de erro mudaria entre execuções idênticas.
 func observationsOf(set domain.MetricSet) []domain.Observation {
 	obs := make([]domain.Observation, 0, len(set))
 	for _, id := range slices.Sorted(maps.Keys(set)) {

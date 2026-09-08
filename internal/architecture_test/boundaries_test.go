@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	// Sem este import o cache de teste do Go serve um resultado obsoleto: o
-	// grafo de dependências é lido por um subprocesso `go list`, invisível para
-	// o cache. Todo pacote vigiado aqui precisa do seu import em branco.
+	// O grafo de dependências é lido por um subprocesso `go list`, invisível
+	// para o cache de teste. Sem o import em branco o pacote vigiado sai com
+	// resultado obsoleto.
 	_ "github.com/marlliton/goinvest/internal/app"
 	_ "github.com/marlliton/goinvest/internal/bazin"
 	_ "github.com/marlliton/goinvest/internal/catalog"
@@ -26,8 +26,6 @@ import (
 
 const modulePath = "github.com/marlliton/goinvest"
 
-// Alguns destes pacotes internos ainda não existem; estão na lista para o dia
-// em que existirem.
 var forbiddenForCore = []string{
 	"database/sql",
 	"net/http",
@@ -45,23 +43,20 @@ func TestCatalogHasNoInfraImports(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/catalog", forbiddenForCore)
 }
 
-// derive é análise pura: recebe MetricSet e devolve MetricSet. Também não pode
-// alcançar o catálogo, senão a unidade do derivado passaria a ter duas fontes.
+// O catálogo entra na lista porque a unidade do derivado passaria a ter duas
+// fontes.
 func TestDeriveHasNoInfraImports(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/derive",
 		append(forbiddenForCore, modulePath+"/internal/catalog"))
 }
 
-// bazin é a mesma natureza de derive: cálculo puro sobre dado já validado, e
-// pelo mesmo motivo não pode alcançar o catálogo.
 func TestBazinHasNoInfraImports(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/bazin",
 		append(forbiddenForCore, modulePath+"/internal/catalog"))
 }
 
-// evaluate decide veredito sobre número já resolvido. Não pode alcançar o
-// catálogo: o texto que vem de lá chega pronto no Input, e a alternativa seria
-// a regra e a redação da regra evoluírem em dois lugares.
+// O texto do catálogo chega pronto no Input: a alternativa seria a regra e a
+// redação da regra evoluírem em dois lugares.
 func TestEvaluateHasNoInfraImports(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/evaluate",
 		append(forbiddenForCore, modulePath+"/internal/catalog"))
@@ -71,15 +66,14 @@ func TestIdentityHasNoInfraImports(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/identity", forbiddenForCore)
 }
 
-// A interface Cache é declarada pelo consumidor justamente para que fetch e
-// store possam evoluir sem se conhecer. Sem este teste a dependência entra por
-// conveniência no primeiro plano que precisar de cache concreto.
+// A interface Cache é declarada pelo consumidor para que fetch e store possam
+// evoluir sem se conhecer.
 func TestFetchDoesNotImportStore(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/fetch", []string{modulePath + "/internal/store"})
 }
 
-// A interface provider fica de fora da lista de propósito: ela não disca nada, e
-// app precisa dela desde Sync. Quem disca é net/http, fetch e a fonte concreta.
+// A interface provider fica de fora da lista de propósito: ela não disca nada,
+// e app precisa dela desde Sync.
 func TestAppCannotReachTheNetwork(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/app", []string{
 		"net/http",
@@ -89,8 +83,6 @@ func TestAppCannotReachTheNetwork(t *testing.T) {
 	})
 }
 
-// A segunda fonte só é plugável enquanto collect conhecer a interface e nada
-// além dela: quem monta o provider concreto é o wiring de cmd.
 func TestCollectDependsOnlyOnProviderInterface(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/collect",
 		[]string{modulePath + "/internal/provider/fundamentus"})
@@ -108,9 +100,6 @@ func requireNoImports(t *testing.T, pkg string, forbidden []string) {
 
 	for _, f := range forbidden {
 		for _, dep := range deps {
-			// Casar por prefixo: internal/store/gen é infraestrutura tanto
-			// quanto internal/store, e a lista não pode depender de alguém
-			// lembrar de estendê-la a cada subpacote novo.
 			if dep == f || strings.HasPrefix(dep, f+"/") {
 				t.Errorf("%s imports %s (transitively)", pkg, dep)
 			}
@@ -118,9 +107,8 @@ func requireNoImports(t *testing.T, pkg string, forbidden []string) {
 	}
 }
 
-// requirePackagePresent evita o falso verde: `go list` sobre um padrão que não
-// casa com nenhum pacote sai com status 0 e saída vazia, e o laço de
-// verificação passa sem verificar nada.
+// `go list` sobre um padrão que não casa com nenhum pacote sai com status 0 e
+// saída vazia, e o laço de verificação passaria sem verificar nada.
 func requirePackagePresent(t *testing.T, deps []string, pkg string) {
 	t.Helper()
 	for _, dep := range deps {
@@ -132,7 +120,7 @@ func requirePackagePresent(t *testing.T, deps []string, pkg string) {
 }
 
 // O padrão precisa vir qualificado pelo module path: o cwd do teste é o
-// diretório do próprio pacote, onde um "./..." resolveria para a subárvore errada.
+// diretório do próprio pacote, e "./..." resolveria para a subárvore errada.
 func goListDeps(t *testing.T, pattern string) []string {
 	t.Helper()
 	out, err := exec.Command("go", "list", "-deps", pattern).Output()

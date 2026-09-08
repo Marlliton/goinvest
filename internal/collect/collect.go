@@ -1,5 +1,3 @@
-// Package collect orquestra as fontes bulk. Cada classe tem seu próprio
-// collection_run: a falha de uma nunca interrompe a coleta da outra.
 package collect
 
 import (
@@ -51,8 +49,6 @@ type Config struct {
 	Now       func() time.Time
 }
 
-// Sync coleta sempre as duas classes e só devolve erro para o que impede
-// qualquer coleta. Uma fonte que falha vira Status partial no SourceResult dela.
 func Sync(ctx context.Context, cfg Config) (Report, error) {
 	if cfg.DB == nil {
 		return Report{}, errors.New("collect: db is required")
@@ -158,8 +154,7 @@ func ingest(ctx context.Context, cfg Config, class domain.AssetClass, p provider
 			continue
 		}
 		seen[o.Ticker] = struct{}{}
-		// A observação referencia asset(asset_id): sem o upsert antes, a
-		// inserção em lote inteira falha na chave estrangeira.
+		// Sem o upsert antes, a inserção em lote falha na chave estrangeira.
 		if err := cfg.DB.UpsertAsset(ctx, o.Ticker, class, "", at); err != nil {
 			return 0, 0, err
 		}
@@ -201,8 +196,7 @@ func metricsByTicker(obs []domain.Observation) map[string]map[domain.MetricID]*f
 	return values
 }
 
-// Métrica ausente não marca nada: só um zero lido da fonte é evidência de que
-// o papel não negocia.
+// Só um zero lido da fonte é evidência de que o papel não negocia.
 func isActive(class domain.AssetClass, values map[domain.MetricID]*float64) bool {
 	quote := values["cotacao"]
 	liquidity := values[liquidityMetric(class)]

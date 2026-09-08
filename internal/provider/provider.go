@@ -1,6 +1,3 @@
-// Package provider declara o que uma fonte de dados sabe fazer. As interfaces
-// são pequenas e por capacidade: uma fonte implementa só o que ela entrega, em
-// vez de preencher métodos vazios de uma interface única.
 package provider
 
 import (
@@ -15,15 +12,13 @@ type Namer interface {
 	Name() string
 }
 
-// UniverseProvider é a fonte que devolve o mercado inteiro de uma classe numa
-// requisição. force ignora o TTL de cache do fetch.
+// force ignora o TTL de cache do fetch.
 type UniverseProvider interface {
 	Namer
 	SourceID(class domain.AssetClass) string
 	Universe(ctx context.Context, class domain.AssetClass, force bool) ([]domain.Observation, error)
 }
 
-// SelicProvider é a fonte da âncora de renda fixa, em % ao ano.
 type SelicProvider interface {
 	Namer
 	Selic(ctx context.Context, force bool) (rate float64, referenceAt time.Time, err error)
@@ -35,8 +30,6 @@ type IdentityProvider interface {
 	Detail(ctx context.Context, codeCVM string, force bool) (identity.CompanyDetail, error)
 }
 
-// DetailProvider é a fonte da coleta profunda: uma requisição por ticker, ao
-// contrário do UniverseProvider, que traz a classe inteira de uma vez.
 type DetailProvider interface {
 	Namer
 	Detail(ctx context.Context, ticker string, class domain.AssetClass, force bool) (domain.MetricSet, error)

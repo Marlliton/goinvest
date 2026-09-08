@@ -172,7 +172,6 @@ func TestGetRefetchesWhenCacheIsStaleOrForced(t *testing.T) {
 
 func TestGetDecodesISO88591(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		// "Ações" e "Vacância Média" em latin-1: os bytes que o Fundamentus manda.
 		w.Write([]byte{0x41, 0xE7, 0xF5, 0x65, 0x73}) // A ç õ e s
 	}))
 	defer srv.Close()

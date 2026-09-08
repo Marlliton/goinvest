@@ -1,5 +1,3 @@
-// Package catalog é o cardápio de métricas: quais existem, em que bloco
-// aparecem, para qual classe se aplicam e como são derivadas. Não faz I/O.
 package catalog
 
 import (
@@ -28,25 +26,18 @@ type Block struct {
 }
 
 type Metric struct {
-	ID      domain.MetricID
-	Label   string
-	Block   string
-	Order   int
-	Unit    domain.Unit
-	Classes []domain.AssetClass
-	Derived bool
-	Formula string
-	Inputs  []domain.MetricID
-	// Em que situação o número é calculável mas a pergunta que ele responde
-	// não faz sentido, indexado pela origem: "classe", "setor" ou "ativo".
-	// Obrigatório em derivado: é o campo que força a decisão a ser tomada
-	// quando a métrica nasce, não quando o usuário se confunde. A origem
-	// separada preserva a diferença entre "a pergunta não cabe aqui" e "este
-	// ativo está em situação anômala".
+	ID            domain.MetricID
+	Label         string
+	Block         string
+	Order         int
+	Unit          domain.Unit
+	Classes       []domain.AssetClass
+	Derived       bool
+	Formula       string
+	Inputs        []domain.MetricID
 	NotApplicable map[string]string
 	Percentile    bool
-	// Damodaran: múltiplo com denominador negativo sai da distribuição em vez
-	// de virar cauda, senão a mediana do setor desloca sem significado.
+	// Damodaran: denominador negativo sai da distribuição, senão desloca a mediana.
 	ExcludeNegative bool
 	// Segmentos em que a fonte publica 0,00 no lugar de "não se aplica".
 	SentinelSegments    []string
@@ -73,8 +64,6 @@ func (c *Catalog) Metric(id domain.MetricID) (Metric, bool) {
 	return Metric{}, false
 }
 
-// MetricsFor devolve as métricas aplicáveis à classe, já na ordem de exibição
-// (bloco, depois métrica dentro do bloco).
 func (c *Catalog) MetricsFor(class domain.AssetClass) []Metric {
 	out := make([]Metric, 0, len(c.Metrics))
 	for _, m := range c.Metrics {
@@ -85,8 +74,6 @@ func (c *Catalog) MetricsFor(class domain.AssetClass) []Metric {
 	return out
 }
 
-// BlocksOrdered devolve os blocos por Order crescente. A garantia é do método,
-// não da ordem de declaração no YAML.
 func (c *Catalog) BlocksOrdered() []Block {
 	out := slices.Clone(c.Blocks)
 	slices.SortFunc(out, func(a, b Block) int { return a.Order - b.Order })
@@ -241,9 +228,6 @@ func (rm rawMetric) toMetric() (Metric, error) {
 	}, nil
 }
 
-// O YAML usa o vocabulário curto e minúsculo; o valor persistido do domínio é
-// o do mercado brasileiro em caixa alta. A tradução mora aqui, e classe
-// desconhecida é erro de carga, não métrica que some em silêncio.
 func parseClass(s string) (domain.AssetClass, error) {
 	switch s {
 	case "acao":
@@ -263,8 +247,7 @@ func parseUnit(s string) (domain.Unit, error) {
 	return "", fmt.Errorf("unknown unit %q", s)
 }
 
-// KnownFields transforma um campo com nome errado em erro de carga; sem ele o
-// yaml.v3 ignora a chave desconhecida e o valor vira o zero do tipo.
+// Sem KnownFields o yaml.v3 ignora chave desconhecida e o valor vira o zero do tipo.
 func decodeStrict(data []byte, out any) error {
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	dec.KnownFields(true)

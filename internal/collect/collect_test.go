@@ -22,17 +22,14 @@ import (
 
 const testRateEvery = time.Millisecond
 
-// A fixture é a mesma que o provider usa, lida de lá em vez de copiada: duas
-// cópias divergem no dia em que a fonte mudar de layout.
+// Lida do provider em vez de copiada: duas cópias divergem no dia em que a
+// fonte mudar de layout.
 const stockFixture = "../provider/fundamentus/testdata/resultado_min.html"
 
-// Fixture sintética: cotação, liquidez zerada e liquidez abaixo do piso, os três
-// casos da régua.
 const liquidityFixture = "../provider/fundamentus/testdata/resultado_liquidity.html"
 
 var seededAt = time.Date(2026, 8, 30, 12, 0, 0, 0, time.UTC)
 
-// A fonte de ações responde 200 com a fixture; a de FIIs responde 503.
 func newSource(t *testing.T) *httptest.Server {
 	t.Helper()
 	return newSourceFrom(t, stockFixture)
@@ -65,8 +62,6 @@ func openDB(t *testing.T) *store.DB {
 	return db
 }
 
-// seedPreviousFIIRun grava uma coleta de FIIs bem-sucedida anterior, para que o
-// teste possa provar que a falha de hoje não apagou o que já havia.
 func seedPreviousFIIRun(t *testing.T, db *store.DB) {
 	t.Helper()
 

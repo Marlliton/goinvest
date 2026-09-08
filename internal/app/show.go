@@ -1,4 +1,3 @@
-// Package app é a fronteira que cmd e, nas fases seguintes, a TUI enxergam.
 package app
 
 import (
@@ -47,23 +46,18 @@ type HeaderView struct {
 }
 
 type LineView struct {
-	MetricID         domain.MetricID
-	Label            string
-	Value            *float64
-	Unit             domain.Unit
-	Derived          bool
-	Formula          string
-	Percentile       *float64
-	PeerN            *int
-	FellBackToMarket bool
-	SelicDelta       *float64
-	ReferenceAt      *time.Time
-	// IDs dos alertas disparados cuja regra usa esta métrica. Existe para que
-	// um P/VP de 0,55 não se leia como oportunidade três linhas antes de o
-	// bloco de alertas dizer o contrário.
-	AlertMarks []string
-	// Preenchido só quando a métrica é estruturalmente não aplicável. Ausência
-	// comum ("a fonte não informou") continua sendo Value nil com motivo vazio.
+	MetricID            domain.MetricID
+	Label               string
+	Value               *float64
+	Unit                domain.Unit
+	Derived             bool
+	Formula             string
+	Percentile          *float64
+	PeerN               *int
+	FellBackToMarket    bool
+	SelicDelta          *float64
+	ReferenceAt         *time.Time
+	AlertMarks          []string
 	NotApplicableReason string
 }
 
@@ -72,8 +66,6 @@ type BlockView struct {
 	Lines []LineView
 }
 
-// Bazin é família, não linha: teto, ágio/deságio, anos usados e a lista anual
-// contam a mesma história e não cabem no esquema de LineView.
 type BazinView struct {
 	Ceiling             float64
 	CurrentPrice        float64
@@ -98,7 +90,6 @@ func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string
 	if err != nil {
 		return Report{}, err
 	}
-	// Cadastrado e nunca coletado pede do usuário a mesma ação que ausente.
 	if !found || len(data.collected) == 0 {
 		return Report{}, ErrNoData
 	}
@@ -139,9 +130,6 @@ func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string
 	}, nil
 }
 
-// assetData é tudo que uma tela precisa de um ativo. Show e Compare leem o
-// mesmo conjunto pelo mesmo caminho: duas leituras diferentes fariam as duas
-// telas discordarem sobre o mesmo ticker sem que nada acusasse.
 type assetData struct {
 	asset       domain.Asset
 	collected   domain.MetricSet
@@ -219,9 +207,8 @@ func alertInput(cat *catalog.Catalog, asset domain.Asset, merged domain.MetricSe
 	return in
 }
 
-// A taxonomia de FII tem um nível só, e o rótulo que calibra o limiar de
-// vacância chega em Sector. Ler Segment deixaria o alerta permanentemente não
-// aplicável para todo fundo.
+// FII tem taxonomia de um nível: o rótulo chega em Sector, e ler Segment
+// deixaria o alerta de vacância sempre não aplicável.
 func taxonomyLabel(asset domain.Asset) string {
 	if asset.Class == domain.ClassFII {
 		return asset.Sector
@@ -229,9 +216,6 @@ func taxonomyLabel(asset domain.Asset) string {
 	return asset.Segment
 }
 
-// Cada alerta tem uma métrica âncora: aquela cuja leitura muda quando ele
-// dispara. Não são todos os insumos da regra, senão a tela inteira ficaria
-// marcada e a marca deixaria de apontar para algo.
 var alertAnchors = map[string]domain.MetricID{
 	"ALERTA-01": "payout",
 	"ALERTA-02": "pvp",
@@ -264,9 +248,7 @@ func bazinView(events []domain.DividendEvent, merged domain.MetricSet, h HeaderV
 	if !hasPrice {
 		return &BazinView{NotApplicableReason: "cotação não coletada"}
 	}
-	// O teto nunca sai sozinho: sem a âncora ao lado, um R$ 20,00 de teto se lê
-	// como veredito, e é justamente a comparação com a renda fixa que decide se
-	// o dividendo compensa.
+	// O teto sem o DY−Selic ao lado se lê como veredito: a renda fixa é a âncora.
 	if h.SelicRate == nil {
 		return &BazinView{NotApplicableReason: "Selic desconhecida; rode 'goinvest sync'"}
 	}
@@ -345,8 +327,6 @@ func header(collected domain.MetricSet, now func() time.Time) HeaderView {
 	return h
 }
 
-// Nulo continua nulo: preencher com FetchedAt afirmaria uma competência que a
-// fonte nunca informou.
 func commonReference(collected domain.MetricSet) *time.Time {
 	count := map[int64]int{}
 	for _, o := range collected {
@@ -388,11 +368,8 @@ func blocks(cat *catalog.Catalog, asset domain.Asset, merged domain.MetricSet, p
 			if m.Block != b.ID {
 				continue
 			}
-			// Nunca coletada some da tela; coletada sem valor vira "—".
 			o, ok := merged[m.ID]
 			if !ok {
-				// Sem o documento em mãos não dá para afirmar que a fonte não
-				// publica: seria vender palpite como conclusão.
 				if hasDetail && isSentinelSegment(m, asset.Segment) {
 					view.Lines = append(view.Lines, notApplicableLine(m, m.NotApplicable[originSector]))
 				}
@@ -452,8 +429,7 @@ func notApplicableLine(m catalog.Metric, reason string) LineView {
 	}
 }
 
-// A checagem de patrimônio prevalece sobre o número: o múltiplo é calculável,
-// mas compara preço com um patrimônio que não existe.
+// Patrimônio não positivo precede a sentinela: o múltiplo é calculável e mentiria.
 func notApplicableReason(m catalog.Metric, segment string, merged domain.MetricSet, value *float64) string {
 	if m.NegativeEquityCheck && hasNonPositiveEquity(merged) {
 		return m.NotApplicable[originAsset]

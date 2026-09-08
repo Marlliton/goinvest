@@ -34,8 +34,7 @@ func event(exDate time.Time, kind domain.DividendType, raw, factor float64) doma
 	}
 }
 
-// BBAS3 publica o provento por lote de mil ações: sem a divisão, a soma anual
-// sai mil vezes inflada.
+// BBAS3 publica o provento por lote de mil ações: sem dividir, o ano infla mil vezes.
 func TestDividends_SharesFactor1000(t *testing.T) {
 	db := openTemp(t)
 	seed(t, db, "BBAS3", domain.ClassStock, wege3Values())

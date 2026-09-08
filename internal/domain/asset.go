@@ -1,5 +1,4 @@
-// Package domain contém os tipos que atravessam toda a ferramenta e não
-// importa nenhum pacote de infraestrutura.
+// Package domain não importa nenhum pacote de infraestrutura.
 package domain
 
 import "time"

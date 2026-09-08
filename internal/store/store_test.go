@@ -315,8 +315,8 @@ func TestRawDocRoundTrip(t *testing.T) {
 	require.Equal(t, 1, n)
 }
 
-// Código gerado desatualizado é o modo de falha que o sqlc introduz: o SQL muda,
-// o Go continua o antigo e só quebra em runtime.
+// O modo de falha do sqlc: o SQL muda, o Go gerado continua o antigo e só
+// quebra em runtime.
 func TestGeneratedCodeIsUpToDate(t *testing.T) {
 	if testing.Short() {
 		t.Skip("roda sqlc; fora do -short")

@@ -7,9 +7,7 @@ import (
 	"strings"
 )
 
-// A fonte publica o provento por lote de ações, e um evento de R$ 0,00007 por
-// ação viraria "R$ 0,00" com duas casas fixas. A precisão sai do próprio valor,
-// e o teto existe porque a divisão em float produz cauda sem significado.
+// Com duas casas fixas, um provento de R$ 0,00007 por ação viraria "R$ 0,00".
 const maxDividendDecimals = 8
 
 func RenderDividends(v DividendsView) string {

@@ -1,5 +1,5 @@
-// Package derive calcula na leitura os indicadores que nenhuma fonte gratuita
-// publica. Nada aqui é persistido, e nada aqui toca rede, banco ou catálogo.
+// Package derive calcula na leitura os indicadores que nenhuma fonte publica.
+// Nada aqui é persistido.
 package derive
 
 import (
@@ -8,9 +8,8 @@ import (
 	"github.com/marlliton/goinvest/internal/domain"
 )
 
-// Compute devolve só os derivados que puderam ser calculados. Derivado com
-// insumo ausente ou suspeito não vira chave: um número calculado sobre
-// sentinela tem a mesma autoridade visual dos outros e é pior que a ausência.
+// Derivado com insumo ausente ou suspeito não vira chave: um número calculado
+// sobre sentinela tem a mesma autoridade visual dos outros e é pior que a ausência.
 func Compute(metrics domain.MetricSet) domain.MetricSet {
 	out := domain.MetricSet{}
 	for _, d := range derivations {
@@ -63,10 +62,9 @@ func netDebtOverEBITDA(m domain.MetricSet) (domain.Observation, bool) {
 	if !finite(marketCap, netDebt, enterpriseValue, ebitda) {
 		return domain.Observation{}, false
 	}
-	// Um resultado negativo tem duas causas opostas: dívida líquida negativa
-	// (a empresa tem mais caixa que dívida, notícia boa) ou EBITDA negativo
-	// (prejuízo operacional). O número sozinho não distingue as duas, então só
-	// a primeira sai daqui.
+	// Resultado negativo tem duas causas opostas: dívida líquida negativa (caixa
+	// maior que dívida, notícia boa) ou EBITDA negativo (prejuízo operacional).
+	// O número sozinho não distingue as duas, então só a primeira sai daqui.
 	if ebitda <= 0 {
 		return domain.Observation{}, false
 	}
@@ -113,8 +111,8 @@ func value(m domain.MetricSet, id domain.MetricID) (float64, bool) {
 	return *o.Value, true
 }
 
-// O derivado herda a proveniência dos insumos, e a data de coleta do insumo
-// mais velho: ele não é mais fresco que o pior número que o produziu.
+// A data de coleta é a do insumo mais velho: o derivado não é mais fresco que o
+// pior número que o produziu.
 func observation(m domain.MetricSet, id domain.MetricID, unit domain.Unit, v float64, inputs []domain.MetricID) (domain.Observation, bool) {
 	if !finite(v) {
 		return domain.Observation{}, false

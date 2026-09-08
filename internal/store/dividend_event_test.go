@@ -36,8 +36,8 @@ func seededAssetID(t *testing.T, db *DB, ticker string) int64 {
 	return id
 }
 
-// O evento sem data de pagamento é o que expõe a armadilha: em índice único,
-// NULL não colide com NULL.
+// O evento sem data de pagamento é o caso que pega: em índice único, NULL não
+// colide com NULL.
 func TestInsertDividendEvents_Idempotent(t *testing.T) {
 	db := openTemp(t)
 	assetID := seededAssetID(t, db, "BBAS3")
@@ -60,8 +60,6 @@ func TestInsertDividendEvents_Idempotent(t *testing.T) {
 	require.Len(t, stored, 2)
 }
 
-// Mesma data-com e mesmo valor em datas de pagamento diferentes são duas
-// parcelas do provento.
 func TestInsertDividendEvents_PreservesInstallments(t *testing.T) {
 	db := openTemp(t)
 	assetID := seededAssetID(t, db, "PETR4")

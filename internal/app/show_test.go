@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Regravar sem ler o diff transforma o golden em carimbo do bug.
 var update = flag.Bool("update", false, "regrava os arquivos golden")
 
 var (
@@ -35,8 +34,6 @@ func openTemp(t *testing.T) *store.DB {
 	return db
 }
 
-// Nenhum httptest.Server sobe aqui: se Show discasse rede, não haveria endpoint
-// de pé, e o teste travaria em vez de passar em silêncio.
 func seed(t *testing.T, db *store.DB, ticker string, class domain.AssetClass, values map[domain.MetricID]*float64) {
 	t.Helper()
 	ctx := t.Context()
@@ -76,7 +73,6 @@ func loadCatalog(t *testing.T) *catalog.Catalog {
 	return cat
 }
 
-// Percentual é fração em todo o pipeline: 0.25 é 25%.
 func wege3Values() map[domain.MetricID]*float64 {
 	return map[domain.MetricID]*float64{
 		"cotacao":         ptr(52.30),
@@ -334,7 +330,6 @@ func TestShowGoldenOutput(t *testing.T) {
 func TestShowGoldenOutputSuspectInput(t *testing.T) {
 	db := openTemp(t)
 	values := wege3Values()
-	// Banco: a fonte não publica EV/EBITDA, e sem ele DL/EBITDA não sai.
 	values["ev_ebitda"] = nil
 	seed(t, db, "ITUB4", domain.ClassStock, values)
 
@@ -480,8 +475,6 @@ func hasLine(r app.Report, id domain.MetricID) bool {
 	return false
 }
 
-// seedDetail grava observações vindas da página de detalhe, que é o sinal de
-// que aquele documento já foi coletado.
 func seedDetail(t *testing.T, db *store.DB, ticker string, values map[domain.MetricID]*float64) {
 	t.Helper()
 	ctx := t.Context()

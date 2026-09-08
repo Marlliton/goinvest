@@ -66,8 +66,6 @@ func TestRenderCompareJSON_NumbersAreNumbers(t *testing.T) {
 func TestRenderCompareJSON_FourAbsenceStates(t *testing.T) {
 	db := openTemp(t)
 	values := wege3Values()
-	// A fonte informou ausência num indicador sem sentinela para bancos:
-	// coletado, sem valor, e nada a ver com o setor.
 	values["cresc_rec_5a"] = nil
 	values["ev_ebitda"] = nil
 	seedStocks(t, db, "ROMI3", "KEPL3")

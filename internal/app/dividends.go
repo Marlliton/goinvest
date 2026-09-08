@@ -23,10 +23,8 @@ type DividendsView struct {
 	Lines  []DividendLine
 }
 
-// Dividends é leitura pura sobre o que 'goinvest detalhar' já coletou. O fator
-// de lote é aplicado por domain.DividendEvent.PerShare, o ponto único do
-// sistema: o parser guarda valor e fator separados justamente para que a
-// divisão não aconteça duas vezes nem ao contrário.
+// PerShare é o ponto único que aplica o fator de lote: dividir de novo aqui
+// dividiria duas vezes.
 func Dividends(ctx context.Context, db *store.DB, ticker string) (DividendsView, error) {
 	asset, found, err := db.GetAsset(ctx, ticker)
 	if err != nil {

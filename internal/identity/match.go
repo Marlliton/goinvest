@@ -2,9 +2,8 @@ package identity
 
 import "regexp"
 
-// A raiz é a parte alfabética do ticker, e o sufixo numérico não recebe
-// tratamento algum: é isso que impede a classe do ativo de ser inferida do
-// código.
+// O sufixo numérico não recebe tratamento algum: é isso que impede a classe do
+// ativo de ser inferida do código.
 var tickerPattern = regexp.MustCompile(`^([A-Z0-9]+?)(\d{1,2})$`)
 
 func RootOf(ticker string) (root string, ok bool) {

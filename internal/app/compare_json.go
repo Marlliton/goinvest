@@ -8,12 +8,8 @@ import (
 	"github.com/marlliton/goinvest/internal/domain"
 )
 
-// Script quebra em silêncio quando o formato muda: a versão existe para que a
-// quebra seja detectável do outro lado.
 const compareSchemaVersion = 1
 
-// Os quatro estados de ausência, explícitos. Um null sozinho não distingue "a
-// fonte não publica" de "ninguém coletou ainda", e as duas pedem ações opostas.
 const (
 	statusPresent       = "presente"
 	statusNotInformed   = "nao_informado"
@@ -21,8 +17,6 @@ const (
 	statusNotApplicable = "nao_aplicavel"
 )
 
-// O documento é contrato público e não acompanha refatoração de CompareReport,
-// que é a view interna. Formatação pt-BR não entra aqui em hipótese nenhuma.
 type compareDocument struct {
 	SchemaVersion    int               `json:"schema_version"`
 	Selic            *selicDoc         `json:"selic"`
@@ -135,8 +129,6 @@ func columnDoc(col CompareColumn, metrics []catalog.Metric, missing map[domain.M
 	for _, m := range metrics {
 		out.Metrics[string(m.ID)] = cellDoc(col.Cells[m.ID], m, hasKey(col.Cells, m.ID), missing)
 	}
-	// Os cinco saem sempre, inclusive os não avaliados: quem consome o
-	// contrato precisa distinguir "passou no teste" de "o teste não rodou".
 	for _, f := range col.Alerts {
 		out.Alerts = append(out.Alerts, alertDoc{
 			ID: f.ID, Status: string(f.Status), Rule: f.Rule,

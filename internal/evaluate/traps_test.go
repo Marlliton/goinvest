@@ -71,7 +71,6 @@ func TestDetect_PVPROEFired(t *testing.T) {
 	require.InDelta(t, 0.10, got.Numbers["roe"], 1e-9)
 }
 
-// Os dois termos são conjuntivos: barato sozinho não é armadilha.
 func TestDetect_PVPROENotFiredWhenOnlyOneTermHolds(t *testing.T) {
 	cheapButProfitable := stock(map[domain.MetricID]float64{"pvp": 0.6, "roe": 0.30})
 	cheapButProfitable.SelicRate = ptr(0.14)
@@ -122,8 +121,7 @@ func TestDetect_AssetSaleFired(t *testing.T) {
 }
 
 // MXRF11 real: distribui 103% do FFO, patamar comum, mas vende só 9,7% da
-// receita. O gatilho de duas pernas não confunde isso com sustentar dividendo
-// vendendo imóvel; "venda_ativos > 0" confundiria.
+// receita. Um gatilho de "venda_ativos > 0" chamaria isso de armadilha.
 func TestDetect_AssetSaleNotFired_RealMXRF11(t *testing.T) {
 	in := fii("Papel", map[domain.MetricID]float64{
 		"venda_ativos": 51.3e6, "receita": 526.5e6, "rend_distribuido": 497.1e6, "ffo": 483.1e6,
@@ -142,8 +140,8 @@ func TestDetect_AssetSaleNeverCollected(t *testing.T) {
 	require.NotEmpty(t, got.Reason)
 }
 
-// FFO não positivo inverte a leitura da razão: distribuir sobre FFO negativo
-// daria uma razão negativa, que a regra leria como "distribui menos que gera".
+// Distribuir sobre FFO negativo dá razão negativa, que a regra leria como
+// "distribui menos que gera".
 func TestDetect_AssetSaleNonPositiveFFO(t *testing.T) {
 	in := fii("Logística", map[domain.MetricID]float64{
 		"venda_ativos": 80e6, "receita": 500e6, "rend_distribuido": 500e6, "ffo": -10e6,
@@ -174,8 +172,8 @@ func TestDetect_VacancyFired(t *testing.T) {
 	require.InDelta(t, 0.12, got.Numbers["limiar"], 1e-9)
 }
 
-// O limiar é por segmento: 15% de vacância é alerta em logística e é a faixa de
-// atenção em laje corporativa, onde o alerta começa em 20%.
+// 15% é alerta em logística e ainda é faixa de atenção em laje corporativa,
+// onde o alerta começa em 20%.
 func TestDetect_VacancyThresholdVariesBySegment(t *testing.T) {
 	for _, c := range []struct {
 		segment string
@@ -201,8 +199,8 @@ func TestDetect_VacancyWithoutPercentile(t *testing.T) {
 	require.Equal(t, evaluate.StatusNotEvaluated, got.Status)
 }
 
-// DY na mediana ou abaixo dela não é o caso: vacância alta com DY baixo é um
-// fundo com problema declarado no preço, não um dividendo insustentável.
+// Vacância alta com DY baixo é problema já declarado no preço, não dividendo
+// insustentável.
 func TestDetect_VacancyBelowMedianYield(t *testing.T) {
 	in := fii("Logística", map[domain.MetricID]float64{"vacancia_media": 0.15})
 	in.DYPercentile = ptr(0.30)
@@ -233,8 +231,8 @@ func TestDetect_AlwaysFiveFindings(t *testing.T) {
 	}
 }
 
-// Alerta de outra classe não some da lista: some seria o usuário concluir que
-// passou nos cinco testes quando dois nem rodaram.
+// Sumir da lista faria o usuário concluir que passou nos cinco testes quando
+// dois nem rodaram.
 func TestDetect_CrossClassIsNotApplicable(t *testing.T) {
 	forFII := evaluate.Detect(fii("Logística", nil))
 	for _, id := range []string{"ALERTA-01", "ALERTA-02", "ALERTA-03"} {

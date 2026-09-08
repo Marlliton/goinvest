@@ -40,11 +40,6 @@ type RegistryAllReport struct {
 	FIIsSkipped     bool
 }
 
-// RegistryAll orquestra os dois estágios de cadastro e o recálculo da
-// referência setorial. O recálculo roda sempre que houver catálogo, mesmo
-// quando um estágio falhou de verdade: só um cancelamento pelo usuário (via
-// context) pula o estágio de FIIs, uma falha real não deveria deixar a
-// referência velha em silêncio.
 func RegistryAll(ctx context.Context, cfg RegistryAllConfig) (RegistryAllReport, error) {
 	if cfg.Now == nil {
 		cfg.Now = time.Now
@@ -89,9 +84,6 @@ func RegistryAll(ctx context.Context, cfg RegistryAllConfig) (RegistryAllReport,
 	}
 }
 
-// stageOutcome separa cancelamento do erro cru devolvido pela fonte: um
-// Ctrl-C durante a coleta propaga context.Canceled envolto na URL da
-// requisição em andamento, e esse texto nunca deve chegar ao chamador.
 func stageOutcome(ctx context.Context, report registry.Report, err error) (registry.Report, bool, error) {
 	if err != nil {
 		if ctx.Err() != nil {

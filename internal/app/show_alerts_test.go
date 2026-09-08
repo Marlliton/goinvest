@@ -96,8 +96,7 @@ func TestShow_AlertBlock_WithBazin(t *testing.T) {
 	require.Contains(t, text, "ALERTA-01", "o teto e o alerta de payout nunca saem em telas separadas")
 }
 
-// A taxonomia de FII tem um nível só e o rótulo do segmento chega em Sector.
-// Ler asset.Segment deixaria o alerta permanentemente não aplicável.
+// Em FII o segmento chega em Sector: ler asset.Segment deixa o alerta sempre não aplicável.
 func TestShow_AlertVacancyUsesFIITaxonomyLabel(t *testing.T) {
 	db := openTemp(t)
 	// MinPeerGroup exige cinco papéis líquidos para haver percentil.

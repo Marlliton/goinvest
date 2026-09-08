@@ -14,8 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Ao contrário das tabelas bulk, o mesmo path serve conteúdo diferente por
-// ativo, então o papel entra na chave.
 var tickerFixtures = map[string]string{
 	"/detalhes.php?WEGE3":       "detalhes_wege3.html",
 	"/detalhes.php?ITUB4":       "detalhes_itub4.html",
@@ -71,8 +69,8 @@ func TestParseDetail_Industrial(t *testing.T) {
 	}
 }
 
-// Ler a coluna de 3 meses passaria despercebido: o número existe e é plausível,
-// só responde a outra pergunta.
+// Os números recusados são os da coluna de 3 meses: existem e são plausíveis,
+// só respondem a outra pergunta.
 func TestParseDetailReadsTwelveMonthsColumn(t *testing.T) {
 	wege3 := detail(t, "WEGE3", domain.ClassStock)
 
@@ -80,8 +78,8 @@ func TestParseDetailReadsTwelveMonthsColumn(t *testing.T) {
 	require.NotEqual(t, 1_558_630_000.0, *wege3["lucro_liquido"].Value)
 }
 
-// Banco não publica EBIT nesta fonte, e quem lê precisa distinguir isso de "a
-// fonte publicou e o valor é nulo".
+// Banco não publica EBIT nesta fonte: métrica ausente é diferente de publicada
+// e nula.
 func TestParseDetail_Bank(t *testing.T) {
 	itub4 := detail(t, "ITUB4", domain.ClassStock)
 
@@ -115,8 +113,6 @@ func TestParseDetailStampsProvenance(t *testing.T) {
 	}
 }
 
-// Página sem nenhuma das métricas e sem o papel esperado é a fonte tendo mudado
-// de forma, não um ativo sem dado.
 func TestParseDetailFailsOnForeignPage(t *testing.T) {
 	_, err := newTickerProvider(t).Detail(t.Context(), "QUEBRA3", domain.ClassStock, false)
 	require.Error(t, err)

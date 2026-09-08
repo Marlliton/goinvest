@@ -1,6 +1,3 @@
-// Package fetch é o único ponto do projeto que faz requisições HTTP. A
-// política de gentileza com a fonte (identificação, rate limit, retry, cache)
-// mora aqui, não espalhada por cada provider.
 package fetch
 
 import (
@@ -17,16 +14,12 @@ import (
 
 const maxAttempts = 3
 
-// Defaults de segurança: um Config zero-valor não pode produzir um cliente
-// anônimo nem sem espaçamento. rate.Every(0) devolve rate.Inf, ou seja,
-// nenhum limite.
+// rate.Every(0) devolve rate.Inf: sem default, um Config zero-valor iria anônimo e sem limite.
 const (
 	defaultUserAgent = "goinvest/0.1 (+https://github.com/marlliton/goinvest) uso pessoal"
 	defaultRateEvery = 2 * time.Second
 )
 
-// Cache é declarada aqui, pelo consumidor: fetch não importa store, e a
-// implementação concreta é ligada na camada de cmd.
 type Cache interface {
 	Get(ctx context.Context, url string) (body []byte, fetchedAt time.Time, found bool, err error)
 	Put(ctx context.Context, url, docKind string, body []byte, fetchedAt time.Time) error
@@ -62,14 +55,12 @@ func NewClient(cfg Config) *Client {
 	}
 }
 
-// Get devolve o corpo já em UTF-8. Com cache configurado e dentro do TTL, não
-// toca a rede; force ignora o cache mas continua gravando o resultado.
+// Get devolve o corpo já em UTF-8.
 func (c *Client) Get(ctx context.Context, url, docKind string, ttl time.Duration, force bool) ([]byte, error) {
 	return c.get(ctx, url, docKind, ttl, force, decodeLatin1)
 }
 
-// Fonte que já serve UTF-8, ou binário, seria corrompida pela decodificação
-// que o Fundamentus exige.
+// Fonte que já serve UTF-8, ou binário, seria corrompida pela decodificação ISO-8859-1.
 func (c *Client) GetRaw(ctx context.Context, url, docKind string, ttl time.Duration, force bool) ([]byte, error) {
 	return c.get(ctx, url, docKind, ttl, force, readAll)
 }
@@ -140,8 +131,7 @@ func (c *Client) attempt(ctx context.Context, url string, read bodyReader) ([]by
 	return body, nil
 }
 
-// 4xx é permanente: seletor errado ou papel inexistente não melhoram com
-// retry. 429 é a exceção, porque a fonte está pedindo para esperar.
+// 4xx não melhora com retry; 429 é a exceção, porque a fonte está pedindo para esperar.
 func statusError(url string, code int) error {
 	switch {
 	case code >= 200 && code < 300:

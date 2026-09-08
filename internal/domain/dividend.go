@@ -27,9 +27,8 @@ type DividendEvent struct {
 	FetchedAt        time.Time
 }
 
-// PerShare aplica o fator de lote uma vez só, para todo mundo que precisa do
-// valor por ação. Fator não positivo derruba o evento: a divisão viraria +Inf, e
-// um provento nulo lido como infinito contamina soma, média e preço-teto.
+// Fator não positivo derruba o evento: a divisão viraria +Inf, e um provento
+// nulo lido como infinito contamina soma, média e preço-teto.
 func (e DividendEvent) PerShare() (float64, bool) {
 	if e.SharesFactor <= 0 {
 		return 0, false

@@ -46,12 +46,6 @@ func Sectors(ctx context.Context, db *store.DB) ([]ClassSectors, error) {
 	return out, nil
 }
 
-// SectorDescend lista os subsetores de um setor. BelowThreshold é do
-// setor-pai, não dos subsetores: decide para onde a queda de percentil de
-// cada subsetor aponta (setor-pai acima do piso vira o destino; abaixo,
-// a queda continua para o mercado). SingleLevel e N cobrem a taxonomia de
-// FII, que não tem subsetor: N só é populado nesse caso. AlsoFII avisa que
-// o mesmo nome, além de setor de ação com subsetores, também é setor de FII.
 type SectorDescend struct {
 	BelowThreshold bool
 	Groups         []SectorGroup

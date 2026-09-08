@@ -62,9 +62,8 @@ func newRegistryCmd(deps rootDeps) *cobra.Command {
 	return cmd
 }
 
-// printStageOutcome cobre o caso em que o cancelamento chegou como erro cru
-// embrulhado (sem relatório) e o caso em que já veio limpo dentro de
-// registry.Report.
+// O cancelamento chega de dois jeitos: como erro cru embrulhado (sem relatório)
+// ou já limpo dentro de registry.Report.
 func printStageOutcome(out io.Writer, label string, report registry.Report, cancelled bool) {
 	if cancelled && !report.Cancelled {
 		fmt.Fprintf(out, "⚠ cadastro de %s interrompido pelo usuário\n", label)

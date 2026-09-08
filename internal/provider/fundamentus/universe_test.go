@@ -26,9 +26,8 @@ var fixtures = map[string]string{
 	"/fii_resultado.php": "fii_resultado_min.html",
 }
 
-// O servidor devolve os bytes ISO-8859-1 da fixture sem tocar neles, com o
-// mesmo Content-Type da fonte real: é o que faz o teste exercitar a
-// decodificação de ponta a ponta em vez de fingi-la.
+// Os bytes ISO-8859-1 da fixture saem intactos, com o Content-Type da fonte
+// real: é o que faz o teste exercitar a decodificação de ponta a ponta.
 func newProvider(t *testing.T) *fundamentus.Provider {
 	t.Helper()
 
@@ -80,10 +79,8 @@ func metricIDs(obs []domain.Observation) []domain.MetricID {
 	return out
 }
 
-// As três colunas de ação e a de FII abaixo só são reconhecidas se o rótulo
-// acentuado do <thead> ("Mrg. Líq.", "Patrim. Líq", "Dív.Líq/ Patrim.",
-// "Vacância Média") chegar íntegro ao índice de colunas. Com mojibake nenhuma
-// casa com o mapeamento e a métrica some sem erro.
+// Com mojibake o rótulo acentuado do <thead> não casa com o mapeamento e a
+// métrica some sem erro.
 func TestParseUniverseDecodesLatin1(t *testing.T) {
 	stocks := byTicker(universe(t, domain.ClassStock), "WEGE3")
 	for _, id := range []domain.MetricID{"mrg_liq", "patrim_liq", "dl_patrim"} {
@@ -134,8 +131,6 @@ func TestUniverseParsesFIIValues(t *testing.T) {
 	}
 }
 
-// O 0,00 de EV/EBITDA que a fonte publica para banco é código de ausência, não
-// múltiplo zerado.
 func TestUniverseTreatsEvEbitdaZeroAsAbsence(t *testing.T) {
 	stocks := universe(t, domain.ClassStock)
 
@@ -150,8 +145,7 @@ func TestUniverseTreatsEvEbitdaZeroAsAbsence(t *testing.T) {
 	require.Zero(t, *clan3["pl"].Value)
 }
 
-// Nenhuma tabela bulk tem coluna de data: preencher ReferenceAt com FetchedAt
-// inventaria uma competência que a fonte nunca informou.
+// Nenhuma tabela bulk tem coluna de data, e FetchedAt não é competência.
 func TestUniverseNeverInventsReferenceAt(t *testing.T) {
 	for _, class := range []domain.AssetClass{domain.ClassStock, domain.ClassFII} {
 		for _, obs := range universe(t, class) {
@@ -166,17 +160,15 @@ func TestUniverseSkipsRowWithoutTickerWithoutAbortingClass(t *testing.T) {
 	require.NotEmpty(t, byTicker(obs, "WEGE3"))
 }
 
-// catalog.metrics.yaml e o mapeamento coluna→MetricID dos providers foram
-// escritos separadamente a partir da mesma tabela de colunas. Sem este teste um
-// typo de qualquer um dos lados vira métrica que nunca aparece na tela, e que se
-// lê como "nunca coletada" em vez de bug. As duas páginas entram juntas porque
-// o catálogo não distingue de qual delas a métrica vem.
+// Os dois lados foram escritos separadamente a partir da mesma tabela de
+// colunas: um typo em qualquer um deles vira métrica que nunca aparece na tela
+// e se lê como "nunca coletada" em vez de bug.
 func TestCatalogAndProviderMetricIDsMatch(t *testing.T) {
 	cat, err := catalog.Load()
 	require.NoError(t, err)
 
-	// O ticker de cada classe é o que exercita todas as métricas do detalhe:
-	// banco não imprime EBIT, e a página de ação não tem as de FII.
+	// Tickers que exercitam todas as métricas do detalhe: banco não imprime
+	// EBIT, e a página de ação não tem as de FII.
 	detailTicker := map[domain.AssetClass]string{
 		domain.ClassStock: "WEGE3",
 		domain.ClassFII:   "MXRF11",
@@ -199,10 +191,8 @@ func TestCatalogAndProviderMetricIDsMatch(t *testing.T) {
 	}
 }
 
-// Complementa o teste acima pelo outro lado: garante que nenhum rótulo do
-// <thead> ficou sem mapeamento por descuido. Só três colunas podem sobrar, e
-// elas estão nomeadas aqui — "Papel" é a âncora da linha, "Segmento" e
-// "Endereço" estão fora do catálogo por decisão de escopo.
+// "Papel" é a âncora da linha; "Segmento" e "Endereço" estão fora do catálogo
+// por decisão de escopo.
 func TestEveryHeaderColumnIsMappedOrAllowlisted(t *testing.T) {
 	outsideCatalog := map[string]bool{"Papel": true, "Segmento": true, "Endereço": true}
 

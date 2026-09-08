@@ -13,8 +13,7 @@ import (
 	"github.com/marlliton/goinvest/internal/norm"
 )
 
-// Série encerrada por evento: uma semana de cache ainda captura um provento
-// novo bem antes da data de pagamento.
+// Uma semana ainda captura um provento novo bem antes da data de pagamento.
 const (
 	dividendsDocKind = "fundamentus_proventos"
 	dividendsTTL     = 7 * 24 * time.Hour
@@ -50,8 +49,7 @@ func (p *Provider) Dividends(ctx context.Context, ticker string, class domain.As
 		return nil, err
 	}
 
-	// Sem o parâmetro "tipo": os três valores que a fonte aceita devolvem a
-	// mesma página, e é o path que decide a classe.
+	// Os três valores de "tipo" que a fonte aceita devolvem a mesma página; o path decide a classe.
 	pageURL := p.baseURL + sp.path + "?papel=" + url.QueryEscape(ticker)
 	body, err := p.client.Get(ctx, pageURL, dividendsDocKind, dividendsTTL, force)
 	if err != nil {
@@ -74,8 +72,7 @@ func (p *Provider) parseDividends(body []byte, ticker string, sp dividendSpec) (
 		return nil, fmt.Errorf("fundamentus: parse %s: %w", sp.path, err)
 	}
 
-	// A página de ação traz uma segunda tabela com o total por ano; o id
-	// separa as duas, a classe não.
+	// A página de ação traz uma segunda tabela com o total por ano; o id separa as duas.
 	table := doc.Find("table#resultado").First()
 	if table.Length() == 0 {
 		return nil, fmt.Errorf("fundamentus: %s has no result table", sp.path)
@@ -149,8 +146,7 @@ func parseDividendRow(cells *goquery.Selection, cols dividendColumns, sp dividen
 		return domain.DividendEvent{}, false
 	}
 
-	// Assumir 1 num evento cotado em lote de mil ações multiplicaria o provento
-	// por mil, então a linha inteira cai.
+	// Assumir 1 num evento cotado em lote de mil ações multiplicaria o provento por mil.
 	factor := 1.0
 	if sp.hasFactor {
 		if factor, ok = norm.ParseBRNumber(cellText(cells.Eq(cols.factor))); !ok || factor <= 0 {
@@ -171,8 +167,7 @@ func parseDividendRow(cells *goquery.Selection, cols dividendColumns, sp dividen
 	return event, true
 }
 
-// A fonte varia caixa e acento no mesmo campo ao longo dos anos. O bucket serve
-// ao cálculo; a grafia da fonte sobrevive em TypeRaw, para exibição.
+// A fonte varia caixa e acento no mesmo campo ao longo dos anos.
 func classifyDividend(raw string) domain.DividendType {
 	folded := norm.FoldUpper(raw)
 	switch {

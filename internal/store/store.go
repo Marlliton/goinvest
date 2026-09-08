@@ -1,5 +1,3 @@
-// Package store é a persistência local: SQLite append-only com proveniência.
-// As queries vivem em queries/ e o código de acesso é gerado por sqlc.
 package store
 
 import (
@@ -18,8 +16,6 @@ type DB struct {
 	q *gen.Queries
 }
 
-// Open abre o banco e aplica as migrações pendentes. O usuário nunca roda
-// migração à mão.
 func Open(path string) (*DB, error) {
 	dsn := "file:" + path +
 		"?_pragma=journal_mode(WAL)" +
@@ -41,8 +37,7 @@ func Open(path string) (*DB, error) {
 
 func migrate(sqlDB *sql.DB) error {
 	goose.SetBaseFS(migrationsFS)
-	// Sem isso o goose escreve "no migrations to run" no log padrão a cada
-	// abertura do banco, ou seja, antes da saída de todo comando.
+	// Sem isso o goose escreve "no migrations to run" antes da saída de todo comando.
 	goose.SetLogger(goose.NopLogger())
 	// O driver chama-se "sqlite"; o dialeto do goose continua "sqlite3".
 	if err := goose.SetDialect("sqlite3"); err != nil {
@@ -54,7 +49,6 @@ func migrate(sqlDB *sql.DB) error {
 	return nil
 }
 
-// String vazia vira NULL: o schema distingue ausência de valor vazio.
 func nullString(s string) *string {
 	if s == "" {
 		return nil

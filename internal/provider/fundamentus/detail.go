@@ -19,8 +19,7 @@ const (
 	detailTTL     = 24 * time.Hour
 )
 
-// "Receita" só existe na página de FII; a de ação traz "Receita Líquida", que é
-// outra métrica.
+// "Receita" só existe na página de FII; a de ação traz "Receita Líquida".
 var detailColumns = map[string]domain.MetricID{
 	"Lucro Líquido":     "lucro_liquido",
 	"EBIT":              "ebit",
@@ -40,8 +39,6 @@ func detailTickerLabel(class domain.AssetClass) (string, error) {
 	return "", fmt.Errorf("fundamentus: unsupported asset class %q", class)
 }
 
-// Rótulo ausente não vira chave no MetricSet: separar "a fonte não publica" de
-// "não avaliamos" depende do documento em cache, e essa leitura é da aplicação.
 func (p *Provider) Detail(ctx context.Context, ticker string, class domain.AssetClass, force bool) (domain.MetricSet, error) {
 	tickerLabel, err := detailTickerLabel(class)
 	if err != nil {
@@ -79,8 +76,7 @@ func (p *Provider) parseDetail(body []byte, ticker, tickerLabel string) (domain.
 		if !ok {
 			continue
 		}
-		// O mesmo rótulo se repete adiante para a coluna de 3 meses; a
-		// primeira ocorrência é a de 12 meses.
+		// O mesmo rótulo se repete adiante para a coluna de 3 meses; a primeira é 12 meses.
 		if _, dup := set[metric]; dup {
 			continue
 		}

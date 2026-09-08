@@ -78,13 +78,9 @@ func RenderText(r Report) string {
 				sawDerived = true
 				fmt.Fprintf(&b, " %s (%s)", markDerived, line.Formula)
 			}
-			// Só a marca: os números do alerta saem no bloco próprio, e
-			// repeti-los aqui brigaria com o percentil que a linha já carrega.
 			if len(line.AlertMarks) > 0 {
 				b.WriteString(" " + markAlert)
 			}
-			// Só a linha que destoa do cabeçalho carrega data: repeti-la em
-			// todas afogaria justamente a que o leitor precisa notar.
 			if line.ReferenceAt != nil && !sameDay(*line.ReferenceAt, r.Header.ReferenceAt) {
 				fmt.Fprintf(&b, " · ref %s", line.ReferenceAt.Format("02/01"))
 			}
@@ -105,8 +101,6 @@ func RenderText(r Report) string {
 	return b.String()
 }
 
-// Alerta não avaliado e não aplicável ficam no Report para o --json, mas fora
-// do texto: cinco avisos permanentes na tela afogariam o que de fato disparou.
 func alertsText(findings []evaluate.Finding) string {
 	var b strings.Builder
 	for _, f := range findings {
@@ -134,8 +128,7 @@ func alertNumbers(numbers map[string]float64) string {
 	return strings.Join(parts, " · ")
 }
 
-// A chave do número é identificador (ela vai para o JSON); o rótulo e a unidade
-// são desta camada. Sem a unidade explícita, um P/VP de 0,60 sairia como 60%.
+// Sem a unidade explícita, um P/VP de 0,60 sairia como 60%.
 var alertNumberFormats = map[string]struct {
 	label string
 	unit  domain.Unit
@@ -156,8 +149,7 @@ var alertNumberFormats = map[string]struct {
 const bazinLabel = "Preço-teto (Bazin)"
 
 func bazinText(v BazinView) string {
-	// O motivo entre parênteses, e nunca depois de um travessão: "—" já é o
-	// símbolo de "fonte não informa" que a legenda define.
+	// Motivo entre parênteses: "—" já é o símbolo de "fonte não informa" na legenda.
 	if v.NotApplicableReason != "" {
 		return fmt.Sprintf("%s: não aplicável (%s)\n", bazinLabel, v.NotApplicableReason)
 	}
@@ -286,7 +278,6 @@ func formatSignedBR(v float64, decimals int) string {
 	return formatBR(v, decimals)
 }
 
-// Inverso de norm.ParseBRNumber.
 func formatBR(v float64, decimals int) string {
 	s := strconv.FormatFloat(v, 'f', decimals, 64)
 	sign := ""

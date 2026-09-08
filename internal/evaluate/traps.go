@@ -1,6 +1,5 @@
-// Package evaluate aplica as regras de armadilha sobre indicadores já
-// resolvidos. Não faz I/O e não conhece o catálogo: o texto que precisa vir de
-// lá chega pronto no Input.
+// Package evaluate não conhece o catálogo: o texto que precisa vir de lá chega
+// pronto no Input.
 package evaluate
 
 import (
@@ -50,8 +49,7 @@ const (
 	medianPercentil = 0.5
 )
 
-// Fonte: FEATURES.md, faixa de vacância calibrada por segmento. Fundo de papel
-// e FoF não têm imóvel, logo não têm a pergunta.
+// Fundo de papel e FoF não têm imóvel, logo não têm a pergunta da vacância.
 var vacancyLimits = []struct {
 	match string
 	limit float64
@@ -67,8 +65,8 @@ const (
 	notForStock = "não se aplica a ação"
 )
 
-// Detect devolve sempre os cinco resultados, na mesma ordem. Omitir o alerta
-// que não pôde ser avaliado faria a ausência de aviso virar aprovação.
+// Sempre os cinco resultados, na mesma ordem: omitir o alerta que não pôde ser
+// avaliado faria a ausência de aviso virar aprovação.
 func Detect(in Input) []Finding {
 	stock := in.Class != domain.ClassFII
 
@@ -142,8 +140,6 @@ func assetSaleTrap(in Input) Finding {
 	if !ok1 || !ok2 || !ok3 || !ok4 {
 		return notEvaluated("venda de ativos, receita, rendimento ou FFO não coletado; rode 'goinvest detalhar'")
 	}
-	// Denominador não positivo inverte a leitura das duas razões: distribuir
-	// sobre FFO negativo daria razão negativa, lida como "distribui pouco".
 	if revenue <= 0 {
 		return Finding{Status: StatusNotApplicable, Reason: "receita não positiva: a razão com a venda de ativos não tem leitura"}
 	}
@@ -208,8 +204,6 @@ func notEvaluated(reason string) Finding {
 	return Finding{Status: StatusNotEvaluated, Reason: reason}
 }
 
-// A regra de sentinela é de norm pelo mesmo motivo que em derive: um sentinela
-// novo passaria despercebido justamente onde vira veredito.
 func value(m domain.MetricSet, id domain.MetricID) (float64, bool) {
 	o, present := m[id]
 	if !present || o.Value == nil || norm.IsAbsenceSentinel(id, *o.Value) {

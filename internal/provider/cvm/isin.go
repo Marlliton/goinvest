@@ -1,5 +1,3 @@
-// Package cvm lê o informe mensal de FIIs da CVM. Aqui ele serve só como
-// fonte de ISIN, que é o que liga um fundo ao seu ticker.
 package cvm
 
 import (
@@ -16,7 +14,7 @@ import (
 	"github.com/marlliton/goinvest/internal/norm"
 )
 
-// Cadastro de fundo muda por trimestre, na mesma janela do cadastro da B3.
+// Cadastro de fundo muda por trimestre.
 const isinTTL = 30 * 24 * time.Hour
 
 const (
@@ -52,8 +50,6 @@ func (p *Provider) ISINByCNPJ(ctx context.Context, force bool) (map[string]strin
 
 	for _, year := range p.years {
 		url := fmt.Sprintf("%s/inf_mensal_fii_%d.zip", p.baseURL, year)
-		// GetRaw, nunca Get: o corpo é um zip, e a decodificação de charset
-		// destruiria a estrutura binária antes do unzip.
 		body, err := p.client.GetRaw(ctx, url, "cvm_inf_mensal_fii", isinTTL, force)
 		if err != nil {
 			return nil, err
@@ -106,8 +102,7 @@ func readGeneral(r io.Reader, name string) (map[string]record, error) {
 
 	reader := csv.NewReader(decoded)
 	reader.Comma = ';'
-	// O arquivo real varia a contagem de campos entre versões do layout, e
-	// isso por si só não impede ler as três colunas que importam.
+	// O arquivo real varia a contagem de campos entre versões do layout.
 	reader.FieldsPerRecord = -1
 
 	header, err := reader.Read()

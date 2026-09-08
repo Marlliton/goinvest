@@ -1,4 +1,3 @@
-// Package bcb lê séries do SGS do Banco Central.
 package bcb
 
 import (
@@ -39,8 +38,6 @@ type sgsPoint struct {
 func (p *Provider) Selic(ctx context.Context, force bool) (rate float64, referenceAt time.Time, err error) {
 	url := p.baseURL + selicPath
 
-	// GetRaw, nunca Get: o SGS já serve UTF-8, e decodificar como ISO-8859-1
-	// corromperia o corpo.
 	body, err := p.client.GetRaw(ctx, url, "bcb_selic", selicTTL, force)
 	if err != nil {
 		return 0, time.Time{}, err

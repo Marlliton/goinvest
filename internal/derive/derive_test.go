@@ -14,7 +14,7 @@ func ptr(v float64) *float64 { return &v }
 var collectedAt = time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
 
 // Percentual é fração em todo o pipeline (0.25 é 25%), a escala que o provider
-// grava. É ela que faz `roe x patrim_liq` dar lucro em reais.
+// grava: é ela que faz `roe x patrim_liq` dar lucro em reais.
 func healthySet() domain.MetricSet {
 	values := map[domain.MetricID]*float64{
 		"dy":         ptr(0.012),
@@ -40,7 +40,6 @@ func TestComputeProducesAllThreeDerivedMetrics(t *testing.T) {
 	out := derive.Compute(healthySet())
 	require.Len(t, out, 3)
 
-	// payout = dy * pl
 	require.InDelta(t, 0.012*30.0, *out["payout"].Value, 1e-9)
 
 	// MC = 9,5 x 15e9 = 142,5e9 | DL = 0,10 x 15e9 = 1,5e9
@@ -51,8 +50,6 @@ func TestComputeProducesAllThreeDerivedMetrics(t *testing.T) {
 	require.InDelta(t, 3.75e9/35.625e9, *out["roa"].Value, 1e-9)
 }
 
-// A cadeia longa existe para localizar o insumo ruim, mas precisa concordar
-// com a redução algébrica: se divergir, a aritmética está errada.
 func TestChainAgreesWithAlgebraicReduction(t *testing.T) {
 	out := derive.Compute(healthySet())
 	require.InDelta(t, 0.25*4.0/9.5, *out["roa"].Value, 1e-9, "ROA reduz para roe x p_ativo / pvp")
@@ -129,7 +126,7 @@ func TestComputeOnEmptySetProducesNothing(t *testing.T) {
 }
 
 // A convenção de mercado é não publicar o índice quando o denominador torna a
-// pergunta sem sentido. Ver a seção "Domínio financeiro" em CONVENTIONS.md.
+// pergunta sem sentido.
 func TestUninterpretableRatiosAreOmitted(t *testing.T) {
 	t.Run("EBITDA negativo não produz dl_ebitda", func(t *testing.T) {
 		set := healthySet()
@@ -145,8 +142,6 @@ func TestUninterpretableRatiosAreOmitted(t *testing.T) {
 
 	t.Run("caixa líquido continua saindo, e negativo", func(t *testing.T) {
 		set := healthySet()
-		// Dívida líquida negativa com EBITDA positivo: o outro motivo para um
-		// dl_ebitda negativo, e este é legítimo.
 		o := set["dl_patrim"]
 		o.Value = ptr(-0.30)
 		set["dl_patrim"] = o

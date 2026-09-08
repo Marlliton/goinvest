@@ -90,8 +90,6 @@ func TestRenderCompareText_BazinAndAlerts(t *testing.T) {
 	require.Contains(t, text, "pp", "o sufixo do DY−Selic não é cortado")
 }
 
-// A tela do compare não carrega percentil nem n: com oito colunas o sufixo
-// triplicaria a largura da célula.
 func TestRenderCompareText_NoPercentileInCells(t *testing.T) {
 	db := openTemp(t)
 	seedPeerGroup(t, db, []string{"AAAA3", "BBBB3", "CCCC3", "DDDD3", "EEEE3", "FFFF3"},
@@ -113,8 +111,7 @@ func splitAtHeading(t *testing.T, text, heading string) (before, after string) {
 	return text[:i], text[i:]
 }
 
-// Truncar não corta um número, produz outro: "R$ 180.000.00" se lê como cento
-// e oitenta mil e é cento e oitenta milhões.
+// Truncado, "R$ 180.000.00" vira outro número: 180 milhões lidos como 180 mil.
 func TestRenderCompareText_NeverTruncatesNumbers(t *testing.T) {
 	db := openTemp(t)
 	seedStocks(t, db, "WEGE3", "ROMI3", "KEPL3")
@@ -134,8 +131,6 @@ func TestRenderCompareText_CompactScaleOnlyForMoney(t *testing.T) {
 	require.Contains(t, text, "R$ 52,30", "cotação abaixo de mil não é abreviada")
 }
 
-// Toda coluna precisa terminar na mesma posição, senão a leitura vertical que
-// a comparação existe para dar se perde.
 func TestRenderCompareText_ColumnsAlign(t *testing.T) {
 	db := openTemp(t)
 	seedStocks(t, db, "WEGE3", "ROMI3", "KEPL3")

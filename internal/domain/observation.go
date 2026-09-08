@@ -10,7 +10,7 @@ type Observation struct {
 	Value       *float64 // nil = a fonte informou ausência; ponteiro para 0 = zero legítimo
 	Unit        Unit
 	Source      string
-	ReferenceAt *time.Time // nil quando a fonte não informa competência
+	ReferenceAt *time.Time
 	FetchedAt   time.Time
 	RunID       int64
 }

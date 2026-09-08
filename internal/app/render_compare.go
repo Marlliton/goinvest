@@ -9,10 +9,8 @@ import (
 	"github.com/marlliton/goinvest/internal/evaluate"
 )
 
-// A largura sai do conteúdo da própria tabela, nunca do terminal: medir a
-// janela tornaria a saída dependente de onde ela roda, e o golden deixaria de
-// valer como prova. Truncar para uma largura fixa era pior que largo demais:
-// "R$ 180.000.00" não é um R$ 180.000.000,00 cortado, é outro número.
+// A largura sai do conteúdo, nunca do terminal: medir a janela faria o golden
+// depender de onde o teste roda.
 const (
 	compareGutter    = 2
 	markNotEvaluated = "não avaliado"
@@ -72,8 +70,6 @@ func compareTable(table CompareTable, missing []domain.MetricID) string {
 	}
 
 	row("", tickers(table.Columns))
-	// O grupo de pares fica no cabeçalho e não na célula: repeti-lo em cada
-	// uma multiplicaria a largura por linha sem acrescentar leitura.
 	if anyPeerGroup(table.Columns) {
 		row("", peerGroups(table.Columns))
 	}
@@ -119,8 +115,6 @@ func compareCell(col CompareColumn, m catalog.Metric, missing []domain.MetricID)
 	return out
 }
 
-// Preço-teto e alertas são por ativo, não por métrica: eles não cabem numa
-// célula e sairiam mentindo se coubessem.
 func compareHighlights(col CompareColumn) string {
 	var b strings.Builder
 
@@ -192,10 +186,8 @@ func anyPeerGroup(columns []CompareColumn) bool {
 	return false
 }
 
-// Oito colunas com R$ 15.000.000.000,00 não cabem em tela nenhuma, e cortar o
-// número o transforma em outro. A escala abreviada preserva a ordem de
-// grandeza, que é o que a comparação lado a lado precisa. O valor cheio
-// continua em 'goinvest show', onde o propósito é auditoria.
+// Abreviar em vez de truncar: "R$ 180.000.00" não é um R$ 180.000.000,00
+// cortado, é outro número. O valor cheio continua em 'goinvest show'.
 func formatCompact(v float64, unit domain.Unit) string {
 	if unit != domain.UnitBRL {
 		return formatValue(v, unit)
@@ -222,8 +214,7 @@ func abs(v float64) float64 {
 	return v
 }
 
-// A contagem é de runas: acento e "—" ocupam mais de um byte, e medir bytes
-// desalinharia toda coluna à direita de um rótulo acentuado.
+// Contagem em runas: medir bytes desalinharia a coluna após rótulo acentuado.
 func width(s string) int { return len([]rune(s)) + compareGutter }
 
 func pad(s string, w int) string {
