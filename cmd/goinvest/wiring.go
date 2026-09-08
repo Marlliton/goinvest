@@ -35,6 +35,7 @@ type rootDeps struct {
 	B3          provider.IdentityProvider
 	CVM         provider.FIIISINProvider
 	Fundamentus provider.FIISegmentProvider
+	Detail      provider.DetailProvider
 	Selic       provider.SelicProvider
 }
 
@@ -86,6 +87,7 @@ func build() (rootDeps, error) {
 		B3:          b3.NewProvider(client, b3BaseURL, time.Now),
 		CVM:         cvm.NewProvider(client, cvmBaseURL, cvmYears, time.Now),
 		Fundamentus: p,
+		Detail:      p,
 		Selic:       bcb.NewProvider(client, bcbBaseURL, time.Now),
 	}, nil
 }

@@ -73,22 +73,6 @@ func printStageOutcome(out io.Writer, label string, report registry.Report, canc
 	fmt.Fprintln(out, registrySummary(label, report))
 }
 
-func progressWriter(out io.Writer, interactive bool, label string) func(registry.Progress) {
-	format := "cadastro: %s %d/%d\n"
-	if interactive {
-		format = "\rcadastro: %s %d/%d"
-	}
-	return func(p registry.Progress) {
-		fmt.Fprintf(out, format, label, p.Done, p.Total)
-	}
-}
-
-func endProgress(out io.Writer, interactive bool) {
-	if interactive {
-		fmt.Fprintln(out)
-	}
-}
-
 func registrySummary(label string, r registry.Report) string {
 	if r.Cancelled {
 		return fmt.Sprintf("⚠ cadastro de %s interrompido · %d de %d casados · rode de novo para continuar",
