@@ -1,7 +1,9 @@
 package app_test
 
 import (
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/marlliton/goinvest/internal/app"
 	"github.com/marlliton/goinvest/internal/domain"
@@ -106,4 +108,85 @@ func TestRenderTextOmitsPeerNExplanationWhenLineNMatchesHeader(t *testing.T) {
 
 	text := app.RenderText(report)
 	require.NotContains(t, text, "quantos papéis")
+}
+
+func refAt(y int, m time.Month, d int) *time.Time {
+	t := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+	return &t
+}
+
+func TestRenderText_NotApplicable(t *testing.T) {
+	report := app.Report{
+		Ticker: "ITUB4",
+		Class:  domain.ClassStock,
+		Blocks: []app.BlockView{{
+			Label: "Valuation",
+			Lines: []app.LineView{{
+				Label:               "EV/EBITDA",
+				NotApplicableReason: "Banco: dívida é matéria-prima",
+			}},
+		}},
+	}
+
+	text := app.RenderText(report)
+	require.Contains(t, text, "Banco: dívida é matéria-prima")
+	require.NotContains(t, text, "EV/EBITDA: —", "não aplicável não é a mesma coisa que ausente")
+	require.Contains(t, text, "não se aplica", "a legenda ganha o quarto estado")
+}
+
+func TestRenderText_NotApplicableLegendIsAbsentWhenUnused(t *testing.T) {
+	report := app.Report{
+		Ticker: "WEGE3",
+		Class:  domain.ClassStock,
+		Blocks: []app.BlockView{{
+			Label: "Valuation",
+			Lines: []app.LineView{{Label: "P/L", Value: ptr(30.0)}},
+		}},
+	}
+
+	require.NotContains(t, app.RenderText(report), "não se aplica")
+}
+
+func TestRenderText_ReferenceAtDivergent(t *testing.T) {
+	report := app.Report{
+		Ticker: "WEGE3",
+		Class:  domain.ClassStock,
+		Header: app.HeaderView{ReferenceAt: refAt(2026, time.August, 15)},
+		Blocks: []app.BlockView{{
+			Label: "Valuation",
+			Lines: []app.LineView{
+				{Label: "P/L", Value: ptr(30.0), ReferenceAt: refAt(2026, time.August, 15)},
+				{Label: "EBIT (12m)", Value: ptr(1e9), Unit: domain.UnitBRL, ReferenceAt: refAt(2026, time.July, 15)},
+			},
+		}},
+	}
+
+	lines := strings.Split(app.RenderText(report), "\n")
+	require.NotContains(t, lineWith(t, lines, "P/L"), "ref ")
+	require.Contains(t, lineWith(t, lines, "EBIT (12m)"), "· ref 15/07")
+}
+
+func TestRenderText_ReferenceAtNilNeverMarks(t *testing.T) {
+	report := app.Report{
+		Ticker: "WEGE3",
+		Class:  domain.ClassStock,
+		Header: app.HeaderView{ReferenceAt: refAt(2026, time.August, 15)},
+		Blocks: []app.BlockView{{
+			Label: "Valuation",
+			Lines: []app.LineView{{Label: "P/L", Value: ptr(30.0)}},
+		}},
+	}
+
+	require.NotContains(t, app.RenderText(report), "ref ")
+}
+
+func lineWith(t *testing.T, lines []string, label string) string {
+	t.Helper()
+	for _, l := range lines {
+		if strings.Contains(l, label+":") {
+			return l
+		}
+	}
+	t.Fatalf("linha %q não está na saída", label)
+	return ""
 }

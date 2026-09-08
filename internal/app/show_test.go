@@ -592,3 +592,32 @@ func TestShow_PositiveEquityKeepsThePriceToBookValue(t *testing.T) {
 	require.NotNil(t, line.Value)
 	require.Empty(t, line.NotApplicableReason)
 }
+
+func TestShow_LineViewCarriesReferenceAt(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
+
+	referenceAt := collectedAt.Add(-45 * 24 * time.Hour)
+	runID, err := db.StartRun(t.Context(), "fundamentus:detalhes")
+	require.NoError(t, err)
+	require.NoError(t, db.InsertObservations(t.Context(), runID, []domain.Observation{{
+		Ticker:      "WEGE3",
+		Metric:      "ebit",
+		PeriodKind:  "ttm",
+		PeriodEnd:   collectedAt.Truncate(24 * time.Hour),
+		Value:       ptr(1_000_000_000),
+		Unit:        domain.UnitBRL,
+		Source:      "fundamentus:detalhes",
+		ReferenceAt: &referenceAt,
+		FetchedAt:   collectedAt,
+	}}))
+	require.NoError(t, db.FinishRun(t.Context(), runID, "ok", 1, ""))
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	require.NoError(t, err)
+
+	require.Nil(t, lineOf(t, report, "pl").ReferenceAt)
+	ebit := lineOf(t, report, "ebit")
+	require.NotNil(t, ebit.ReferenceAt)
+	require.Equal(t, referenceAt, ebit.ReferenceAt.UTC())
+}
