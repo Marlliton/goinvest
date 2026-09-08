@@ -468,3 +468,127 @@ func TestShowAnchorIsAbsentWhenDividendYieldIsAbsent(t *testing.T) {
 	require.Nil(t, lineOf(t, report, "dy").SelicDelta)
 	require.NotContains(t, app.RenderText(report), "DY−Selic")
 }
+
+func hasLine(r app.Report, id domain.MetricID) bool {
+	for _, b := range r.Blocks {
+		for _, l := range b.Lines {
+			if l.MetricID == id {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// seedDetail grava observações vindas da página de detalhe, que é o sinal de
+// que aquele documento já foi coletado.
+func seedDetail(t *testing.T, db *store.DB, ticker string, values map[domain.MetricID]*float64) {
+	t.Helper()
+	ctx := t.Context()
+
+	runID, err := db.StartRun(ctx, "fundamentus:detalhes")
+	require.NoError(t, err)
+
+	obs := make([]domain.Observation, 0, len(values))
+	for id, v := range values {
+		obs = append(obs, domain.Observation{
+			Ticker:     ticker,
+			Metric:     id,
+			PeriodKind: "ttm",
+			PeriodEnd:  collectedAt.Truncate(24 * time.Hour),
+			Value:      v,
+			Unit:       domain.UnitBRL,
+			Source:     "fundamentus:detalhes",
+			FetchedAt:  collectedAt,
+		})
+	}
+	require.NoError(t, db.InsertObservations(ctx, runID, obs))
+	require.NoError(t, db.FinishRun(ctx, runID, "ok", len(obs), ""))
+}
+
+func seedBank(t *testing.T, db *store.DB, values map[domain.MetricID]*float64) {
+	t.Helper()
+	seed(t, db, "ITUB4", domain.ClassStock, values)
+	setIdentity(t, db, "ITUB4", "Financeiro", "Intermediários Financeiros", "Bancos")
+}
+
+func TestShow_BankSentinel(t *testing.T) {
+	db := openTemp(t)
+	values := wege3Values()
+	values["ev_ebitda"] = nil
+	seedBank(t, db, values)
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "ITUB4", now)
+	require.NoError(t, err)
+
+	line := lineOf(t, report, "ev_ebitda")
+	require.Nil(t, line.Value)
+	require.NotEmpty(t, line.NotApplicableReason)
+	require.Contains(t, line.NotApplicableReason, "Banco")
+}
+
+func TestShow_BankSentinelDoesNotTouchOtherSegments(t *testing.T) {
+	db := openTemp(t)
+	values := wege3Values()
+	values["ev_ebitda"] = nil
+	seed(t, db, "WEGE3", domain.ClassStock, values)
+	setIdentity(t, db, "WEGE3", "Bens Industriais", "Máquinas e Equipamentos", "Motores. Compressores e Outros")
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	require.NoError(t, err)
+
+	line := lineOf(t, report, "ev_ebitda")
+	require.Nil(t, line.Value)
+	require.Empty(t, line.NotApplicableReason, "ausência fora do segmento sentinela continua sendo '—'")
+}
+
+func TestShow_EBITStructurallyAbsent(t *testing.T) {
+	db := openTemp(t)
+	seedBank(t, db, wege3Values())
+	seedDetail(t, db, "ITUB4", map[domain.MetricID]*float64{"lucro_liquido": ptr(30e9)})
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "ITUB4", now)
+	require.NoError(t, err)
+
+	line := lineOf(t, report, "ebit")
+	require.Nil(t, line.Value)
+	require.NotEmpty(t, line.NotApplicableReason)
+}
+
+func TestShow_EBITNeverCollected(t *testing.T) {
+	db := openTemp(t)
+	seedBank(t, db, wege3Values())
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "ITUB4", now)
+	require.NoError(t, err)
+
+	require.False(t, hasLine(report, "ebit"),
+		"sem o detalhe coletado não há como afirmar que a fonte não publica")
+}
+
+func TestShow_NegativeEquity(t *testing.T) {
+	db := openTemp(t)
+	values := wege3Values()
+	values["patrim_liq"] = ptr(-1_000_000_000)
+	seed(t, db, "WEGE3", domain.ClassStock, values)
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	require.NoError(t, err)
+
+	line := lineOf(t, report, "pvp")
+	require.Nil(t, line.Value, "o múltiplo calculado não é apresentado como comparável")
+	require.NotEmpty(t, line.NotApplicableReason)
+	require.Contains(t, line.NotApplicableReason, "Patrimônio")
+}
+
+func TestShow_PositiveEquityKeepsThePriceToBookValue(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	require.NoError(t, err)
+
+	line := lineOf(t, report, "pvp")
+	require.NotNil(t, line.Value)
+	require.Empty(t, line.NotApplicableReason)
+}
