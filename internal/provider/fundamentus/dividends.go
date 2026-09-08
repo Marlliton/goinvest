@@ -153,7 +153,7 @@ func parseDividendRow(cells *goquery.Selection, cols dividendColumns, sp dividen
 	// por mil, então a linha inteira cai.
 	factor := 1.0
 	if sp.hasFactor {
-		if factor, ok = norm.ParseBRNumber(cellText(cells.Eq(cols.factor))); !ok {
+		if factor, ok = norm.ParseBRNumber(cellText(cells.Eq(cols.factor))); !ok || factor <= 0 {
 			return domain.DividendEvent{}, false
 		}
 	}
