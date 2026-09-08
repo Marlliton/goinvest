@@ -58,8 +58,8 @@ func TestCompare_ThreeStocks(t *testing.T) {
 	require.Empty(t, report.Invalid)
 
 	wege := columnOf(t, table, "WEGE3")
-	require.NotNil(t, wege.Values["pl"])
-	require.InDelta(t, 30.0, *wege.Values["pl"], 1e-9)
+	require.NotNil(t, wege.Cells["pl"].Value)
+	require.InDelta(t, 30.0, *wege.Cells["pl"].Value, 1e-9)
 }
 
 func TestCompare_MixedClasses(t *testing.T) {
@@ -122,8 +122,8 @@ func TestCompare_DetailResolverAllOrNothing(t *testing.T) {
 
 	table := tableOf(t, report, domain.ClassStock)
 	for _, c := range table.Columns {
-		require.Nil(t, c.Values["ebit"], "%s ainda mostra EBIT", c.Ticker)
-		require.Nil(t, c.Values["lucro_liquido"], "%s ainda mostra Lucro Líquido", c.Ticker)
+		require.Nil(t, c.Cells["ebit"].Value, "%s ainda mostra EBIT", c.Ticker)
+		require.Nil(t, c.Cells["lucro_liquido"].Value, "%s ainda mostra Lucro Líquido", c.Ticker)
 	}
 }
 
@@ -141,7 +141,7 @@ func TestCompare_DetailKeptWhenEveryTickerHasIt(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Empty(t, report.DetailMissingFor)
-	require.NotNil(t, columnOf(t, tableOf(t, report, domain.ClassStock), "KEPL3").Values["ebit"])
+	require.NotNil(t, columnOf(t, tableOf(t, report, domain.ClassStock), "KEPL3").Cells["ebit"].Value)
 }
 
 // Banco sem EBIT é ausência estrutural, não coleta pendente: ela sai como não
@@ -164,9 +164,9 @@ func TestCompare_StructuralAbsenceDoesNotDropTheMetric(t *testing.T) {
 	require.NotContains(t, report.DetailMissingFor, domain.MetricID("ebit"))
 
 	table := tableOf(t, report, domain.ClassStock)
-	require.NotNil(t, columnOf(t, table, "WEGE3").Values["ebit"])
-	require.Nil(t, columnOf(t, table, "ITUB4").Values["ebit"])
-	require.NotEmpty(t, columnOf(t, table, "ITUB4").NotApplicable["ebit"])
+	require.NotNil(t, columnOf(t, table, "WEGE3").Cells["ebit"].Value)
+	require.Nil(t, columnOf(t, table, "ITUB4").Cells["ebit"].Value)
+	require.NotEmpty(t, columnOf(t, table, "ITUB4").Cells["ebit"].NotApplicableReason)
 }
 
 func TestCompare_CarriesSelicBazinAndAlerts(t *testing.T) {

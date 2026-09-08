@@ -105,18 +105,18 @@ func compareCell(col CompareColumn, m catalog.Metric, missing []domain.MetricID)
 			return markNotEvaluated
 		}
 	}
-	if reason := col.NotApplicable[m.ID]; reason != "" {
+	cell, ok := col.Cells[m.ID]
+	if ok && cell.NotApplicableReason != "" {
 		return markNotApplicable
 	}
-	v, ok := col.Values[m.ID]
-	if !ok || v == nil {
+	if !ok || cell.Value == nil {
 		return markAbsent
 	}
-	cell := formatCompact(*v, m.Unit)
+	out := formatCompact(*cell.Value, m.Unit)
 	if m.ID == dividendYieldID && col.SelicDelta != nil {
-		cell += " " + formatSignedBR(*col.SelicDelta*100, 1) + "pp"
+		out += " " + formatSignedBR(*col.SelicDelta*100, 1) + "pp"
 	}
-	return cell
+	return out
 }
 
 // Preço-teto e alertas são por ativo, não por métrica: eles não cabem numa

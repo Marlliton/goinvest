@@ -28,23 +28,26 @@ type TickerStatus struct {
 	Reason string
 }
 
-// Resumo, não a família inteira: comparar oito ativos com cinco dividendos
-// anuais cada não cabe, e é para isso que 'goinvest show' serve.
-type BazinSummary struct {
-	Ceiling             float64
-	PremiumDiscount     float64
+// A célula guarda valor e proveniência juntos. Mapas paralelos por métrica
+// seriam quatro chaves para manter em sincronia, e a primeira a divergir sairia
+// como um número sem data ou uma data sem número.
+type MetricCell struct {
+	Value               *float64
+	Source              string
+	ReferenceAt         *time.Time
+	FetchedAt           time.Time
 	NotApplicableReason string
 }
 
 type CompareColumn struct {
 	Ticker         string
 	PeerGroupLabel string
-	Values         map[domain.MetricID]*float64
-	NotApplicable  map[domain.MetricID]string
-	ReferenceAt    map[domain.MetricID]*time.Time
-	Bazin          *BazinSummary
-	SelicDelta     *float64
-	Alerts         []evaluate.Finding
+	Cells          map[domain.MetricID]MetricCell
+	// O texto usa só teto e ágio (a lista anual não cabe em oito colunas), mas
+	// o contrato de máquina a exige por extenso: um campo só, uma verdade.
+	Bazin      *BazinView
+	SelicDelta *float64
+	Alerts     []evaluate.Finding
 }
 
 type CompareTable struct {
@@ -157,11 +160,9 @@ func column(cat *catalog.Catalog, data assetData, h CompareHeader, dropped map[d
 	}
 
 	col := CompareColumn{
-		Ticker:        asset.Ticker,
-		Values:        map[domain.MetricID]*float64{},
-		NotApplicable: map[domain.MetricID]string{},
-		ReferenceAt:   map[domain.MetricID]*time.Time{},
-		Alerts:        evaluate.Detect(alertInput(cat, asset, data.merged, data.percentiles, view, data.hasDetail)),
+		Ticker: asset.Ticker,
+		Cells:  map[domain.MetricID]MetricCell{},
+		Alerts: evaluate.Detect(alertInput(cat, asset, data.merged, data.percentiles, view, data.hasDetail)),
 	}
 	if asset.IsActive {
 		col.PeerGroupLabel, _ = peerGroup(asset)
@@ -174,34 +175,26 @@ func column(cat *catalog.Catalog, data assetData, h CompareHeader, dropped map[d
 		o, collected := data.merged[m.ID]
 		if !collected {
 			if data.hasDetail && isSentinelSegment(m, asset.Segment) {
-				col.NotApplicable[m.ID] = m.NotApplicable[originSector]
+				col.Cells[m.ID] = MetricCell{NotApplicableReason: m.NotApplicable[originSector]}
 			}
 			continue
 		}
 		if reason := notApplicableReason(m, asset.Segment, data.merged, o.Value); reason != "" {
-			col.NotApplicable[m.ID] = reason
+			col.Cells[m.ID] = MetricCell{NotApplicableReason: reason}
 			continue
 		}
-		col.Values[m.ID] = o.Value
-		col.ReferenceAt[m.ID] = o.ReferenceAt
+		col.Cells[m.ID] = MetricCell{
+			Value:       o.Value,
+			Source:      o.Source,
+			ReferenceAt: o.ReferenceAt,
+			FetchedAt:   o.FetchedAt,
+		}
 	}
 
 	if yield, ok := presentValue(data.merged, dividendYieldID); ok && h.SelicRate != nil {
 		delta := yield - *h.SelicRate
 		col.SelicDelta = &delta
 	}
-	col.Bazin = bazinSummary(data, view, now)
+	col.Bazin = bazinView(data.events, data.merged, view, asset.Ticker, now)
 	return col
-}
-
-func bazinSummary(data assetData, h HeaderView, now time.Time) *BazinSummary {
-	v := bazinView(data.events, data.merged, h, data.asset.Ticker, now)
-	if v == nil {
-		return nil
-	}
-	return &BazinSummary{
-		Ceiling:             v.Ceiling,
-		PremiumDiscount:     v.PremiumDiscount,
-		NotApplicableReason: v.NotApplicableReason,
-	}
 }
