@@ -119,6 +119,6 @@ func TestParseDetailStampsProvenance(t *testing.T) {
 // Página sem nenhuma das métricas e sem o papel esperado é a fonte tendo
 // mudado de forma, não um ativo sem dado.
 func TestParseDetailFailsOnForeignPage(t *testing.T) {
-	_, err := newTickerProvider(t).Detail(t.Context(), "QUEBRA3", domain.ClassStock)
+	_, err := newTickerProvider(t).Detail(t.Context(), "QUEBRA3", domain.ClassStock, false)
 	require.Error(t, err)
 }

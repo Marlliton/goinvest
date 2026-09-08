@@ -156,6 +156,6 @@ func TestParseFIIDividends(t *testing.T) {
 // A página de ação tem colunas na ordem própria dela; servir a página errada
 // não pode produzir uma série vazia que se lê como "ativo sem proventos".
 func TestParseDividendsFailsOnForeignPage(t *testing.T) {
-	_, err := newTickerProvider(t).Dividends(t.Context(), "QUEBRA3", domain.ClassStock)
+	_, err := newTickerProvider(t).Dividends(t.Context(), "QUEBRA3", domain.ClassStock, false)
 	require.Error(t, err)
 }
