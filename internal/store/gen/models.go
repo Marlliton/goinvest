@@ -56,6 +56,19 @@ type CollectionRun struct {
 	Error      *string
 }
 
+type DividendEvent struct {
+	ID           int64
+	AssetID      int64
+	ExDate       time.Time
+	PaymentDate  *time.Time
+	Type         string
+	TypeRaw      string
+	ValueRaw     float64
+	SharesFactor float64
+	Source       string
+	FetchedAt    time.Time
+}
+
 type MacroRate struct {
 	ID          string
 	Value       float64
