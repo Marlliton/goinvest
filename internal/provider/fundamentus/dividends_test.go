@@ -159,3 +159,13 @@ func TestParseDividendsFailsOnForeignPage(t *testing.T) {
 	_, err := newTickerProvider(t).Dividends(t.Context(), "QUEBRA3", domain.ClassStock, false)
 	require.Error(t, err)
 }
+
+// Fator zero passa por ParseBRNumber e chegaria ao banco como divisor: o valor
+// por ação viraria +Inf na tela.
+func TestParseDividendsDropsRowWithZeroFactor(t *testing.T) {
+	events := dividends(t, "ZEROF3", domain.ClassStock)
+
+	require.Len(t, events, 1)
+	require.Equal(t, domain.DividendCash, events[0].Type)
+	require.Equal(t, 1.0, events[0].SharesFactor)
+}

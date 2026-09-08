@@ -25,6 +25,7 @@ var tickerFixtures = map[string]string{
 	"/proventos.php?ITSA4":      "proventos_itsa4.html",
 	"/proventos.php?PETR4":      "proventos_petr4.html",
 	"/proventos.php?QUEBRA3":    "detalhes_wege3.html",
+	"/proventos.php?ZEROF3":     "proventos_zerofactor.html",
 	"/fii_proventos.php?MXRF11": "fii_proventos_mxrf11.html",
 }
 
