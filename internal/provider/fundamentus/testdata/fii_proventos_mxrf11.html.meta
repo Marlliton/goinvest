@@ -1,0 +1,7 @@
+url: https://www.fundamentus.com.br/fii_proventos.php?papel=MXRF11
+captured_at: 2026-09-08T13:24:22Z
+user_agent: goinvest/0.1 (+https://github.com/marlliton/goinvest)
+encoding: ISO-8859-1 (bytes preservados, sem transcodificação)
+estrutura: captura íntegra da página, sem redução
+papel: MXRF11  # 113 linhas, ordem de colunas própria do FII e sem coluna de fator
+resultado_anual: ausente  # a fonte só publica essa tabela para ação

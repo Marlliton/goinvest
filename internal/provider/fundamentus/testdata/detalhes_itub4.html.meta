@@ -1,0 +1,6 @@
+url: https://www.fundamentus.com.br/detalhes.php?papel=ITUB4
+captured_at: 2026-09-08T13:24:22Z
+user_agent: goinvest/0.1 (+https://github.com/marlliton/goinvest)
+encoding: ISO-8859-1 (bytes preservados, sem transcodificação)
+estrutura: captura íntegra da página, sem redução
+papel: ITUB4  # banco: a seção usa Result Int Financ/Rec Serviços e nunca imprime o rótulo EBIT
