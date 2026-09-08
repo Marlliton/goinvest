@@ -48,10 +48,6 @@ type Result struct {
 // fechados e devolve false quando o piso de três anos não é atingido: uma média
 // de um ou dois anos não suaviza distribuição extraordinária nenhuma, que é
 // justamente o que a média existe para fazer.
-// Compute agrupa os eventos por ano de data-com, usa até cinco exercícios
-// fechados e devolve false quando o piso de três anos não é atingido: uma média
-// de um ou dois anos não suaviza distribuição extraordinária nenhuma, que é
-// justamente o que a média existe para fazer.
 func Compute(events []domain.DividendEvent, now time.Time) (Result, bool) {
 	totals := map[int]float64{}
 	largest := map[int]float64{}
