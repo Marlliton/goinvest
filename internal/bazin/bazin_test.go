@@ -259,3 +259,61 @@ func years(r bazin.Result) []int {
 	}
 	return out
 }
+
+// O método é inaplicável a quem não paga com consistência: um exercício sem
+// provento no meio da janela derruba o teto em vez de sumir da média, que é o
+// que o inflaria em silêncio.
+func TestCompute_MissingYearInWindow(t *testing.T) {
+	events := []domain.DividendEvent{
+		event("10/03/2021", 1.00, cash), event("10/09/2021", 1.00, cash),
+		event("10/03/2022", 1.00, cash), event("10/09/2022", 1.00, cash),
+		event("10/03/2024", 1.00, cash), event("10/09/2024", 1.00, cash),
+		event("10/03/2025", 1.00, cash), event("10/09/2025", 1.00, cash),
+	}
+
+	got, ok := bazin.Compute(events, now)
+	require.False(t, ok)
+	require.Equal(t, []int{2023}, got.MissingYears)
+}
+
+// Parar de pagar é o mesmo caso: os exercícios recentes vazios contam.
+func TestCompute_StoppedPaying(t *testing.T) {
+	events := []domain.DividendEvent{
+		event("10/03/2019", 1.00, cash), event("10/09/2019", 1.00, cash),
+		event("10/03/2020", 1.00, cash), event("10/09/2020", 1.00, cash),
+		event("10/03/2021", 1.00, cash), event("10/09/2021", 1.00, cash),
+	}
+
+	got, ok := bazin.Compute(events, now)
+	require.False(t, ok)
+	require.Equal(t, []int{2025, 2024, 2023, 2022}, got.MissingYears)
+}
+
+// Ano anterior ao primeiro provento conhecido não é ano sem pagamento: o ativo
+// pode nem estar listado, e afirmar o contrário seria inventar histórico.
+func TestCompute_YearsBeforeFirstDividendAreNotMissing(t *testing.T) {
+	events := []domain.DividendEvent{
+		event("10/03/2023", 1.00, cash), event("10/09/2023", 1.00, cash),
+		event("10/03/2024", 1.00, cash), event("10/09/2024", 1.00, cash),
+		event("10/03/2025", 1.00, cash), event("10/09/2025", 1.00, cash),
+	}
+
+	got, ok := bazin.Compute(events, now)
+	require.True(t, ok)
+	require.Empty(t, got.MissingYears)
+	require.Equal(t, 3, got.YearsAvailable)
+}
+
+// O piso continua sendo contado sobre a janela contígua, não sobre quantos anos
+// por acaso têm linha.
+func TestCompute_FloorCountsContiguousWindow(t *testing.T) {
+	events := []domain.DividendEvent{
+		event("10/03/2024", 1.00, cash), event("10/09/2024", 1.00, cash),
+		event("10/03/2025", 1.00, cash), event("10/09/2025", 1.00, cash),
+	}
+
+	got, ok := bazin.Compute(events, now)
+	require.False(t, ok)
+	require.Empty(t, got.MissingYears)
+	require.Equal(t, 2, got.YearsAvailable)
+}
