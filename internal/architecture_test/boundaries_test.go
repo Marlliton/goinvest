@@ -9,6 +9,7 @@ import (
 	// grafo de dependências é lido por um subprocesso `go list`, invisível para
 	// o cache. Todo pacote vigiado aqui precisa do seu import em branco.
 	_ "github.com/marlliton/goinvest/internal/app"
+	_ "github.com/marlliton/goinvest/internal/bazin"
 	_ "github.com/marlliton/goinvest/internal/catalog"
 	_ "github.com/marlliton/goinvest/internal/collect"
 	_ "github.com/marlliton/goinvest/internal/derive"
@@ -47,6 +48,13 @@ func TestCatalogHasNoInfraImports(t *testing.T) {
 // alcançar o catálogo, senão a unidade do derivado passaria a ter duas fontes.
 func TestDeriveHasNoInfraImports(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/derive",
+		append(forbiddenForCore, modulePath+"/internal/catalog"))
+}
+
+// bazin é a mesma natureza de derive: cálculo puro sobre dado já validado, e
+// pelo mesmo motivo não pode alcançar o catálogo.
+func TestBazinHasNoInfraImports(t *testing.T) {
+	requireNoImports(t, modulePath+"/internal/bazin",
 		append(forbiddenForCore, modulePath+"/internal/catalog"))
 }
 

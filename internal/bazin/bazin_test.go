@@ -94,6 +94,7 @@ func TestCompute_MatchesAnnualTable(t *testing.T) {
 		require.InDelta(t, bbas3AnnualGross[y.Year], y.Total, 5e-4, "ano %d", y.Year)
 	}
 	require.Equal(t, []int{2025, 2024, 2023, 2022, 2021}, years(got))
+	require.Empty(t, got.AtypicalYears)
 }
 
 func TestCompute_JCPNetOfTax(t *testing.T) {
@@ -218,17 +219,32 @@ func TestCompute_CeilingFormula(t *testing.T) {
 // leitura da série de proventos já aplica.
 func TestCompute_DropsNonPositiveSharesFactor(t *testing.T) {
 	events := []domain.DividendEvent{
-		event("10/03/2023", 1.00, cash),
-		event("10/03/2024", 1.00, cash),
-		event("10/03/2025", 1.00, cash),
+		event("10/03/2023", 0.50, cash), event("10/09/2023", 0.50, cash),
+		event("10/03/2024", 0.50, cash), event("10/09/2024", 0.50, cash),
+		event("10/03/2025", 0.50, cash), event("10/09/2025", 0.50, cash),
 		event("11/03/2025", 5.00, cash),
 	}
-	events[3].SharesFactor = 0
+	events[6].SharesFactor = 0
 
 	got, ok := bazin.Compute(events, now)
 	require.True(t, ok)
 	require.InDelta(t, 1.0, got.AverageAnnual, 1e-9)
 	require.Empty(t, got.AtypicalYears)
+}
+
+// A regra é "um evento responde por mais da metade do que o ano pagou", e um
+// pagador anual satisfaz isso sempre. É o preço de aplicar o limiar na unidade
+// em que ele foi definido; o alternativo seria um limiar novo sem fonte.
+func TestCompute_SingleEventYearIsAtypical(t *testing.T) {
+	events := []domain.DividendEvent{
+		event("10/03/2023", 1.00, cash),
+		event("10/03/2024", 1.00, cash),
+		event("10/03/2025", 1.00, cash),
+	}
+
+	got, ok := bazin.Compute(events, now)
+	require.True(t, ok)
+	require.Equal(t, []int{2025, 2024, 2023}, got.AtypicalYears)
 }
 
 func TestCompute_NoEvents(t *testing.T) {
