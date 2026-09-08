@@ -15,6 +15,7 @@ import (
 	"github.com/marlliton/goinvest/internal/catalog"
 	"github.com/marlliton/goinvest/internal/derive"
 	"github.com/marlliton/goinvest/internal/domain"
+	"github.com/marlliton/goinvest/internal/evaluate"
 	"github.com/marlliton/goinvest/internal/store"
 )
 
@@ -57,6 +58,10 @@ type LineView struct {
 	FellBackToMarket bool
 	SelicDelta       *float64
 	ReferenceAt      *time.Time
+	// IDs dos alertas disparados cuja regra usa esta métrica. Existe para que
+	// um P/VP de 0,55 não se leia como oportunidade três linhas antes de o
+	// bloco de alertas dizer o contrário.
+	AlertMarks []string
 	// Preenchido só quando a métrica é estruturalmente não aplicável. Ausência
 	// comum ("a fonte não informou") continua sendo Value nil com motivo vazio.
 	NotApplicableReason string
@@ -85,6 +90,7 @@ type Report struct {
 	Header HeaderView
 	Blocks []BlockView
 	Bazin  *BazinView
+	Alerts []evaluate.Finding
 }
 
 func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string, now func() time.Time) (Report, error) {
@@ -149,13 +155,64 @@ func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string
 		return Report{}, err
 	}
 
+	alerts := evaluate.Detect(alertInput(cat, asset, merged, percentiles, h, hasDetail))
+
 	return Report{
 		Ticker: asset.Ticker,
 		Class:  asset.Class,
 		Header: h,
-		Blocks: blocks(cat, asset, merged, percentiles, h, hasDetail),
+		Blocks: blocks(cat, asset, merged, percentiles, h, hasDetail, alerts),
 		Bazin:  bazinView(events, merged, h, asset.Ticker, now()),
+		Alerts: alerts,
 	}, nil
+}
+
+func alertInput(cat *catalog.Catalog, asset domain.Asset, merged domain.MetricSet, percentiles map[domain.MetricID]store.AssetPercentile, h HeaderView, hasDetail bool) evaluate.Input {
+	in := evaluate.Input{
+		Class:     asset.Class,
+		Metrics:   merged,
+		Segment:   taxonomyLabel(asset),
+		HasDetail: hasDetail,
+		SelicRate: h.SelicRate,
+	}
+	if p, ok := percentiles[dividendYieldID]; ok {
+		in.DYPercentile = &p.Percentile
+	}
+	if ebit, ok := cat.Metric(ebitID); ok {
+		in.EBITNotApplicableReason = ebit.NotApplicable[originSector]
+	}
+	return in
+}
+
+// A taxonomia de FII tem um nível só, e o rótulo que calibra o limiar de
+// vacância chega em Sector. Ler Segment deixaria o alerta permanentemente não
+// aplicável para todo fundo.
+func taxonomyLabel(asset domain.Asset) string {
+	if asset.Class == domain.ClassFII {
+		return asset.Sector
+	}
+	return asset.Segment
+}
+
+// Cada alerta tem uma métrica âncora: aquela cuja leitura muda quando ele
+// dispara. Não são todos os insumos da regra, senão a tela inteira ficaria
+// marcada e a marca deixaria de apontar para algo.
+var alertAnchors = map[string]domain.MetricID{
+	"ALERTA-01": "payout",
+	"ALERTA-02": "pvp",
+	"ALERTA-03": "lucro_liquido",
+	"ALERTA-04": "rend_distribuido",
+	"ALERTA-05": "vacancia_media",
+}
+
+func marksFor(alerts []evaluate.Finding, id domain.MetricID) []string {
+	var out []string
+	for _, f := range alerts {
+		if f.Status == evaluate.StatusFired && alertAnchors[f.ID] == id {
+			out = append(out, f.ID)
+		}
+	}
+	return out
 }
 
 func bazinView(events []domain.DividendEvent, merged domain.MetricSet, h HeaderView, ticker string, now time.Time) *BazinView {
@@ -286,7 +343,7 @@ func referenceKey(t *time.Time) int64 {
 	return t.UTC().Unix()
 }
 
-func blocks(cat *catalog.Catalog, asset domain.Asset, merged domain.MetricSet, percentiles map[domain.MetricID]store.AssetPercentile, h HeaderView, hasDetail bool) []BlockView {
+func blocks(cat *catalog.Catalog, asset domain.Asset, merged domain.MetricSet, percentiles map[domain.MetricID]store.AssetPercentile, h HeaderView, hasDetail bool, alerts []evaluate.Finding) []BlockView {
 	applicable := cat.MetricsFor(asset.Class)
 
 	out := make([]BlockView, 0, len(cat.Blocks))
@@ -318,6 +375,7 @@ func blocks(cat *catalog.Catalog, asset domain.Asset, merged domain.MetricSet, p
 				Derived:     m.Derived,
 				Formula:     m.Formula,
 				ReferenceAt: o.ReferenceAt,
+				AlertMarks:  marksFor(alerts, m.ID),
 			}
 			if m.ID == dividendYieldID && h.SelicRate != nil && o.Value != nil {
 				delta := *o.Value - *h.SelicRate
@@ -343,7 +401,10 @@ const (
 	originAsset  = "ativo"
 )
 
-const equityID = domain.MetricID("patrim_liq")
+const (
+	equityID = domain.MetricID("patrim_liq")
+	ebitID   = domain.MetricID("ebit")
+)
 
 func notApplicableLine(m catalog.Metric, reason string) LineView {
 	return LineView{

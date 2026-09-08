@@ -2,12 +2,15 @@ package app
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/marlliton/goinvest/internal/bazin"
 	"github.com/marlliton/goinvest/internal/domain"
+	"github.com/marlliton/goinvest/internal/evaluate"
 )
 
 const (
@@ -15,6 +18,7 @@ const (
 	markNotApplicable = "◌"
 	markDerived       = "ƒ"
 	markFallback      = "*"
+	markAlert         = "⚠"
 )
 
 func RenderText(r Report) string {
@@ -74,6 +78,11 @@ func RenderText(r Report) string {
 				sawDerived = true
 				fmt.Fprintf(&b, " %s (%s)", markDerived, line.Formula)
 			}
+			// Só a marca: os números do alerta saem no bloco próprio, e
+			// repeti-los aqui brigaria com o percentil que a linha já carrega.
+			if len(line.AlertMarks) > 0 {
+				b.WriteString(" " + markAlert)
+			}
 			// Só a linha que destoa do cabeçalho carrega data: repeti-la em
 			// todas afogaria justamente a que o leitor precisa notar.
 			if line.ReferenceAt != nil && !sameDay(*line.ReferenceAt, r.Header.ReferenceAt) {
@@ -86,11 +95,62 @@ func RenderText(r Report) string {
 	if r.Bazin != nil {
 		b.WriteString("\n" + bazinText(*r.Bazin))
 	}
+	if alerts := alertsText(r.Alerts); alerts != "" {
+		b.WriteString("\n" + alerts)
+	}
 
 	if legend := legend(sawAbsent, sawNotApplicable, sawDerived, sawFallback, sawSmallerPeerN); legend != "" {
 		fmt.Fprintf(&b, "\n%s\n", legend)
 	}
 	return b.String()
+}
+
+// Alerta não avaliado e não aplicável ficam no Report para o --json, mas fora
+// do texto: cinco avisos permanentes na tela afogariam o que de fato disparou.
+func alertsText(findings []evaluate.Finding) string {
+	var b strings.Builder
+	for _, f := range findings {
+		if f.Status != evaluate.StatusFired {
+			continue
+		}
+		if b.Len() == 0 {
+			b.WriteString("Alertas\n")
+		}
+		fmt.Fprintf(&b, "  %s %s: %s\n", markAlert, f.ID, f.Rule)
+		fmt.Fprintf(&b, "    %s\n", alertNumbers(f.Numbers))
+	}
+	return b.String()
+}
+
+func alertNumbers(numbers map[string]float64) string {
+	parts := make([]string, 0, len(numbers))
+	for _, name := range slices.Sorted(maps.Keys(numbers)) {
+		f := alertNumberFormats[name]
+		if f.label == "" {
+			f.label = name
+		}
+		parts = append(parts, fmt.Sprintf("%s: %s", f.label, formatValue(numbers[name], f.unit)))
+	}
+	return strings.Join(parts, " · ")
+}
+
+// A chave do número é identificador (ela vai para o JSON); o rótulo e a unidade
+// são desta camada. Sem a unidade explícita, um P/VP de 0,60 sairia como 60%.
+var alertNumberFormats = map[string]struct {
+	label string
+	unit  domain.Unit
+}{
+	"payout":               {"payout", domain.UnitPercent},
+	"pvp":                  {"P/VP", domain.UnitRatio},
+	"roe":                  {"ROE", domain.UnitPercent},
+	"ke":                   {"retorno exigido", domain.UnitPercent},
+	"lucro_liquido":        {"Lucro Líquido", domain.UnitBRL},
+	"ebit":                 {"EBIT", domain.UnitBRL},
+	"venda_sobre_receita":  {"venda de ativos ÷ receita", domain.UnitPercent},
+	"rendimento_sobre_ffo": {"rendimento ÷ FFO", domain.UnitPercent},
+	"vacancia_media":       {"vacância", domain.UnitPercent},
+	"limiar":               {"limiar do segmento", domain.UnitPercent},
+	"dy_percentil":         {"percentil do DY no segmento", domain.UnitPercent},
 }
 
 const bazinLabel = "Preço-teto (Bazin)"

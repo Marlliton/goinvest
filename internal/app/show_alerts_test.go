@@ -100,8 +100,10 @@ func TestShow_AlertBlock_WithBazin(t *testing.T) {
 // Ler asset.Segment deixaria o alerta permanentemente não aplicável.
 func TestShow_AlertVacancyUsesFIITaxonomyLabel(t *testing.T) {
 	db := openTemp(t)
+	// MinPeerGroup exige cinco papéis líquidos para haver percentil.
 	seedFIIPeers(t, db, "Logística", map[string]float64{
-		"AAAA11": 0.05, "BBBB11": 0.07, "MXRF11": 0.14,
+		"AAAA11": 0.05, "BBBB11": 0.07, "CCCC11": 0.08,
+		"DDDD11": 0.09, "EEEE11": 0.10, "MXRF11": 0.14,
 	})
 
 	report, err := app.Show(t.Context(), db, loadCatalog(t), "MXRF11", now)
