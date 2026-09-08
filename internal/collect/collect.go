@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	StatusOK      = "ok"
-	StatusPartial = "partial"
+	StatusOK        = "ok"
+	StatusPartial   = "partial"
+	StatusCancelled = "cancelled"
 )
 
 // Volume médio diário em reais.

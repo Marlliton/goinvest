@@ -35,6 +35,14 @@ type IdentityProvider interface {
 	Detail(ctx context.Context, codeCVM string, force bool) (identity.CompanyDetail, error)
 }
 
+// DetailProvider é a fonte da coleta profunda: uma requisição por ticker, ao
+// contrário do UniverseProvider, que traz a classe inteira de uma vez.
+type DetailProvider interface {
+	Namer
+	Detail(ctx context.Context, ticker string, class domain.AssetClass, force bool) (domain.MetricSet, error)
+	Dividends(ctx context.Context, ticker string, class domain.AssetClass, force bool) ([]domain.DividendEvent, error)
+}
+
 type FIIISINProvider interface {
 	Namer
 	ISINByCNPJ(ctx context.Context, force bool) (map[string]string, error)
