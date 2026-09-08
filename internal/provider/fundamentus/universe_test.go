@@ -166,23 +166,36 @@ func TestUniverseSkipsRowWithoutTickerWithoutAbortingClass(t *testing.T) {
 	require.NotEmpty(t, byTicker(obs, "WEGE3"))
 }
 
-// catalog.metrics.yaml e o mapeamento coluna→MetricID do provider foram
+// catalog.metrics.yaml e o mapeamento coluna→MetricID dos providers foram
 // escritos separadamente a partir da mesma tabela de colunas. Sem este teste um
 // typo de qualquer um dos lados vira métrica que nunca aparece na tela, e que se
-// lê como "nunca coletada" em vez de bug.
+// lê como "nunca coletada" em vez de bug. As duas páginas entram juntas porque
+// o catálogo não distingue de qual delas a métrica vem.
 func TestCatalogAndProviderMetricIDsMatch(t *testing.T) {
 	cat, err := catalog.Load()
 	require.NoError(t, err)
 
-	for _, class := range []domain.AssetClass{domain.ClassStock, domain.ClassFII} {
+	// O ticker de cada classe é o que exercita todas as métricas do detalhe:
+	// banco não imprime EBIT, e a página de ação não tem as de FII.
+	detailTicker := map[domain.AssetClass]string{
+		domain.ClassStock: "WEGE3",
+		domain.ClassFII:   "MXRF11",
+	}
+
+	for class, ticker := range detailTicker {
 		want := []domain.MetricID{}
 		for _, m := range cat.MetricsFor(class) {
 			if !m.Derived {
 				want = append(want, m.ID)
 			}
 		}
-		require.ElementsMatch(t, want, metricIDs(universe(t, class)),
-			"catalog e provider divergem para a classe %s", class)
+
+		got := metricIDs(universe(t, class))
+		for id := range detail(t, ticker, class) {
+			got = append(got, id)
+		}
+		require.ElementsMatch(t, want, got,
+			"catalog e providers divergem para a classe %s", class)
 	}
 }
 

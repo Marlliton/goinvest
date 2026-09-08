@@ -46,6 +46,9 @@ metrics:
     classes: [acao, fii]
     percentile: true
     distribution_excludes_negative: true
+    negative_equity_check: true
+    not_applicable:
+      ativo: "Patrimônio líquido negativo: o índice compararia preço com um patrimônio que não existe"
 
   - id: psr
     label: "PSR"
@@ -54,6 +57,8 @@ metrics:
     unit: ratio
     classes: [acao]
     percentile: true
+    not_applicable:
+      setor: "Banco: a receita vem de juros e serviços, não de vendas, e a fonte não apura receita líquida comparável para instituição financeira"
     sentinel_segments: ["Bancos"]
 
   - id: p_ativo
@@ -63,6 +68,8 @@ metrics:
     unit: ratio
     classes: [acao]
     percentile: true
+    not_applicable:
+      setor: "Banco: o ativo é a matéria-prima do negócio e é contabilizado por regras próprias das instituições financeiras, fora da régua do resto do mercado"
     sentinel_segments: ["Bancos"]
 
   - id: p_cap_giro
@@ -72,6 +79,8 @@ metrics:
     unit: ratio
     classes: [acao]
     percentile: true
+    not_applicable:
+      setor: "Banco: quase todo o balanço cai em circulante, então o capital de giro oscila muito e não mede reinvestimento"
     sentinel_segments: ["Bancos"]
 
   - id: p_ebit
@@ -81,6 +90,8 @@ metrics:
     unit: ratio
     classes: [acao]
     percentile: true
+    not_applicable:
+      setor: "Banco: juros pagos a depositantes são a maior despesa do negócio, e um resultado medido antes deles apagaria justamente o custo principal"
     sentinel_segments: ["Bancos"]
 
   - id: p_ativ_circ_liq
@@ -90,6 +101,8 @@ metrics:
     unit: ratio
     classes: [acao]
     percentile: true
+    not_applicable:
+      setor: "Banco: quase todo o balanço cai em circulante, então o ativo circulante líquido não separa o que sobra do que é operação"
     sentinel_segments: ["Bancos"]
 
   - id: ev_ebit
@@ -99,6 +112,8 @@ metrics:
     unit: ratio
     classes: [acao]
     percentile: true
+    not_applicable:
+      setor: "Banco: dívida é matéria-prima e não financiamento tomado, então o valor da firma — e todo múltiplo que parte dele — perde sentido"
     sentinel_segments: ["Bancos"]
 
   - id: ev_ebitda
@@ -108,6 +123,8 @@ metrics:
     unit: ratio
     classes: [acao]
     percentile: true
+    not_applicable:
+      setor: "Banco: dívida é matéria-prima e não financiamento tomado, então o valor da firma — e todo múltiplo que parte dele — perde sentido"
     sentinel_segments: ["Bancos"]
 
   - id: valor_mercado
@@ -139,6 +156,8 @@ metrics:
     unit: percent
     classes: [acao]
     percentile: true
+    not_applicable:
+      setor: "Banco: não há custo de produto vendido do qual sobre margem bruta; a demonstração de resultado de instituição financeira não tem essa linha"
     sentinel_segments: ["Bancos"]
 
   - id: mrg_ebit
@@ -148,6 +167,8 @@ metrics:
     unit: percent
     classes: [acao]
     percentile: true
+    not_applicable:
+      setor: "Banco: juros pagos a depositantes são a maior despesa do negócio, e um resultado medido antes deles apagaria justamente o custo principal"
     sentinel_segments: ["Bancos"]
 
   - id: mrg_liq
@@ -157,6 +178,8 @@ metrics:
     unit: percent
     classes: [acao]
     percentile: true
+    not_applicable:
+      setor: "Banco: a margem divide pela mesma receita líquida de vendas que a fonte não apura para instituição financeira"
     sentinel_segments: ["Bancos"]
 
   - id: roic
@@ -166,6 +189,8 @@ metrics:
     unit: percent
     classes: [acao]
     percentile: true
+    not_applicable:
+      setor: "Banco: o índice parte do EBIT e do capital investido, e para instituição financeira o capital é só o patrimônio"
     sentinel_segments: ["Bancos"]
 
   - id: roe
@@ -185,7 +210,8 @@ metrics:
     derived: true
     formula: "Lucro Líquido ÷ Ativo Total"
     inputs: [roe, p_ativo, pvp, patrim_liq]
-    not_applicable: "Ativo total não derivável: P/Ativo ausente ou zero"
+    not_applicable:
+      ativo: "Ativo total não derivável: P/Ativo ausente ou zero"
 
   - id: cresc_rec_5a
     label: "Crescimento Receita 5a"
@@ -226,6 +252,8 @@ metrics:
     unit: ratio
     classes: [acao]
     percentile: true
+    not_applicable:
+      setor: "Banco: quase todo o balanço cai em circulante dos dois lados, então a razão entre eles não mede folga de caixa"
     sentinel_segments: ["Bancos"]
 
   - id: patrim_liq
@@ -242,6 +270,8 @@ metrics:
     unit: ratio
     classes: [acao]
     percentile: true
+    not_applicable:
+      setor: "Banco: depósito de cliente e dívida se confundem no balanço, então não há dívida líquida definível para dividir pelo patrimônio"
     sentinel_segments: ["Bancos"]
 
   - id: dl_ebitda
@@ -253,7 +283,8 @@ metrics:
     derived: true
     formula: "Dívida Líquida ÷ EBITDA"
     inputs: [pvp, patrim_liq, dl_patrim, ev_ebitda]
-    not_applicable: "EBITDA negativo ou zero: não há geração de caixa para quitar a dívida, e o índice se leria como caixa líquido"
+    not_applicable:
+      ativo: "EBITDA negativo ou zero: não há geração de caixa para quitar a dívida, e o índice se leria como caixa líquido"
 
   # Bloco Dividendos
   - id: dy
@@ -281,4 +312,50 @@ metrics:
     derived: true
     formula: "DY × P/L"
     inputs: [dy, pl]
-    not_applicable: "Prejuízo no período: não há lucro do qual o dividendo seja uma fatia"
+    not_applicable:
+      ativo: "Prejuízo no período: não há lucro do qual o dividendo seja uma fatia"
+
+  - id: lucro_liquido
+    label: "Lucro Líquido (12m)"
+    block: rentabilidade
+    order: 11
+    unit: brl
+    classes: [acao]
+
+  - id: ebit
+    label: "EBIT (12m)"
+    block: rentabilidade
+    order: 12
+    unit: brl
+    classes: [acao]
+    not_applicable:
+      setor: "Banco: dívida é matéria-prima do negócio, não financiamento tomado — o EBIT não é publicado para instituições financeiras nesta fonte"
+    sentinel_segments: ["Bancos"]
+
+  - id: rend_distribuido
+    label: "Rend. Distribuído (12m)"
+    block: dividendos
+    order: 4
+    unit: brl
+    classes: [fii]
+
+  - id: ffo
+    label: "FFO (12m)"
+    block: dividendos
+    order: 5
+    unit: brl
+    classes: [fii]
+
+  - id: venda_ativos
+    label: "Venda de Ativos (12m)"
+    block: dividendos
+    order: 6
+    unit: brl
+    classes: [fii]
+
+  - id: receita
+    label: "Receita (12m)"
+    block: dividendos
+    order: 7
+    unit: brl
+    classes: [fii]

@@ -35,15 +35,20 @@ type Metric struct {
 	Formula string
 	Inputs  []domain.MetricID
 	// Em que situação o número é calculável mas a pergunta que ele responde
-	// não faz sentido. Obrigatório em derivado: é o campo que força a decisão
-	// a ser tomada quando a métrica nasce, não quando o usuário se confunde.
-	NotApplicable string
+	// não faz sentido, indexado pela origem da regra: "classe", "setor" ou
+	// "ativo". Obrigatório em derivado: é o campo que força a decisão a ser
+	// tomada quando a métrica nasce, não quando o usuário se confunde.
+	// Separar por origem preserva a diferença entre "a pergunta não cabe
+	// aqui" e "este ativo está em situação anômala".
+	NotApplicable map[string]string
 	Percentile    bool
 	// Damodaran: múltiplo com denominador negativo sai da distribuição em vez
 	// de virar cauda, senão a mediana do setor desloca sem significado.
 	ExcludeNegative bool
 	// Segmentos em que a fonte publica 0,00 no lugar de "não se aplica".
 	SentinelSegments []string
+	// Métrica que deixa de responder quando o patrimônio líquido é negativo.
+	NegativeEquityCheck bool
 }
 
 type Catalog struct {
@@ -87,19 +92,20 @@ type rawBlock struct {
 }
 
 type rawMetric struct {
-	ID               string   `yaml:"id"`
-	Label            string   `yaml:"label"`
-	Block            string   `yaml:"block"`
-	Order            int      `yaml:"order"`
-	Unit             string   `yaml:"unit"`
-	Classes          []string `yaml:"classes"`
-	Derived          bool     `yaml:"derived"`
-	Formula          string   `yaml:"formula"`
-	Inputs           []string `yaml:"inputs"`
-	NotApplicable    string   `yaml:"not_applicable"`
-	Percentile       bool     `yaml:"percentile"`
-	ExcludeNegative  bool     `yaml:"distribution_excludes_negative"`
-	SentinelSegments []string `yaml:"sentinel_segments"`
+	ID                  string            `yaml:"id"`
+	Label               string            `yaml:"label"`
+	Block               string            `yaml:"block"`
+	Order               int               `yaml:"order"`
+	Unit                string            `yaml:"unit"`
+	Classes             []string          `yaml:"classes"`
+	Derived             bool              `yaml:"derived"`
+	Formula             string            `yaml:"formula"`
+	Inputs              []string          `yaml:"inputs"`
+	NotApplicable       map[string]string `yaml:"not_applicable"`
+	Percentile          bool              `yaml:"percentile"`
+	ExcludeNegative     bool              `yaml:"distribution_excludes_negative"`
+	SentinelSegments    []string          `yaml:"sentinel_segments"`
+	NegativeEquityCheck bool              `yaml:"negative_equity_check"`
 }
 
 func loadFrom(metricsData, glossaryData []byte) (*Catalog, error) {
@@ -187,8 +193,10 @@ func (rm rawMetric) toMetric() (Metric, error) {
 	switch {
 	case rm.Derived && (rm.Formula == "" || len(rm.Inputs) == 0):
 		return Metric{}, fmt.Errorf("metric %q is derived but has no formula or inputs", id)
-	case rm.Derived && rm.NotApplicable == "":
+	case rm.Derived && len(rm.NotApplicable) == 0:
 		return Metric{}, fmt.Errorf("metric %q is derived but does not declare when it does not apply", id)
+	case len(rm.SentinelSegments) > 0 && rm.NotApplicable["setor"] == "":
+		return Metric{}, fmt.Errorf("metric %q has sentinel_segments but no not_applicable[setor] reason", id)
 	case !rm.Derived && rm.Formula != "":
 		return Metric{}, fmt.Errorf("metric %q has a formula but is not derived", id)
 	}
@@ -199,19 +207,20 @@ func (rm rawMetric) toMetric() (Metric, error) {
 	}
 
 	return Metric{
-		ID:               id,
-		Label:            rm.Label,
-		Block:            rm.Block,
-		Order:            rm.Order,
-		Unit:             unit,
-		Classes:          classes,
-		Derived:          rm.Derived,
-		Formula:          rm.Formula,
-		Inputs:           inputs,
-		NotApplicable:    rm.NotApplicable,
-		Percentile:       rm.Percentile,
-		ExcludeNegative:  rm.ExcludeNegative,
-		SentinelSegments: rm.SentinelSegments,
+		ID:                  id,
+		Label:               rm.Label,
+		Block:               rm.Block,
+		Order:               rm.Order,
+		Unit:                unit,
+		Classes:             classes,
+		Derived:             rm.Derived,
+		Formula:             rm.Formula,
+		Inputs:              inputs,
+		NotApplicable:       rm.NotApplicable,
+		Percentile:          rm.Percentile,
+		ExcludeNegative:     rm.ExcludeNegative,
+		SentinelSegments:    rm.SentinelSegments,
+		NegativeEquityCheck: rm.NegativeEquityCheck,
 	}, nil
 }
 

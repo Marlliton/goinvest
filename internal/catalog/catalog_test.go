@@ -20,8 +20,8 @@ func TestLoadEmbeddedCatalog(t *testing.T) {
 	c, err := Load()
 	require.NoError(t, err)
 	require.Len(t, c.Blocks, 5)
-	require.Len(t, c.Metrics, 32)
-	require.Len(t, c.Glossary, 32)
+	require.Len(t, c.Metrics, 38)
+	require.Len(t, c.Glossary, 38)
 }
 
 func TestLoadRejectsUnknownInput(t *testing.T) {
@@ -47,6 +47,14 @@ func TestLoadRejectsDerivedWithoutNotApplicable(t *testing.T) {
 	require.ErrorContains(t, err, "does not declare when it does not apply")
 }
 
+// Sentinela por setor sem o motivo de setor deixaria a tela imprimir "não se
+// aplica" sem dizer por quê, que é o estado que o campo existe para impedir.
+// Motivo de outra origem não serve de substituto.
+func TestLoad_SentinelWithoutSetorReason(t *testing.T) {
+	_, err := loadFrom(fixture(t, "sentinel-no-setor.metrics.yaml"), fixture(t, "valid.glossary.yaml"))
+	require.ErrorContains(t, err, "no not_applicable[setor] reason")
+}
+
 func TestEveryDerivedMetricDeclaresWhenItDoesNotApply(t *testing.T) {
 	c, err := Load()
 	require.NoError(t, err)
@@ -57,7 +65,7 @@ func TestEveryDerivedMetricDeclaresWhenItDoesNotApply(t *testing.T) {
 			continue
 		}
 		derived++
-		require.NotEmpty(t, m.NotApplicable, "métrica derivada %q", m.ID)
+		require.NotEmpty(t, m.NotApplicable["ativo"], "métrica derivada %q", m.ID)
 	}
 	require.Equal(t, 3, derived)
 }
@@ -111,7 +119,68 @@ func TestPercentileDeclarations(t *testing.T) {
 	require.False(t, byID["dl_ebitda"].Percentile)
 
 	require.Contains(t, byID["psr"].SentinelSegments, "Bancos")
+	require.True(t, byID["pvp"].NegativeEquityCheck)
+	require.NotEmpty(t, byID["pvp"].NotApplicable["ativo"])
 	require.Contains(t, byID["ev_ebitda"].SentinelSegments, "Bancos")
 	require.Empty(t, byID["pl"].SentinelSegments, "P/L de banco é número real, não sentinela")
 	require.Empty(t, byID["dy"].SentinelSegments)
+}
+
+// As seis métricas do detalhe são valores absolutos em reais: percentil sobre
+// elas ordenaria empresa por tamanho, não por qualidade.
+func TestDetailMetricsAreDeclaredWithoutPercentile(t *testing.T) {
+	c, err := Load()
+	require.NoError(t, err)
+
+	byClass := map[domain.AssetClass][]domain.MetricID{
+		domain.ClassStock: {"lucro_liquido", "ebit"},
+		domain.ClassFII:   {"venda_ativos", "ffo", "rend_distribuido", "receita"},
+	}
+	for class, want := range byClass {
+		byID := make(map[domain.MetricID]Metric)
+		for _, m := range c.MetricsFor(class) {
+			byID[m.ID] = m
+		}
+		for _, id := range want {
+			m, ok := byID[id]
+			require.True(t, ok, "métrica %q ausente para a classe %s", id, class)
+			require.Equal(t, domain.UnitBRL, m.Unit, "métrica %q", id)
+			require.False(t, m.Percentile, "métrica %q", id)
+		}
+	}
+}
+
+// EBIT nunca aparece como 0,00 para banco: o rótulo simplesmente não existe na
+// página. A sentinela por segmento continua sendo o mecanismo certo porque a
+// consequência é a mesma — a métrica sai da distribuição do setor.
+func TestEbitCarriesSectorReason(t *testing.T) {
+	c, err := Load()
+	require.NoError(t, err)
+
+	for _, m := range c.Metrics {
+		if m.ID != "ebit" {
+			continue
+		}
+		require.Contains(t, m.SentinelSegments, "Bancos")
+		require.Contains(t, m.NotApplicable["setor"], "Banco")
+		return
+	}
+	t.Fatal("métrica ebit ausente do catálogo")
+}
+
+// A regra nova só tem dente se valer para todas as métricas que já usavam
+// sentinela, não só para a que a motivou.
+func TestEverySentinelMetricExplainsTheSector(t *testing.T) {
+	c, err := Load()
+	require.NoError(t, err)
+
+	sentinels := 0
+	for _, m := range c.Metrics {
+		if len(m.SentinelSegments) == 0 {
+			continue
+		}
+		sentinels++
+		require.NotEmpty(t, m.NotApplicable["setor"], "métrica %q", m.ID)
+	}
+	require.Equal(t, 14, sentinels)
 }
