@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -52,4 +53,25 @@ func TestCompareCmd_NormalizesToUpper(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, out.String(), "PETR4")
 	require.NotContains(t, out.String(), "wege3")
+}
+
+func TestCompareCmd_JSONFlag(t *testing.T) {
+	var out bytes.Buffer
+
+	err := compareCmd(t, testDeps(t), &out, "WEGE3", "ITUB4", "PETR4", "--json")
+	require.NoError(t, err)
+
+	var doc map[string]any
+	require.NoError(t, json.Unmarshal(out.Bytes(), &doc))
+	require.Equal(t, float64(1), doc["schema_version"])
+}
+
+func TestCompareCmd_TextIsDefault(t *testing.T) {
+	var out bytes.Buffer
+
+	err := compareCmd(t, testDeps(t), &out, "WEGE3", "ITUB4", "PETR4")
+	require.NoError(t, err)
+
+	require.NotContains(t, out.String(), "schema_version")
+	require.Contains(t, out.String(), "Fora da comparação")
 }

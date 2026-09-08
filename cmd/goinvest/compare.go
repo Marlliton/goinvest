@@ -17,7 +17,9 @@ const (
 )
 
 func newCompareCmd(deps rootDeps) *cobra.Command {
-	return &cobra.Command{
+	var asJSON bool
+
+	cmd := &cobra.Command{
 		Use:   "compare TICKER TICKER TICKER...",
 		Short: "Compara de 3 a 8 ativos lado a lado",
 		Args:  cobra.RangeArgs(minCompareTickers, maxCompareTickers),
@@ -34,8 +36,20 @@ func newCompareCmd(deps rootDeps) *cobra.Command {
 				return err
 			}
 
-			fmt.Fprint(cmd.OutOrStdout(), app.RenderCompareText(report))
+			if !asJSON {
+				fmt.Fprint(cmd.OutOrStdout(), app.RenderCompareText(report))
+				return nil
+			}
+
+			raw, err := app.RenderCompareJSON(report)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), string(raw))
 			return nil
 		},
 	}
+
+	cmd.Flags().BoolVar(&asJSON, "json", false, "imprime o resultado como JSON (schema_version 1)")
+	return cmd
 }
