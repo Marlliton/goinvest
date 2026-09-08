@@ -24,18 +24,43 @@ func TestLoadEmbeddedCatalog(t *testing.T) {
 	require.Len(t, c.Glossary, 38)
 }
 
+// Chave faltando aqui apagaria o texto de um alerta sem nenhum erro: o
+// detector continua disparando, e só a explicação some da tela.
+func TestLoadEmbeddedTrapText(t *testing.T) {
+	c, err := Load()
+	require.NoError(t, err)
+
+	for _, id := range []string{"ALERTA-01", "ALERTA-02", "ALERTA-03", "ALERTA-04", "ALERTA-05"} {
+		_, ok := c.TrapText[id]
+		require.True(t, ok, "alerta %s sem entrada em traps.yaml", id)
+	}
+	require.Len(t, c.TrapText, 5)
+}
+
+func TestCatalogMetricLookup(t *testing.T) {
+	c, err := Load()
+	require.NoError(t, err)
+
+	ebit, ok := c.Metric("ebit")
+	require.True(t, ok)
+	require.NotEmpty(t, ebit.NotApplicable["setor"])
+
+	_, ok = c.Metric("nao_existe")
+	require.False(t, ok)
+}
+
 func TestLoadRejectsUnknownInput(t *testing.T) {
-	_, err := loadFrom(fixture(t, "unknown-input.metrics.yaml"), fixture(t, "valid.glossary.yaml"))
+	_, err := loadFrom(fixture(t, "unknown-input.metrics.yaml"), fixture(t, "valid.glossary.yaml"), trapsYAML)
 	require.ErrorContains(t, err, "dy_typo")
 }
 
 func TestLoadRejectsMissingGlossaryEntry(t *testing.T) {
-	_, err := loadFrom(fixture(t, "valid.metrics.yaml"), fixture(t, "incomplete.glossary.yaml"))
+	_, err := loadFrom(fixture(t, "valid.metrics.yaml"), fixture(t, "incomplete.glossary.yaml"), trapsYAML)
 	require.ErrorContains(t, err, "glossary")
 }
 
 func TestLoadRejectsDerivedWithoutFormula(t *testing.T) {
-	_, err := loadFrom(fixture(t, "derived-no-formula.metrics.yaml"), fixture(t, "valid.glossary.yaml"))
+	_, err := loadFrom(fixture(t, "derived-no-formula.metrics.yaml"), fixture(t, "valid.glossary.yaml"), trapsYAML)
 	require.ErrorContains(t, err, "payout")
 }
 
@@ -43,14 +68,14 @@ func TestLoadRejectsDerivedWithoutFormula(t *testing.T) {
 // momento em que a métrica nasce. Sem a regra de carga, o campo vira opcional
 // na prática e o próximo derivado entra sem ela.
 func TestLoadRejectsDerivedWithoutNotApplicable(t *testing.T) {
-	_, err := loadFrom(fixture(t, "derived-no-not-applicable.metrics.yaml"), fixture(t, "valid.glossary.yaml"))
+	_, err := loadFrom(fixture(t, "derived-no-not-applicable.metrics.yaml"), fixture(t, "valid.glossary.yaml"), trapsYAML)
 	require.ErrorContains(t, err, "does not declare when it does not apply")
 }
 
 // Sem o motivo de setor a tela imprimiria "não se aplica" sem dizer por quê, e
 // motivo de outra origem não serve de substituto.
 func TestLoad_SentinelWithoutSetorReason(t *testing.T) {
-	_, err := loadFrom(fixture(t, "sentinel-no-setor.metrics.yaml"), fixture(t, "valid.glossary.yaml"))
+	_, err := loadFrom(fixture(t, "sentinel-no-setor.metrics.yaml"), fixture(t, "valid.glossary.yaml"), trapsYAML)
 	require.ErrorContains(t, err, "no not_applicable[setor] reason")
 }
 
@@ -87,7 +112,7 @@ func TestBlocksOrderedSortsByOrder(t *testing.T) {
 		[]string{"cotacao", "valuation", "rentabilidade", "endividamento", "dividendos"},
 		blockIDs(c.BlocksOrdered()))
 
-	shuffled, err := loadFrom(fixture(t, "shuffled-blocks.metrics.yaml"), fixture(t, "valid.glossary.yaml"))
+	shuffled, err := loadFrom(fixture(t, "shuffled-blocks.metrics.yaml"), fixture(t, "valid.glossary.yaml"), trapsYAML)
 	require.NoError(t, err)
 	require.Equal(t, []string{"b1", "b2"}, blockIDs(shuffled.BlocksOrdered()))
 }

@@ -14,6 +14,7 @@ import (
 	_ "github.com/marlliton/goinvest/internal/collect"
 	_ "github.com/marlliton/goinvest/internal/derive"
 	_ "github.com/marlliton/goinvest/internal/domain"
+	_ "github.com/marlliton/goinvest/internal/evaluate"
 	_ "github.com/marlliton/goinvest/internal/fetch"
 	_ "github.com/marlliton/goinvest/internal/identity"
 	_ "github.com/marlliton/goinvest/internal/norm"
@@ -55,6 +56,14 @@ func TestDeriveHasNoInfraImports(t *testing.T) {
 // pelo mesmo motivo não pode alcançar o catálogo.
 func TestBazinHasNoInfraImports(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/bazin",
+		append(forbiddenForCore, modulePath+"/internal/catalog"))
+}
+
+// evaluate decide veredito sobre número já resolvido. Não pode alcançar o
+// catálogo: o texto que vem de lá chega pronto no Input, e a alternativa seria
+// a regra e a redação da regra evoluírem em dois lugares.
+func TestEvaluateHasNoInfraImports(t *testing.T) {
+	requireNoImports(t, modulePath+"/internal/evaluate",
 		append(forbiddenForCore, modulePath+"/internal/catalog"))
 }
 

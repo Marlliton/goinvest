@@ -18,6 +18,9 @@ var metricsYAML []byte
 //go:embed glossary.yaml
 var glossaryYAML []byte
 
+//go:embed traps.yaml
+var trapsYAML []byte
+
 type Block struct {
 	ID    string
 	Label string
@@ -54,10 +57,20 @@ type Catalog struct {
 	Blocks   []Block
 	Metrics  []Metric
 	Glossary map[domain.MetricID]string
+	TrapText map[string]string
 }
 
 func Load() (*Catalog, error) {
-	return loadFrom(metricsYAML, glossaryYAML)
+	return loadFrom(metricsYAML, glossaryYAML, trapsYAML)
+}
+
+func (c *Catalog) Metric(id domain.MetricID) (Metric, bool) {
+	for _, m := range c.Metrics {
+		if m.ID == id {
+			return m, true
+		}
+	}
+	return Metric{}, false
 }
 
 // MetricsFor devolve as métricas aplicáveis à classe, já na ordem de exibição
@@ -107,7 +120,7 @@ type rawMetric struct {
 	NegativeEquityCheck bool              `yaml:"negative_equity_check"`
 }
 
-func loadFrom(metricsData, glossaryData []byte) (*Catalog, error) {
+func loadFrom(metricsData, glossaryData, trapsData []byte) (*Catalog, error) {
 	var raw rawFile
 	if err := decodeStrict(metricsData, &raw); err != nil {
 		return nil, fmt.Errorf("metrics: %w", err)
@@ -116,6 +129,11 @@ func loadFrom(metricsData, glossaryData []byte) (*Catalog, error) {
 	var glossary map[domain.MetricID]string
 	if err := decodeStrict(glossaryData, &glossary); err != nil {
 		return nil, fmt.Errorf("glossary: %w", err)
+	}
+
+	var traps map[string]string
+	if err := decodeStrict(trapsData, &traps); err != nil {
+		return nil, fmt.Errorf("traps: %w", err)
 	}
 
 	blocks := make([]Block, 0, len(raw.Blocks))
@@ -164,7 +182,7 @@ func loadFrom(metricsData, glossaryData []byte) (*Catalog, error) {
 		return a.Order - b.Order
 	})
 
-	return &Catalog{Blocks: blocks, Metrics: metrics, Glossary: glossary}, nil
+	return &Catalog{Blocks: blocks, Metrics: metrics, Glossary: glossary, TrapText: traps}, nil
 }
 
 func (rm rawMetric) toMetric() (Metric, error) {
