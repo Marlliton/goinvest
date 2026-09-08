@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"math"
+	"time"
+)
 
 type DividendType string
 
@@ -22,4 +25,18 @@ type DividendEvent struct {
 	SharesFactor     float64
 	Source           string
 	FetchedAt        time.Time
+}
+
+// PerShare aplica o fator de lote uma vez só, para todo mundo que precisa do
+// valor por ação. Fator não positivo derruba o evento: a divisão viraria +Inf, e
+// um provento nulo lido como infinito contamina soma, média e preço-teto.
+func (e DividendEvent) PerShare() (float64, bool) {
+	if e.SharesFactor <= 0 {
+		return 0, false
+	}
+	v := e.ValuePerShareRaw / e.SharesFactor
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return 0, false
+	}
+	return v, true
 }

@@ -106,15 +106,12 @@ func Compute(events []domain.DividendEvent, now time.Time) (Result, bool) {
 }
 
 func netPerShare(e domain.DividendEvent) (float64, bool) {
-	if e.SharesFactor <= 0 {
+	v, ok := e.PerShare()
+	if !ok {
 		return 0, false
 	}
-	v := e.ValuePerShareRaw / e.SharesFactor
 	if e.Type == domain.DividendJCP {
 		v *= jcpNetOfTax
-	}
-	if !finite(v) {
-		return 0, false
 	}
 	return v, true
 }
