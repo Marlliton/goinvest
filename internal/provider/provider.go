@@ -5,6 +5,7 @@ package provider
 
 import (
 	"context"
+	"time"
 
 	"github.com/marlliton/goinvest/internal/domain"
 	"github.com/marlliton/goinvest/internal/identity"
@@ -20,6 +21,12 @@ type UniverseProvider interface {
 	Namer
 	SourceID(class domain.AssetClass) string
 	Universe(ctx context.Context, class domain.AssetClass, force bool) ([]domain.Observation, error)
+}
+
+// SelicProvider é a fonte da âncora de renda fixa, em % ao ano.
+type SelicProvider interface {
+	Namer
+	Selic(ctx context.Context, force bool) (rate float64, referenceAt time.Time, err error)
 }
 
 type IdentityProvider interface {

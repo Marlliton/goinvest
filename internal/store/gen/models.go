@@ -56,6 +56,13 @@ type CollectionRun struct {
 	Error      *string
 }
 
+type MacroRate struct {
+	ID          string
+	Value       float64
+	ReferenceAt time.Time
+	FetchedAt   time.Time
+}
+
 type Observation struct {
 	ID          int64
 	AssetID     int64
