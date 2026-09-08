@@ -38,6 +38,16 @@ func (db *DB) FinishRun(ctx context.Context, runID int64, status string, nObs in
 	return nil
 }
 
+// HasDetail responde se a página de detalhe daquele ativo já foi coletada. É
+// o que separa "a fonte não publica esta métrica" de "ainda não fomos buscar".
+func (db *DB) HasDetail(ctx context.Context, assetID int64) (bool, error) {
+	has, err := db.q.HasDetailSource(ctx, assetID)
+	if err != nil {
+		return false, fmt.Errorf("has detail %d: %w", assetID, err)
+	}
+	return has, nil
+}
+
 func (db *DB) InsertObservations(ctx context.Context, runID int64, obs []domain.Observation) error {
 	if len(obs) == 0 {
 		return nil

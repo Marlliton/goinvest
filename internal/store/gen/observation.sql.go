@@ -12,6 +12,20 @@ import (
 	"github.com/marlliton/goinvest/internal/domain"
 )
 
+const hasDetailSource = `-- name: HasDetailSource :one
+SELECT EXISTS(
+  SELECT 1 FROM observation
+  WHERE asset_id = ? AND source LIKE 'fundamentus:detalhes%'
+) AS has_detail
+`
+
+func (q *Queries) HasDetailSource(ctx context.Context, assetID int64) (bool, error) {
+	row := q.db.QueryRowContext(ctx, hasDetailSource, assetID)
+	var has_detail bool
+	err := row.Scan(&has_detail)
+	return has_detail, err
+}
+
 const insertObservation = `-- name: InsertObservation :exec
 INSERT INTO observation
   (asset_id, metric_id, period_kind, period_end, value, unit, source, reference_at, fetched_at, run_id)

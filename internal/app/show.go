@@ -49,6 +49,9 @@ type LineView struct {
 	PeerN            *int
 	FellBackToMarket bool
 	SelicDelta       *float64
+	// Preenchido só quando a métrica é estruturalmente não aplicável. Ausência
+	// comum ("a fonte não informou") continua sendo Value nil com motivo vazio.
+	NotApplicableReason string
 }
 
 type BlockView struct {
@@ -106,6 +109,11 @@ func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string
 		h.SelicRate, h.SelicAt = rate, referenceAt
 	}
 
+	hasDetail, err := db.HasDetail(ctx, asset.AssetID)
+	if err != nil {
+		return Report{}, err
+	}
+
 	var percentiles map[domain.MetricID]store.AssetPercentile
 	if asset.IsActive {
 		h.PeerGroupLabel, h.PeerGroupN = peerGroup(asset)
@@ -119,7 +127,7 @@ func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string
 		Ticker: asset.Ticker,
 		Class:  asset.Class,
 		Header: h,
-		Blocks: blocks(cat, asset.Class, merged, percentiles, h),
+		Blocks: blocks(cat, asset, merged, percentiles, h, hasDetail),
 	}, nil
 }
 
@@ -193,8 +201,8 @@ func referenceKey(t *time.Time) int64 {
 	return t.UTC().Unix()
 }
 
-func blocks(cat *catalog.Catalog, class domain.AssetClass, merged domain.MetricSet, percentiles map[domain.MetricID]store.AssetPercentile, h HeaderView) []BlockView {
-	applicable := cat.MetricsFor(class)
+func blocks(cat *catalog.Catalog, asset domain.Asset, merged domain.MetricSet, percentiles map[domain.MetricID]store.AssetPercentile, h HeaderView, hasDetail bool) []BlockView {
+	applicable := cat.MetricsFor(asset.Class)
 
 	out := make([]BlockView, 0, len(cat.Blocks))
 	for _, b := range cat.BlocksOrdered() {
@@ -206,6 +214,15 @@ func blocks(cat *catalog.Catalog, class domain.AssetClass, merged domain.MetricS
 			// Nunca coletada some da tela; coletada sem valor vira "—".
 			o, ok := merged[m.ID]
 			if !ok {
+				// Sem o documento em mãos não dá para afirmar que a fonte não
+				// publica: seria vender palpite como conclusão.
+				if hasDetail && isSentinelSegment(m, asset.Segment) {
+					view.Lines = append(view.Lines, notApplicableLine(m, m.NotApplicable[originSector]))
+				}
+				continue
+			}
+			if reason := notApplicableReason(m, asset.Segment, merged, o.Value); reason != "" {
+				view.Lines = append(view.Lines, notApplicableLine(m, reason))
 				continue
 			}
 			line := LineView{
@@ -233,6 +250,45 @@ func blocks(cat *catalog.Catalog, class domain.AssetClass, merged domain.MetricS
 		}
 	}
 	return out
+}
+
+const (
+	originSector = "setor"
+	originAsset  = "ativo"
+)
+
+const equityID = domain.MetricID("patrim_liq")
+
+func notApplicableLine(m catalog.Metric, reason string) LineView {
+	return LineView{
+		MetricID:            m.ID,
+		Label:               m.Label,
+		Unit:                m.Unit,
+		Derived:             m.Derived,
+		Formula:             m.Formula,
+		NotApplicableReason: reason,
+	}
+}
+
+// A checagem de patrimônio prevalece sobre o número: o múltiplo é calculável,
+// mas compara preço com um patrimônio que não existe.
+func notApplicableReason(m catalog.Metric, segment string, merged domain.MetricSet, value *float64) string {
+	if m.NegativeEquityCheck && hasNonPositiveEquity(merged) {
+		return m.NotApplicable[originAsset]
+	}
+	if value == nil && isSentinelSegment(m, segment) {
+		return m.NotApplicable[originSector]
+	}
+	return ""
+}
+
+func isSentinelSegment(m catalog.Metric, segment string) bool {
+	return slices.Contains(m.SentinelSegments, segment)
+}
+
+func hasNonPositiveEquity(merged domain.MetricSet) bool {
+	o, ok := merged[equityID]
+	return ok && o.Value != nil && *o.Value <= 0
 }
 
 func sortedIDs(set domain.MetricSet) []domain.MetricID {

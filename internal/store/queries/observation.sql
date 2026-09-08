@@ -13,3 +13,9 @@ FROM (
   WHERE asset_id = ?
 )
 WHERE rn = 1;
+
+-- name: HasDetailSource :one
+SELECT EXISTS(
+  SELECT 1 FROM observation
+  WHERE asset_id = ? AND source LIKE 'fundamentus:detalhes%'
+) AS has_detail;
