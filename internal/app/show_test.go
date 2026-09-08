@@ -621,3 +621,21 @@ func TestShow_LineViewCarriesReferenceAt(t *testing.T) {
 	require.NotNil(t, ebit.ReferenceAt)
 	require.Equal(t, referenceAt, ebit.ReferenceAt.UTC())
 }
+
+func TestShowGoldenOutputBank(t *testing.T) {
+	db := openTemp(t)
+	values := wege3Values()
+	values["ev_ebitda"] = nil
+	seedBank(t, db, values)
+	seedDetail(t, db, "ITUB4", map[domain.MetricID]*float64{"lucro_liquido": ptr(35e9)})
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "ITUB4", now)
+	require.NoError(t, err)
+
+	text := app.RenderText(report)
+	requireGolden(t, "show_itub4_banco.txt", text)
+
+	require.Contains(t, text, "não se aplica", "a legenda ganha o quarto estado")
+	require.NotContains(t, text, "EV/EBITDA: —",
+		"o que a fonte nunca publicaria não pode sair como ausência comum")
+}

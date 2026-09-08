@@ -4,14 +4,16 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/marlliton/goinvest/internal/domain"
 )
 
 const (
-	markAbsent   = "—"
-	markDerived  = "ƒ"
-	markFallback = "*"
+	markAbsent        = "—"
+	markNotApplicable = "◌"
+	markDerived       = "ƒ"
+	markFallback      = "*"
 )
 
 func RenderText(r Report) string {
@@ -38,10 +40,16 @@ func RenderText(r Report) string {
 	}
 
 	sawAbsent, sawDerived, sawFallback, sawSmallerPeerN := false, false, false, false
+	sawNotApplicable := false
 	for _, block := range r.Blocks {
 		fmt.Fprintf(&b, "\n%s\n", block.Label)
 		for _, line := range block.Lines {
 			b.WriteString("  " + line.Label + ": ")
+			if line.NotApplicableReason != "" {
+				sawNotApplicable = true
+				fmt.Fprintf(&b, "%s (%s)\n", markNotApplicable, line.NotApplicableReason)
+				continue
+			}
 			if line.Value == nil {
 				sawAbsent = true
 				b.WriteString(markAbsent + "\n")
@@ -65,20 +73,28 @@ func RenderText(r Report) string {
 				sawDerived = true
 				fmt.Fprintf(&b, " %s (%s)", markDerived, line.Formula)
 			}
+			// Só a linha que destoa do cabeçalho carrega data: repeti-la em
+			// todas afogaria justamente a que o leitor precisa notar.
+			if line.ReferenceAt != nil && !sameDay(*line.ReferenceAt, r.Header.ReferenceAt) {
+				fmt.Fprintf(&b, " · ref %s", line.ReferenceAt.Format("02/01"))
+			}
 			b.WriteString("\n")
 		}
 	}
 
-	if legend := legend(sawAbsent, sawDerived, sawFallback, sawSmallerPeerN); legend != "" {
+	if legend := legend(sawAbsent, sawNotApplicable, sawDerived, sawFallback, sawSmallerPeerN); legend != "" {
 		fmt.Fprintf(&b, "\n%s\n", legend)
 	}
 	return b.String()
 }
 
-func legend(sawAbsent, sawDerived, sawFallback, sawSmallerPeerN bool) string {
+func legend(sawAbsent, sawNotApplicable, sawDerived, sawFallback, sawSmallerPeerN bool) string {
 	var parts []string
 	if sawAbsent {
 		parts = append(parts, markAbsent+" = fonte não informa")
+	}
+	if sawNotApplicable {
+		parts = append(parts, markNotApplicable+" = não se aplica a este ativo/setor")
 	}
 	if sawDerived {
 		parts = append(parts, markDerived+" = calculado por goinvest")
@@ -90,6 +106,15 @@ func legend(sawAbsent, sawDerived, sawFallback, sawSmallerPeerN bool) string {
 		parts = append(parts, "n = quantos papéis do grupo têm este indicador; pode ser menor que o total do cabeçalho")
 	}
 	return strings.Join(parts, " · ")
+}
+
+func sameDay(a time.Time, b *time.Time) bool {
+	if b == nil {
+		return a.IsZero()
+	}
+	ay, am, ad := a.UTC().Date()
+	by, bm, bd := b.UTC().Date()
+	return ay == by && am == bm && ad == bd
 }
 
 const sectorLevelSep = " / "

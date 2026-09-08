@@ -49,6 +49,7 @@ type LineView struct {
 	PeerN            *int
 	FellBackToMarket bool
 	SelicDelta       *float64
+	ReferenceAt      *time.Time
 	// Preenchido só quando a métrica é estruturalmente não aplicável. Ausência
 	// comum ("a fonte não informou") continua sendo Value nil com motivo vazio.
 	NotApplicableReason string
@@ -226,12 +227,13 @@ func blocks(cat *catalog.Catalog, asset domain.Asset, merged domain.MetricSet, p
 				continue
 			}
 			line := LineView{
-				MetricID: m.ID,
-				Label:    m.Label,
-				Value:    o.Value,
-				Unit:     m.Unit,
-				Derived:  m.Derived,
-				Formula:  m.Formula,
+				MetricID:    m.ID,
+				Label:       m.Label,
+				Value:       o.Value,
+				Unit:        m.Unit,
+				Derived:     m.Derived,
+				Formula:     m.Formula,
+				ReferenceAt: o.ReferenceAt,
 			}
 			if m.ID == dividendYieldID && h.SelicRate != nil && o.Value != nil {
 				delta := *o.Value - *h.SelicRate
