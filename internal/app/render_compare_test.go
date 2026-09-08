@@ -87,6 +87,7 @@ func TestRenderCompareText_BazinAndAlerts(t *testing.T) {
 	require.Contains(t, text, "BBAS3")
 	require.Contains(t, text, "ALERTA-01")
 	require.Contains(t, text, "112,50%")
+	require.Contains(t, text, "pp", "o sufixo do DY−Selic não é cortado")
 }
 
 // A tela do compare não carrega percentil nem n: com oito colunas o sufixo
@@ -110,4 +111,60 @@ func splitAtHeading(t *testing.T, text, heading string) (before, after string) {
 	i := strings.Index(text, heading)
 	require.GreaterOrEqual(t, i, 0, "cabeçalho %q ausente", heading)
 	return text[:i], text[i:]
+}
+
+// Truncar não corta um número, produz outro: "R$ 180.000.00" se lê como cento
+// e oitenta mil e é cento e oitenta milhões.
+func TestRenderCompareText_NeverTruncatesNumbers(t *testing.T) {
+	db := openTemp(t)
+	seedStocks(t, db, "WEGE3", "ROMI3", "KEPL3")
+
+	text := app.RenderCompareText(compareOf(t, db, "WEGE3", "ROMI3", "KEPL3"))
+	require.Contains(t, text, "R$ 180,0 mi", "liquidez de 180 milhões")
+	require.Contains(t, text, "R$ 15,0 bi", "patrimônio de 15 bilhões")
+	require.NotContains(t, text, "R$ 180.000.00")
+}
+
+func TestRenderCompareText_CompactScaleOnlyForMoney(t *testing.T) {
+	db := openTemp(t)
+	seedStocks(t, db, "WEGE3", "ROMI3", "KEPL3")
+
+	text := app.RenderCompareText(compareOf(t, db, "WEGE3", "ROMI3", "KEPL3"))
+	require.Contains(t, text, "30,00", "P/L é razão e sai inteiro")
+	require.Contains(t, text, "R$ 52,30", "cotação abaixo de mil não é abreviada")
+}
+
+// Toda coluna precisa terminar na mesma posição, senão a leitura vertical que
+// a comparação existe para dar se perde.
+func TestRenderCompareText_ColumnsAlign(t *testing.T) {
+	db := openTemp(t)
+	seedStocks(t, db, "WEGE3", "ROMI3", "KEPL3")
+
+	lines := strings.Split(app.RenderCompareText(compareOf(t, db, "WEGE3", "ROMI3", "KEPL3")), "\n")
+	var widths []int
+	for _, l := range lines {
+		if strings.HasPrefix(l, "P/L") || strings.HasPrefix(l, "Patrimônio") || strings.HasPrefix(l, "Cotação") {
+			widths = append(widths, len([]rune(strings.TrimRight(l, " "))))
+		}
+	}
+	require.Len(t, widths, 3)
+
+	starts := columnStarts(t, lines)
+	require.Len(t, starts, 3, "três colunas de ticker")
+}
+
+func columnStarts(t *testing.T, lines []string) []int {
+	t.Helper()
+	for _, l := range lines {
+		if !strings.Contains(l, "WEGE3") || !strings.Contains(l, "KEPL3") {
+			continue
+		}
+		var out []int
+		for _, ticker := range []string{"WEGE3", "ROMI3", "KEPL3"} {
+			out = append(out, strings.Index(l, ticker))
+		}
+		return out
+	}
+	t.Fatal("linha de cabeçalho de tickers ausente")
+	return nil
 }
