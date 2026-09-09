@@ -38,6 +38,9 @@ type Input struct {
 	SelicRate               *float64
 	DYPercentile            *float64
 	EBITNotApplicableReason string
+	// CurrentYearConcentration é o share do maior provento sobre o total
+	// recebido no ano corrente. nil significa nenhum provento este ano.
+	CurrentYearConcentration *float64
 }
 
 const (
@@ -47,6 +50,9 @@ const (
 	assetSaleShare  = 0.15
 	payoutOverFFO   = 1.0
 	medianPercentil = 0.5
+	// Mesmo critério de internal/bazin.Compute, duplicado porque evaluate
+	// não importa bazin.
+	atypicalEventShare = 0.5
 )
 
 // Fundo de papel e FoF não têm imóvel, logo não têm a pergunta da vacância.
@@ -65,7 +71,7 @@ const (
 	notForStock = "não se aplica a ação"
 )
 
-// Sempre os cinco resultados, na mesma ordem: omitir o alerta que não pôde ser
+// Sempre os sete resultados, na mesma ordem: omitir o alerta que não pôde ser
 // avaliado faria a ausência de aviso virar aprovação.
 func Detect(in Input) []Finding {
 	stock := in.Class != domain.ClassFII
@@ -76,6 +82,8 @@ func Detect(in Input) []Finding {
 		classGate("ALERTA-03", stock, notForFII, func() Finding { return profitTrap(in) }),
 		classGate("ALERTA-04", !stock, notForStock, func() Finding { return assetSaleTrap(in) }),
 		classGate("ALERTA-05", !stock, notForStock, func() Finding { return vacancyTrap(in) }),
+		classGate("ALERTA-08", true, "", func() Finding { return dividendYieldTrap(in) }),
+		classGate("ALERTA-09", stock, notForFII, func() Finding { return profitLossTrap(in) }),
 	}
 }
 
@@ -190,6 +198,26 @@ func vacancyLimit(segment string) (float64, bool) {
 		}
 	}
 	return 0, false
+}
+
+func dividendYieldTrap(in Input) Finding {
+	if in.CurrentYearConcentration == nil {
+		return notEvaluated("nenhum provento no ano corrente; sem sinal de concentração")
+	}
+	share := *in.CurrentYearConcentration
+	return decide(share > atypicalEventShare,
+		"um provento isolado responde por mais da metade do recebido no ano corrente",
+		map[string]float64{"concentracao_ano_corrente": share})
+}
+
+func profitLossTrap(in Input) Finding {
+	pl, ok := value(in.Metrics, "pl")
+	if !ok {
+		return notEvaluated("P/L não disponível")
+	}
+	return decide(pl < 0,
+		"P/L negativo: a empresa reportou prejuízo no período",
+		map[string]float64{"pl": pl})
 }
 
 func decide(fired bool, rule string, numbers map[string]float64) Finding {
