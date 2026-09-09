@@ -1,0 +1,65 @@
+BBAS3 · Ação
+Referência: desconhecida (fonte não informa) · coletado há 2 dias
+Setor: desconhecido
+Custo de oportunidade
+  Premissa: considerando dividendo isento e renda fixa tributada a 15,00% (arquivo ausente; usando padrão embutido, crie config.toml para mudar)
+  Selic: 14,00% bruto (01/09/2026) · líquido 11,90% · spread +0,10pp
+  CDI: — (CDI desconhecida; rode 'goinvest sync')
+  Tesouro IPCA+ (~10 anos): — (Tesouro IPCA+ (~10 anos) desconhecida; rode 'goinvest sync')
+cadastro incompleto: 1 de 1
+
+Cotação
+  Cotação: R$ 24,00
+  Liquidez 2 meses: R$ 180.000.000,00
+
+Valuation
+  P/L: 30,00
+  P/VP: 9,50
+  PSR: 6,00
+  P/Ativo: 4,00
+  P/Cap.Giro: 8,00
+  P/EBIT: 25,00
+  P/Ativ Circ.Líq: -3,00
+  EV/EBIT: 24,00
+  EV/EBITDA: 20,00
+
+Rentabilidade
+  Margem Bruta: 32,00%
+  Margem EBIT: 20,00%
+  Margem Líquida: 17,00%
+  ROIC: 28,00%
+  ROE: 25,00%
+  ROA: 10,53% ƒ (Lucro Líquido ÷ Ativo Total)
+  Crescimento Receita 5a: 6,00%
+
+Endividamento
+  Liquidez Corrente: 2,10
+  Patrimônio Líquido: R$ 15.000.000.000,00
+  Dív.Líq/Patrimônio: 0,10
+  Dív.Líq./EBITDA: 0,21 ƒ (Dívida Líquida ÷ EBITDA)
+
+Dividendos
+  Dividend Yield: 2,00% · DY−Selic: -12,00pp
+  Payout: 60,00% ƒ (DY × P/L)
+
+Retorno esperado
+  Lucro/preço: 3,33% · Distribuído (DY): 2,00% · Retido: 40,00%
+  Crescimento implícito (g = ROE × retenção): 10,00%
+  Retorno esperado total: 12,00% · Payback: 30,0 anos (P/L lido como tempo)
+
+Preço-teto (Bazin)
+  Teto: R$ 20,00 · Cotação: R$ 24,00 · Ágio/deságio: +20,00%
+  Anos usados: 5 de 5
+  Faixa: R$ 4,80 (Gordon) a R$ 20,00 (Bazin) — cotação de hoje R$ 24,00, acima da faixa
+  Gordon: Ke 20,00% · g 10,00%
+  sensibilidade (g implícito, g=10,00%): R$ 4,80
+  sensibilidade (histórico 5a, g=6,00%): R$ 3,43
+  sensibilidade (crescimento zero, g=0,00%): R$ 2,40
+  DY 12m: 2,00% · DY mediano 5a: 5,00%
+  2025: R$ 1,20
+  2024: R$ 1,20
+  2023: R$ 1,20
+  2022: R$ 1,20
+  2021: R$ 1,20
+
+ƒ = calculado por goinvest

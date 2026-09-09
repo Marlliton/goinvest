@@ -240,10 +240,12 @@ func bazinText(v BazinView) string {
 			fmt.Fprintf(&b, "  Faixa: Bazin %s — Gordon não aplicável (%s)\n",
 				formatValue(v.Ceiling, domain.UnitBRL), v.Gordon.NotApplicableReason)
 		} else {
-			lo, hi := min(v.Ceiling, v.Gordon.Ceiling), max(v.Ceiling, v.Gordon.Ceiling)
-			fmt.Fprintf(&b, "  Faixa: %s (Bazin) a %s (Gordon) — cotação de hoje %s, %s\n",
-				formatValue(lo, domain.UnitBRL), formatValue(hi, domain.UnitBRL),
-				formatValue(v.CurrentPrice, domain.UnitBRL), rangePosition(v.CurrentPrice, lo, hi))
+			lo, hi := orderedRange(v.Ceiling, v.Gordon.Ceiling)
+			fmt.Fprintf(&b, "  Faixa: %s (%s) a %s (%s) — cotação de hoje %s, %s\n",
+				formatValue(lo.ceiling, domain.UnitBRL), lo.method,
+				formatValue(hi.ceiling, domain.UnitBRL), hi.method,
+				formatValue(v.CurrentPrice, domain.UnitBRL),
+				rangePosition(v.CurrentPrice, lo.ceiling, hi.ceiling))
 			fmt.Fprintf(&b, "  Gordon: Ke %s · g %s\n",
 				formatValue(v.Gordon.RequiredReturn, domain.UnitPercent),
 				formatValue(v.Gordon.ImpliedGrowth, domain.UnitPercent))
@@ -262,6 +264,22 @@ func bazinText(v BazinView) string {
 		fmt.Fprintf(&b, "  %d: %s\n", y.Year, formatValue(y.Total, domain.UnitBRL))
 	}
 	return b.String()
+}
+
+// orderedRange devolve os dois tetos do menor para o maior mantendo o método
+// colado no seu próprio valor: qual dos dois é o maior depende dos dados.
+func orderedRange(bazinCeiling, gordonCeiling float64) (lo, hi rangeBound) {
+	lo = rangeBound{method: "Bazin", ceiling: bazinCeiling}
+	hi = rangeBound{method: "Gordon", ceiling: gordonCeiling}
+	if lo.ceiling > hi.ceiling {
+		lo, hi = hi, lo
+	}
+	return lo, hi
+}
+
+type rangeBound struct {
+	method  string
+	ceiling float64
 }
 
 func rangePosition(price, lo, hi float64) string {

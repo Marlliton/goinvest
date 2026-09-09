@@ -708,7 +708,7 @@ func TestShowGordonCeilingWithSensitivity(t *testing.T) {
 	dividendPerShare := 0.06 * 24.00
 	wantCeiling := dividendPerShare / (required - g)
 	require.InDelta(t, wantCeiling, report.Bazin.Gordon.Ceiling, 1e-9)
-	require.GreaterOrEqual(t, len(report.Bazin.Gordon.Sensitivity), 2)
+	require.GreaterOrEqual(t, len(report.Bazin.Gordon.Sensitivity), 3)
 
 	text := app.RenderText(report)
 	require.Contains(t, text, "Faixa:")

@@ -120,10 +120,11 @@ func compareHighlights(col CompareColumn) string {
 
 	if col.Bazin != nil && col.Bazin.NotApplicableReason == "" {
 		if col.Bazin.Gordon != nil && col.Bazin.Gordon.NotApplicableReason == "" {
-			lo, hi := min(col.Bazin.Ceiling, col.Bazin.Gordon.Ceiling), max(col.Bazin.Ceiling, col.Bazin.Gordon.Ceiling)
-			fmt.Fprintf(&b, "\n%s · Faixa: %s (Bazin) a %s (Gordon) · cotação %s · ágio/deságio %s%%\n",
+			lo, hi := orderedRange(col.Bazin.Ceiling, col.Bazin.Gordon.Ceiling)
+			fmt.Fprintf(&b, "\n%s · Faixa: %s (%s) a %s (%s) · cotação %s · ágio/deságio %s%%\n",
 				col.Ticker,
-				formatValue(lo, domain.UnitBRL), formatValue(hi, domain.UnitBRL),
+				formatValue(lo.ceiling, domain.UnitBRL), lo.method,
+				formatValue(hi.ceiling, domain.UnitBRL), hi.method,
 				formatValue(col.Bazin.CurrentPrice, domain.UnitBRL),
 				formatSignedBR(col.Bazin.PremiumDiscount*100, 2))
 		} else {

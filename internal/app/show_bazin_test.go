@@ -42,6 +42,35 @@ func seedBBAS3(t *testing.T, db *store.DB, withSelic bool) *store.DB {
 	return db
 }
 
+func TestShowGoldenOutputRange(t *testing.T) {
+	db := openTemp(t)
+	values := wege3Values()
+	values["cotacao"] = ptr(24.00)
+	values["dy"] = ptr(0.02)
+	values["cresc_rec_5a"] = ptr(0.06)
+	seed(t, db, "BBAS3", domain.ClassStock, values)
+	require.NoError(t, db.PutSelic(t.Context(), 0.14, collectedAt, collectedAt))
+	seedBazinYears(t, db, "BBAS3", 2021, 2025, 1.20)
+
+	report := bazinReport(t, db, "BBAS3")
+	text := app.RenderText(report)
+	requireGolden(t, "show_bbas3.txt", text)
+
+	require.Contains(t, text, "Faixa:", "a faixa Bazin-Gordon aparece na tela")
+	require.Contains(t, text, "Gordon: Ke", "o retorno exigido fica visível")
+	require.Contains(t, text, "sensibilidade", "a tabela de sensibilidade aparece")
+	require.GreaterOrEqual(t, len(report.Bazin.Gordon.Sensitivity), 3,
+		"o critério da fase pede pelo menos três hipóteses de crescimento")
+
+	growths := map[float64]bool{}
+	for _, point := range report.Bazin.Gordon.Sensitivity {
+		growths[point.Growth] = true
+	}
+	require.GreaterOrEqual(t, len(growths), 3, "as hipóteses precisam ser distintas entre si")
+	require.Positive(t, report.Bazin.Gordon.ImpliedGrowth,
+		"payout abaixo de 100% precisa produzir crescimento implícito positivo")
+}
+
 func TestShow_BazinCeiling(t *testing.T) {
 	db := seedBBAS3(t, openTemp(t), true)
 	// 1,20 por ano em dividendo puro: teto = 1,20 / 0,06 = 20,00.
