@@ -346,3 +346,124 @@ func TestSyncWithoutSelicProvider(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, found)
 }
+
+type fakeCDI struct {
+	rate        float64
+	referenceAt time.Time
+	err         error
+}
+
+func (f fakeCDI) Name() string { return "bcb" }
+
+func (f fakeCDI) CDI(context.Context, bool) (float64, time.Time, error) {
+	return f.rate, f.referenceAt, f.err
+}
+
+type fakeTesouro struct {
+	rate        float64
+	referenceAt time.Time
+	err         error
+}
+
+func (f fakeTesouro) Name() string { return "tesouro-transparente" }
+
+func (f fakeTesouro) IPCA10y(context.Context, bool) (float64, time.Time, error) {
+	return f.rate, f.referenceAt, f.err
+}
+
+type fakeFocus struct {
+	rate        float64
+	referenceAt time.Time
+	err         error
+}
+
+func (f fakeFocus) Name() string { return "bcb-focus" }
+
+func (f fakeFocus) FocusIPCA12m(context.Context, bool) (float64, time.Time, error) {
+	return f.rate, f.referenceAt, f.err
+}
+
+func syncWithMacro(t *testing.T, db *store.DB, cdi provider.CDIProvider, tesouro provider.TesouroIPCAProvider, focus provider.FocusIPCAProvider) collect.Report {
+	t.Helper()
+
+	client := fetch.NewClient(fetch.Config{RateEvery: testRateEvery})
+	p := fundamentus.NewProvider(client, newHealthySource(t).URL, time.Now)
+
+	report, err := collect.Sync(t.Context(), collect.Config{
+		Providers: map[domain.AssetClass]provider.UniverseProvider{
+			domain.ClassStock: p,
+			domain.ClassFII:   p,
+		},
+		DB:      db,
+		CDI:     cdi,
+		Tesouro: tesouro,
+		Focus:   focus,
+	})
+	require.NoError(t, err)
+	return report
+}
+
+func TestSyncWritesMacroStages(t *testing.T) {
+	db := openDB(t)
+	ref := time.Date(2026, 9, 16, 0, 0, 0, 0, time.UTC)
+
+	report := syncWithMacro(t, db,
+		fakeCDI{rate: 0.1465, referenceAt: ref},
+		fakeTesouro{rate: 0.07, referenceAt: ref},
+		fakeFocus{rate: 0.045, referenceAt: ref},
+	)
+
+	require.Equal(t, collect.StatusOK, report.CDI.Status)
+	require.Equal(t, "bcb", report.CDI.Source)
+	require.Equal(t, collect.StatusOK, report.Tesouro.Status)
+	require.Equal(t, "tesouro-transparente", report.Tesouro.Source)
+	require.Equal(t, collect.StatusOK, report.Focus.Status)
+	require.Equal(t, "bcb-focus", report.Focus.Source)
+
+	cdi, _, _, found, err := db.GetCDI(t.Context())
+	require.NoError(t, err)
+	require.True(t, found)
+	require.InDelta(t, 0.1465, *cdi, 1e-9)
+
+	tesouroRate, _, _, found, err := db.GetTesouroIPCA10y(t.Context())
+	require.NoError(t, err)
+	require.True(t, found)
+	require.InDelta(t, 0.07, *tesouroRate, 1e-9)
+
+	focusRate, _, _, found, err := db.GetFocusIPCA12m(t.Context())
+	require.NoError(t, err)
+	require.True(t, found)
+	require.InDelta(t, 0.045, *focusRate, 1e-9)
+}
+
+func TestSyncIsolatesMacroStageFailures(t *testing.T) {
+	db := openDB(t)
+	ref := time.Date(2026, 9, 16, 0, 0, 0, 0, time.UTC)
+
+	report := syncWithMacro(t, db,
+		fakeCDI{rate: 0.1465, referenceAt: ref},
+		fakeTesouro{err: errors.New("tesouro fora do ar")},
+		fakeFocus{rate: 0.045, referenceAt: ref},
+	)
+
+	require.Equal(t, collect.StatusOK, report.Stocks.Status)
+	require.Equal(t, collect.StatusOK, report.FIIs.Status)
+	require.Equal(t, collect.StatusOK, report.CDI.Status)
+	require.Equal(t, collect.StatusPartial, report.Tesouro.Status)
+	require.Contains(t, report.Tesouro.Reason, "tesouro fora do ar")
+	require.Equal(t, collect.StatusOK, report.Focus.Status)
+}
+
+func TestSyncWithoutMacroProviders(t *testing.T) {
+	db := openDB(t)
+
+	report := syncWithMacro(t, db, nil, nil, nil)
+
+	require.Empty(t, report.CDI.Status)
+	require.Empty(t, report.Tesouro.Status)
+	require.Empty(t, report.Focus.Status)
+
+	_, _, _, found, err := db.GetCDI(t.Context())
+	require.NoError(t, err)
+	require.False(t, found)
+}
