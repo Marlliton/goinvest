@@ -37,6 +37,11 @@ Dividendos
   Dividend Yield: 1,20%
   Payout: 36,00% ƒ (DY × P/L)
 
+Retorno esperado
+  Lucro/preço: 3,33% · Distribuído (DY): 1,20% · Retido: 64,00%
+  Crescimento implícito (g = ROE × retenção): 16,00%
+  Retorno esperado total: 17,20% · Payback: 30,0 anos (P/L lido como tempo)
+
 Preço-teto (Bazin): não aplicável (nenhum provento coletado; rode 'goinvest detalhar ITUB4')
 
 — = fonte não informa · ƒ = calculado por goinvest
