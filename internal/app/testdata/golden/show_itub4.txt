@@ -1,7 +1,11 @@
 ITUB4 · Ação
 Referência: desconhecida (fonte não informa) · coletado há 2 dias
 Setor: desconhecido
-Selic: desconhecida
+Custo de oportunidade
+  Premissa: considerando dividendo isento e renda fixa tributada a 15,00% (arquivo ausente; usando padrão embutido, crie config.toml para mudar)
+  Selic: — (Selic desconhecida; rode 'goinvest sync')
+  CDI: — (CDI desconhecida; rode 'goinvest sync')
+  Tesouro IPCA+ (~10 anos): — (Tesouro IPCA+ (~10 anos) desconhecida; rode 'goinvest sync')
 cadastro incompleto: 1 de 1
 
 Cotação

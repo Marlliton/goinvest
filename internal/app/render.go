@@ -33,7 +33,7 @@ func RenderText(r Report) string {
 		fmt.Fprintf(&b, "⚠ papel %s · fora de rankings e comparações\n", liquidityText(r.Header))
 	}
 	b.WriteString(sectorLine(r.Header) + "\n")
-	b.WriteString(selicLine(r.Header) + "\n")
+	b.WriteString(opportunityCostText(r.OpportunityCost))
 	if r.Header.IncompleteRegistry > 0 {
 		fmt.Fprintf(&b, "cadastro incompleto: %d de %d\n",
 			r.Header.IncompleteRegistry, r.Header.TotalInClass)
@@ -145,6 +145,47 @@ var alertNumberFormats = map[string]struct {
 	"vacancia_media":       {"vacância", domain.UnitPercent},
 	"limiar":               {"limiar do segmento", domain.UnitPercent},
 	"dy_percentil":         {"percentil do DY no segmento", domain.UnitPercent},
+}
+
+func opportunityCostText(v *OpportunityCostView) string {
+	if v == nil {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("Custo de oportunidade\n")
+	fmt.Fprintf(&b, "  Premissa: %s\n", taxPremiseLine(v.TaxAssumption))
+	if v.IPCANominalizationNote != "" {
+		fmt.Fprintf(&b, "  %s\n", v.IPCANominalizationNote)
+	}
+	for _, a := range v.Anchors {
+		if a.NotEvaluatedReason != "" {
+			fmt.Fprintf(&b, "  %s: %s (%s)\n", a.Label, markAbsent, a.NotEvaluatedReason)
+			continue
+		}
+		fmt.Fprintf(&b, "  %s: %s bruto", a.Label, formatValue(*a.RateGross, domain.UnitPercent))
+		if a.ReferenceAt != nil {
+			fmt.Fprintf(&b, " (%s)", a.ReferenceAt.Format("02/01/2006"))
+		}
+		fmt.Fprintf(&b, " · líquido %s", formatValue(*a.RateNet, domain.UnitPercent))
+		if a.SpreadNet != nil {
+			fmt.Fprintf(&b, " · spread %spp", formatSignedBR(*a.SpreadNet*100, 2))
+		}
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
+func taxPremiseLine(t TaxAssumptionView) string {
+	dividendLabel := "tributado a " + formatValue(t.AliquotaAtivo, domain.UnitPercent)
+	if t.AliquotaAtivo == 0 {
+		dividendLabel = "isento"
+	}
+	source := "config em " + t.ConfigPath
+	if !t.FromFile {
+		source = "arquivo ausente; usando padrão embutido, crie " + t.ConfigPath + " para mudar"
+	}
+	return fmt.Sprintf("considerando dividendo %s e renda fixa tributada a %s (%s)",
+		dividendLabel, formatValue(t.AliquotaRendaFixa, domain.UnitPercent), source)
 }
 
 const expectedReturnLabel = "Retorno esperado"
@@ -282,14 +323,6 @@ func sectorLine(h HeaderView) string {
 		levels = append(levels, h.Segment)
 	}
 	return "Setor: " + strings.Join(levels, sectorLevelSep)
-}
-
-func selicLine(h HeaderView) string {
-	if h.SelicRate == nil {
-		return "Selic: desconhecida"
-	}
-	return fmt.Sprintf("Selic: %s (%s)",
-		formatValue(*h.SelicRate, domain.UnitPercent), h.SelicAt.Format("02/01/2006"))
 }
 
 func liquidityText(h HeaderView) string {

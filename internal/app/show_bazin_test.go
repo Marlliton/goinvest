@@ -24,7 +24,7 @@ func seedBazinYears(t *testing.T, db *store.DB, ticker string, first, last int, 
 
 func bazinReport(t *testing.T, db *store.DB, ticker string) app.Report {
 	t.Helper()
-	report, err := app.Show(t.Context(), db, loadCatalog(t), ticker, now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), ticker, defaultTax, now)
 	require.NoError(t, err)
 	require.NotNil(t, report.Bazin)
 	return report
