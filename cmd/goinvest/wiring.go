@@ -7,6 +7,7 @@ import (
 
 	"github.com/adrg/xdg"
 	"github.com/marlliton/goinvest/internal/catalog"
+	"github.com/marlliton/goinvest/internal/config"
 	"github.com/marlliton/goinvest/internal/domain"
 	"github.com/marlliton/goinvest/internal/fetch"
 	"github.com/marlliton/goinvest/internal/provider"
@@ -14,6 +15,7 @@ import (
 	"github.com/marlliton/goinvest/internal/provider/bcb"
 	"github.com/marlliton/goinvest/internal/provider/cvm"
 	"github.com/marlliton/goinvest/internal/provider/fundamentus"
+	"github.com/marlliton/goinvest/internal/provider/tesouro"
 	"github.com/marlliton/goinvest/internal/store"
 )
 
@@ -22,7 +24,9 @@ const (
 	fundamentusBaseURL = "https://www.fundamentus.com.br"
 	b3BaseURL          = "https://sistemaswebb3-listados.b3.com.br"
 	bcbBaseURL         = "https://api.bcb.gov.br"
+	bcbOlindaBaseURL   = "https://olinda.bcb.gov.br"
 	cvmBaseURL         = "https://dados.cvm.gov.br/dados/FII/DOC/INF_MENSAL/DADOS"
+	tesouroCSVURL      = "https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv"
 	rateEvery          = 2 * time.Second
 )
 
@@ -37,6 +41,10 @@ type rootDeps struct {
 	Fundamentus provider.FIISegmentProvider
 	Detail      provider.DetailProvider
 	Selic       provider.SelicProvider
+	CDI         provider.CDIProvider
+	Focus       provider.FocusIPCAProvider
+	Tesouro     provider.TesouroIPCAProvider
+	Tax         config.Result
 }
 
 type dbCache struct{ db *store.DB }
@@ -76,6 +84,18 @@ func build() (rootDeps, error) {
 	})
 
 	p := fundamentus.NewProvider(client, fundamentusBaseURL, time.Now)
+	bcbProvider := bcb.NewProvider(client, bcbBaseURL, time.Now)
+
+	taxPath, err := xdg.ConfigFile("goinvest/config.toml")
+	if err != nil {
+		db.Close()
+		return rootDeps{}, fmt.Errorf("caminho da config: %w", err)
+	}
+	tax, err := config.Load(taxPath)
+	if err != nil {
+		db.Close()
+		return rootDeps{}, err
+	}
 
 	return rootDeps{
 		DB:      db,
@@ -88,6 +108,10 @@ func build() (rootDeps, error) {
 		CVM:         cvm.NewProvider(client, cvmBaseURL, cvmYears, time.Now),
 		Fundamentus: p,
 		Detail:      p,
-		Selic:       bcb.NewProvider(client, bcbBaseURL, time.Now),
+		Selic:       bcbProvider,
+		CDI:         bcbProvider,
+		Focus:       bcb.NewFocusProvider(client, bcbOlindaBaseURL, time.Now),
+		Tesouro:     tesouro.NewProvider(client, tesouroCSVURL, time.Now),
+		Tax:         tax,
 	}, nil
 }

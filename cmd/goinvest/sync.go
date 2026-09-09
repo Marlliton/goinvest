@@ -23,6 +23,9 @@ func newSyncCmd(deps rootDeps) *cobra.Command {
 				DB:        deps.DB,
 				Catalog:   deps.Catalog,
 				Selic:     deps.Selic,
+				CDI:       deps.CDI,
+				Tesouro:   deps.Tesouro,
+				Focus:     deps.Focus,
 				Force:     force,
 				Now:       time.Now,
 			})
@@ -34,6 +37,9 @@ func newSyncCmd(deps rootDeps) *cobra.Command {
 			fmt.Fprintln(out, stageLine("ações", report.Stocks))
 			fmt.Fprintln(out, stageLine("FIIs", report.FIIs))
 			fmt.Fprintln(out, rateLine("Selic", report.Selic))
+			fmt.Fprintln(out, rateLine("CDI", report.CDI))
+			fmt.Fprintln(out, rateLine("Tesouro IPCA+ (10a)", report.Tesouro))
+			fmt.Fprintln(out, rateLine("Focus IPCA (12m)", report.Focus))
 			if report.SectorStats != "" {
 				fmt.Fprintf(out, "✗ referência setorial · %s\n", report.SectorStats)
 			}

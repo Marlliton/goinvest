@@ -24,6 +24,21 @@ type SelicProvider interface {
 	Selic(ctx context.Context, force bool) (rate float64, referenceAt time.Time, err error)
 }
 
+type CDIProvider interface {
+	Namer
+	CDI(ctx context.Context, force bool) (rate float64, referenceAt time.Time, err error)
+}
+
+type TesouroIPCAProvider interface {
+	Namer
+	IPCA10y(ctx context.Context, force bool) (rate float64, referenceAt time.Time, err error)
+}
+
+type FocusIPCAProvider interface {
+	Namer
+	FocusIPCA12m(ctx context.Context, force bool) (rate float64, referenceAt time.Time, err error)
+}
+
 type IdentityProvider interface {
 	Namer
 	Companies(ctx context.Context, force bool) ([]identity.CompanyRef, error)

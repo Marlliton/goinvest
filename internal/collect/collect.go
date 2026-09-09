@@ -37,6 +37,9 @@ type Report struct {
 	Stocks      SourceResult
 	FIIs        SourceResult
 	Selic       SourceResult
+	CDI         SourceResult
+	Tesouro     SourceResult
+	Focus       SourceResult
 	SectorStats string
 }
 
@@ -45,6 +48,9 @@ type Config struct {
 	DB        *store.DB
 	Catalog   *catalog.Catalog
 	Selic     provider.SelicProvider
+	CDI       provider.CDIProvider
+	Tesouro   provider.TesouroIPCAProvider
+	Focus     provider.FocusIPCAProvider
 	Force     bool
 	Now       func() time.Time
 }
@@ -63,6 +69,15 @@ func Sync(ctx context.Context, cfg Config) (Report, error) {
 	}
 	if cfg.Selic != nil {
 		report.Selic = collectSelic(ctx, cfg)
+	}
+	if cfg.CDI != nil {
+		report.CDI = collectCDI(ctx, cfg)
+	}
+	if cfg.Tesouro != nil {
+		report.Tesouro = collectTesouro(ctx, cfg)
+	}
+	if cfg.Focus != nil {
+		report.Focus = collectFocus(ctx, cfg)
 	}
 
 	if cfg.Catalog != nil {
@@ -99,6 +114,60 @@ func collectSelic(ctx context.Context, cfg Config) SourceResult {
 	}
 
 	if err := cfg.DB.PutSelic(ctx, rate, referenceAt, cfg.Now()); err != nil {
+		res.Status, res.Reason = StatusPartial, err.Error()
+	}
+
+	res.Duration = cfg.Now().Sub(started)
+	return res
+}
+
+func collectCDI(ctx context.Context, cfg Config) SourceResult {
+	started := cfg.Now()
+	res := SourceResult{Source: cfg.CDI.Name(), Status: StatusOK}
+
+	rate, referenceAt, err := cfg.CDI.CDI(ctx, cfg.Force)
+	if err != nil {
+		res.Status, res.Reason, res.Duration = StatusPartial, err.Error(), cfg.Now().Sub(started)
+		return res
+	}
+
+	if err := cfg.DB.PutCDI(ctx, rate, referenceAt, cfg.Now()); err != nil {
+		res.Status, res.Reason = StatusPartial, err.Error()
+	}
+
+	res.Duration = cfg.Now().Sub(started)
+	return res
+}
+
+func collectTesouro(ctx context.Context, cfg Config) SourceResult {
+	started := cfg.Now()
+	res := SourceResult{Source: cfg.Tesouro.Name(), Status: StatusOK}
+
+	rate, referenceAt, err := cfg.Tesouro.IPCA10y(ctx, cfg.Force)
+	if err != nil {
+		res.Status, res.Reason, res.Duration = StatusPartial, err.Error(), cfg.Now().Sub(started)
+		return res
+	}
+
+	if err := cfg.DB.PutTesouroIPCA10y(ctx, rate, referenceAt, cfg.Now()); err != nil {
+		res.Status, res.Reason = StatusPartial, err.Error()
+	}
+
+	res.Duration = cfg.Now().Sub(started)
+	return res
+}
+
+func collectFocus(ctx context.Context, cfg Config) SourceResult {
+	started := cfg.Now()
+	res := SourceResult{Source: cfg.Focus.Name(), Status: StatusOK}
+
+	rate, referenceAt, err := cfg.Focus.FocusIPCA12m(ctx, cfg.Force)
+	if err != nil {
+		res.Status, res.Reason, res.Duration = StatusPartial, err.Error(), cfg.Now().Sub(started)
+		return res
+	}
+
+	if err := cfg.DB.PutFocusIPCA12m(ctx, rate, referenceAt, cfg.Now()); err != nil {
 		res.Status, res.Reason = StatusPartial, err.Error()
 	}
 
