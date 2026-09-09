@@ -80,9 +80,10 @@ func TestRenderCompareText_BazinAndAlerts(t *testing.T) {
 
 	text := app.RenderCompareText(compareOf(t, db, "BBAS3", "ROMI3", "KEPL3"))
 
-	require.Contains(t, text, "Preço-teto (Bazin)")
+	require.Contains(t, text, "Faixa:")
 	require.Contains(t, text, "R$ 20,00")
 	require.NotContains(t, text, "2025: R$", "a lista anual é exclusiva do show")
+	require.NotContains(t, text, "sensibilidade", "a sensibilidade é exclusiva do show")
 
 	require.Contains(t, text, "BBAS3")
 	require.Contains(t, text, "ALERTA-01")

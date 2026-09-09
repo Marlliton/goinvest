@@ -45,7 +45,7 @@ func TestRenderCompareJSON_SchemaVersion(t *testing.T) {
 	seedStocks(t, db, "WEGE3", "ROMI3", "KEPL3")
 
 	doc := decodeJSON(t, compareOf(t, db, "WEGE3", "ROMI3", "KEPL3"))
-	require.Equal(t, float64(1), doc["schema_version"])
+	require.Equal(t, float64(2), doc["schema_version"])
 }
 
 func TestRenderCompareJSON_NumbersAreNumbers(t *testing.T) {
@@ -158,7 +158,50 @@ func TestRenderCompareJSON_EmptyReportIsValidJSON(t *testing.T) {
 	raw, err := app.RenderCompareJSON(app.CompareReport{})
 	require.NoError(t, err)
 	require.NoError(t, json.Unmarshal(raw, &doc))
-	require.Equal(t, float64(1), doc["schema_version"])
+	require.Equal(t, float64(2), doc["schema_version"])
+}
+
+func TestRenderCompareJSON_SchemaVersionIsTwo(t *testing.T) {
+	db := openTemp(t)
+	seedStocks(t, db, "WEGE3", "ROMI3", "KEPL3")
+
+	doc := decodeJSON(t, compareOf(t, db, "WEGE3", "ROMI3", "KEPL3"))
+	require.Equal(t, float64(2), doc["schema_version"])
+}
+
+func TestRenderCompareJSON_BazinCarriesGordonAndMedianDY(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "BBAS3", domain.ClassStock, map[domain.MetricID]*float64{
+		"cotacao":      ptr(24.00),
+		"pl":           ptr(8.0),
+		"dy":           ptr(0.06),
+		"roe":          ptr(0.18),
+		"cresc_rec_5a": ptr(0.05),
+	})
+	seedStocks(t, db, "ROMI3", "KEPL3")
+	require.NoError(t, db.PutSelic(t.Context(), 0.14, collectedAt, collectedAt))
+	seedBazinYears(t, db, "BBAS3", 2021, 2025, 1.20)
+
+	col := firstColumn(t, decodeJSON(t, compareOf(t, db, "BBAS3", "ROMI3", "KEPL3")))
+	bz, ok := col["bazin"].(map[string]any)
+	require.True(t, ok, "bazin ausente")
+
+	gordon, ok := bz["gordon"].(map[string]any)
+	require.True(t, ok, "gordon ausente")
+	require.NotZero(t, gordon["ceiling"])
+	require.NotNil(t, bz["median_dividend_yield"])
+
+	seed(t, db, "MXRF11", domain.ClassFII, map[domain.MetricID]*float64{
+		"cotacao": ptr(9.87), "pvp": ptr(1.02), "dy": ptr(0.132),
+	})
+	seedBazinYears(t, db, "MXRF11", 2021, 2025, 0.80)
+
+	fiiCol := firstColumn(t, decodeJSON(t, compareOf(t, db, "MXRF11")))
+	fiiBazin, ok := fiiCol["bazin"].(map[string]any)
+	require.True(t, ok, "bazin ausente para o FII")
+	fiiGordon, ok := fiiBazin["gordon"].(map[string]any)
+	require.True(t, ok, "gordon ausente para o FII")
+	require.NotEmpty(t, fiiGordon["not_applicable_reason"])
 }
 
 // O contrato não pode nascer dependente da ordem de iteração de um mapa Go.
