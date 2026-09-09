@@ -66,6 +66,20 @@ type BlockView struct {
 	Lines []LineView
 }
 
+type SensitivityPoint struct {
+	Label   string
+	Growth  float64
+	Ceiling float64
+}
+
+type GordonView struct {
+	Ceiling             float64
+	RequiredReturn      float64
+	ImpliedGrowth       float64
+	Sensitivity         []SensitivityPoint
+	NotApplicableReason string
+}
+
 type BazinView struct {
 	Ceiling             float64
 	CurrentPrice        float64
@@ -73,6 +87,9 @@ type BazinView struct {
 	YearsUsed           int
 	Years               []bazin.YearlyDividend
 	AtypicalYears       []int
+	Gordon              *GordonView
+	MedianDividendYield *float64
+	TwelveMonthYield    *float64
 	NotApplicableReason string
 }
 
@@ -126,7 +143,7 @@ func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string
 		Class:          asset.Class,
 		Header:         h,
 		Blocks:         blocks(cat, asset, data.merged, data.percentiles, h, data.hasDetail, alerts),
-		Bazin:          bazinView(data.events, data.merged, h, asset.Ticker, now()),
+		Bazin:          bazinView(data.events, data.merged, h, asset.Ticker, asset.Class, now()),
 		ExpectedReturn: expectedReturnView(asset.Class, data.merged),
 		Alerts:         alerts,
 	}, nil
@@ -236,7 +253,7 @@ func marksFor(alerts []evaluate.Finding, id domain.MetricID) []string {
 	return out
 }
 
-func bazinView(events []domain.DividendEvent, merged domain.MetricSet, h HeaderView, ticker string, now time.Time) *BazinView {
+func bazinView(events []domain.DividendEvent, merged domain.MetricSet, h HeaderView, ticker string, class domain.AssetClass, now time.Time) *BazinView {
 	if len(events) == 0 {
 		return &BazinView{NotApplicableReason: "nenhum provento coletado; rode 'goinvest detalhar " + ticker + "'"}
 	}
@@ -261,13 +278,68 @@ func bazinView(events []domain.DividendEvent, merged domain.MetricSet, h HeaderV
 		return &BazinView{NotApplicableReason: "os proventos da janela somam zero"}
 	}
 
-	return &BazinView{
+	v := &BazinView{
 		Ceiling:         result.Ceiling,
 		CurrentPrice:    price,
 		PremiumDiscount: (price - result.Ceiling) / result.Ceiling,
 		YearsUsed:       result.YearsAvailable,
 		Years:           result.Years,
 		AtypicalYears:   result.AtypicalYears,
+	}
+	if median, ok := bazin.MedianDividendYield(result, price); ok {
+		v.MedianDividendYield = &median
+	}
+	if dy, hasYield := presentValue(merged, dividendYieldID); hasYield {
+		v.TwelveMonthYield = &dy
+	}
+	v.Gordon = gordonView(class, merged, price, h.SelicRate)
+	return v
+}
+
+const growthID5y = domain.MetricID("cresc_rec_5a")
+
+func gordonView(class domain.AssetClass, merged domain.MetricSet, price float64, selicRate *float64) *GordonView {
+	if class == domain.ClassFII {
+		return &GordonView{NotApplicableReason: "Gordon depende de ROE e retenção, que não existem para FII (D-101)"}
+	}
+
+	dec, ok := derive.Decompose(merged)
+	if !ok {
+		return &GordonView{NotApplicableReason: "crescimento implícito não calculável: P/L, DY, ROE ou payout ausente ou empresa com prejuízo"}
+	}
+	if selicRate == nil {
+		return &GordonView{
+			ImpliedGrowth:       dec.ImpliedGrowth,
+			NotApplicableReason: "Selic desconhecida; o retorno exigido dependeria dela",
+		}
+	}
+
+	required := bazin.RequiredReturn(*selicRate)
+	dividendPerShare := dec.Distributed * price
+	gr, ok := bazin.Gordon(dividendPerShare, required, dec.ImpliedGrowth)
+	if !ok {
+		return &GordonView{
+			RequiredReturn:      required,
+			ImpliedGrowth:       dec.ImpliedGrowth,
+			NotApplicableReason: "crescimento implícito maior ou igual ao retorno exigido: a fórmula de Gordon estoura",
+		}
+	}
+
+	sensitivity := []SensitivityPoint{{Label: "g implícito", Growth: dec.ImpliedGrowth, Ceiling: gr.Ceiling}}
+	if cresc5a, has5a := presentValue(merged, growthID5y); has5a && cresc5a < required {
+		if ceiling5a, ok := bazin.Gordon(dividendPerShare, required, cresc5a); ok {
+			sensitivity = append(sensitivity, SensitivityPoint{Label: "histórico 5a", Growth: cresc5a, Ceiling: ceiling5a.Ceiling})
+		}
+	}
+	if ceilingZero, ok := bazin.Gordon(dividendPerShare, required, 0); ok {
+		sensitivity = append(sensitivity, SensitivityPoint{Label: "crescimento zero", Growth: 0, Ceiling: ceilingZero.Ceiling})
+	}
+
+	return &GordonView{
+		Ceiling:        gr.Ceiling,
+		RequiredReturn: required,
+		ImpliedGrowth:  dec.ImpliedGrowth,
+		Sensitivity:    sensitivity,
 	}
 }
 
