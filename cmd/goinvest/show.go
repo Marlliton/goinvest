@@ -20,7 +20,7 @@ func newShowCmd(deps rootDeps) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ticker := strings.ToUpper(args[0])
 
-			report, err := app.Show(cmd.Context(), deps.DB, deps.Catalog, ticker, time.Now)
+			report, err := app.Show(cmd.Context(), deps.DB, deps.Catalog, ticker, deps.Tax, time.Now)
 			if err != nil {
 				if errors.Is(err, app.ErrNoData) {
 					return errNoLocalData

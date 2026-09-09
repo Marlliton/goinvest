@@ -33,7 +33,7 @@ func TestShow_AlertBlock_Fires(t *testing.T) {
 	db := openTemp(t)
 	seed(t, db, "WEGE3", domain.ClassStock, overDistributingValues())
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
 	require.NoError(t, err)
 
 	fired := alertOf(t, report, "ALERTA-01")
@@ -53,7 +53,7 @@ func TestShow_AlertBlock_NoFiredAlerts(t *testing.T) {
 	db := openTemp(t)
 	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
 	require.NoError(t, err)
 
 	text := app.RenderText(report)
@@ -70,7 +70,7 @@ func TestShow_Alerts_AlwaysPopulated(t *testing.T) {
 	})
 
 	for _, ticker := range []string{"WEGE3", "MXRF11"} {
-		report, err := app.Show(t.Context(), db, loadCatalog(t), ticker, now)
+		report, err := app.Show(t.Context(), db, loadCatalog(t), ticker, defaultTax, now)
 		require.NoError(t, err)
 		require.Len(t, report.Alerts, 7, ticker)
 		for _, f := range report.Alerts {
@@ -87,7 +87,7 @@ func TestShow_AlertBlock_WithBazin(t *testing.T) {
 	require.NoError(t, db.PutSelic(t.Context(), 0.14, collectedAt, collectedAt))
 	seedBazinYears(t, db, "BBAS3", 2021, 2025, 1.20)
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "BBAS3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "BBAS3", defaultTax, now)
 	require.NoError(t, err)
 
 	text := app.RenderText(report)
@@ -105,7 +105,7 @@ func TestShow_AlertVacancyUsesFIITaxonomyLabel(t *testing.T) {
 		"DDDD11": 0.09, "EEEE11": 0.10, "MXRF11": 0.14,
 	})
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "MXRF11", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "MXRF11", defaultTax, now)
 	require.NoError(t, err)
 
 	got := alertOf(t, report, "ALERTA-05")

@@ -4,11 +4,13 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/marlliton/goinvest/internal/app"
 	"github.com/marlliton/goinvest/internal/catalog"
+	"github.com/marlliton/goinvest/internal/config"
 	"github.com/marlliton/goinvest/internal/domain"
 	"github.com/marlliton/goinvest/internal/identity"
 	"github.com/marlliton/goinvest/internal/store"
@@ -20,6 +22,7 @@ var update = flag.Bool("update", false, "regrava os arquivos golden")
 var (
 	collectedAt = time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
 	fixedNow    = time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC)
+	defaultTax  = config.Result{Tributacao: config.Default(), Path: "config.toml", FromFile: false}
 )
 
 func now() time.Time { return fixedNow }
@@ -104,7 +107,7 @@ func TestShowNeverReachesTheNetwork(t *testing.T) {
 	db := openTemp(t)
 	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
 	require.NoError(t, err)
 	require.NotZero(t, report.Header.FetchedAt)
 	require.Equal(t, collectedAt, report.Header.FetchedAt)
@@ -117,11 +120,11 @@ func TestShowResolvesFractionalTicker(t *testing.T) {
 	db := openTemp(t)
 	seed(t, db, "PETR4", domain.ClassStock, wege3Values())
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "PETR4F", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "PETR4F", defaultTax, now)
 	require.NoError(t, err)
 	require.Equal(t, "PETR4", report.Ticker, "o fracionário devolve a análise do canônico")
 
-	_, err = app.Show(t.Context(), db, loadCatalog(t), "MXRF11F", now)
+	_, err = app.Show(t.Context(), db, loadCatalog(t), "MXRF11F", defaultTax, now)
 	require.ErrorIs(t, err, app.ErrNoData, "FII não tem alias fracionário")
 }
 
@@ -135,7 +138,7 @@ func TestShowInactiveAsset(t *testing.T) {
 	require.NoError(t, db.UpdateAssetLiquidity(t.Context(), a.AssetID, true, lastLiquid))
 	require.NoError(t, db.UpdateAssetLiquidity(t.Context(), a.AssetID, false, fixedNow))
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "DEAD3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "DEAD3", defaultTax, now)
 	require.NoError(t, err)
 	require.True(t, report.Header.Inactive)
 	require.NotNil(t, report.Header.LastLiquidAt)
@@ -154,7 +157,7 @@ func TestShowInactiveAssetNeverSeenLiquid(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, db.UpdateAssetLiquidity(t.Context(), a.AssetID, false, fixedNow))
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "DEAD3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "DEAD3", defaultTax, now)
 	require.NoError(t, err)
 	require.Nil(t, report.Header.LastLiquidAt)
 	require.Contains(t, app.RenderText(report), "sem liquidez registrada")
@@ -176,7 +179,7 @@ func TestShowSectorFromRegistry(t *testing.T) {
 	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
 	setIdentity(t, db, "WEGE3", "Bens Industriais", "Máquinas e Equipamentos", "Motores. Compressores e Outros")
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
 	require.NoError(t, err)
 	require.Equal(t, "Bens Industriais", report.Header.Sector)
 	require.Contains(t, app.RenderText(report),
@@ -188,7 +191,7 @@ func TestShowSectorSingleLevelTaxonomy(t *testing.T) {
 	seed(t, db, "MXRF11", domain.ClassFII, wege3Values())
 	setIdentity(t, db, "MXRF11", "Shoppings", "", "")
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "MXRF11", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "MXRF11", defaultTax, now)
 	require.NoError(t, err)
 
 	text := app.RenderText(report)
@@ -200,7 +203,7 @@ func TestShowSectorUnknownWithoutRegistry(t *testing.T) {
 	db := openTemp(t)
 	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
 	require.NoError(t, err)
 	require.Contains(t, app.RenderText(report), "Setor: desconhecido")
 }
@@ -212,7 +215,7 @@ func TestShowWarnsWhenClassRegistryIncomplete(t *testing.T) {
 	seed(t, db, "MXRF11", domain.ClassFII, wege3Values())
 	setIdentity(t, db, "WEGE3", "Bens Industriais", "Máquinas e Equipamentos", "Motores")
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
 	require.NoError(t, err)
 	require.Equal(t, 1, report.Header.IncompleteRegistry)
 	require.Equal(t, 2, report.Header.TotalInClass, "a contagem é da classe do ativo, não do mercado")
@@ -224,7 +227,7 @@ func TestShowOmitsWarningWhenRegistryComplete(t *testing.T) {
 	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
 	setIdentity(t, db, "WEGE3", "Bens Industriais", "Máquinas e Equipamentos", "Motores")
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
 	require.NoError(t, err)
 	require.NotContains(t, app.RenderText(report), "cadastro incompleto")
 }
@@ -238,7 +241,7 @@ func TestShowOmitsWarningWhenOnlyIlliquidAssetsLackSector(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, db.UpdateAssetLiquidity(t.Context(), dead3.AssetID, false, collectedAt))
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
 	require.NoError(t, err)
 	require.NotContains(t, app.RenderText(report), "cadastro incompleto")
 }
@@ -265,7 +268,7 @@ func TestShowRendersPercentileAndPeerGroup(t *testing.T) {
 		"Bens Industriais", "Máquinas", "Motores",
 		[]float64{10, 12, 14, 16, 18})
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "CCCC3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "CCCC3", defaultTax, now)
 	require.NoError(t, err)
 	require.Equal(t, "Motores", report.Header.PeerGroupLabel)
 	require.Equal(t, 5, report.Header.PeerGroupN)
@@ -287,7 +290,7 @@ func TestShowInactiveAssetHasNoPercentile(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, db.UpdateAssetLiquidity(t.Context(), a.AssetID, false, collectedAt))
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "CCCC3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "CCCC3", defaultTax, now)
 	require.NoError(t, err)
 	require.Empty(t, report.Header.PeerGroupLabel)
 
@@ -299,7 +302,7 @@ func TestShowInactiveAssetHasNoPercentile(t *testing.T) {
 func TestShowReturnsErrNoDataForUnknownTicker(t *testing.T) {
 	db := openTemp(t)
 
-	_, err := app.Show(t.Context(), db, loadCatalog(t), "NADA4", now)
+	_, err := app.Show(t.Context(), db, loadCatalog(t), "NADA4", defaultTax, now)
 	require.ErrorIs(t, err, app.ErrNoData)
 }
 
@@ -307,7 +310,7 @@ func TestShowReturnsErrNoDataForAssetNeverCollected(t *testing.T) {
 	db := openTemp(t)
 	require.NoError(t, db.UpsertAsset(t.Context(), "VALE3", domain.ClassStock, "VALE S.A.", collectedAt))
 
-	_, err := app.Show(t.Context(), db, loadCatalog(t), "VALE3", now)
+	_, err := app.Show(t.Context(), db, loadCatalog(t), "VALE3", defaultTax, now)
 	require.ErrorIs(t, err, app.ErrNoData)
 }
 
@@ -315,14 +318,15 @@ func TestShowGoldenOutput(t *testing.T) {
 	db := openTemp(t)
 	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
 	require.NoError(t, err)
 
 	text := app.RenderText(report)
 	requireGolden(t, "show_wege3.txt", text)
 
 	require.Contains(t, text, "0,00%", "zero legítimo aparece como número")
-	require.NotContains(t, text, "—", "nenhum insumo de WEGE3 está ausente")
+	catalogSection := text[strings.Index(text, "\nCotação\n"):]
+	require.NotContains(t, catalogSection, "—", "nenhum insumo de WEGE3 está ausente")
 	require.Contains(t, text, "ƒ", "os derivados saudáveis aparecem marcados")
 	require.Contains(t, text, "(DY × P/L)", "a fórmula do derivado fica visível")
 }
@@ -333,7 +337,7 @@ func TestShowGoldenOutputSuspectInput(t *testing.T) {
 	values["ev_ebitda"] = nil
 	seed(t, db, "ITUB4", domain.ClassStock, values)
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "ITUB4", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "ITUB4", defaultTax, now)
 	require.NoError(t, err)
 
 	text := app.RenderText(report)
@@ -359,7 +363,7 @@ func TestShowGoldenOutputFII(t *testing.T) {
 		"ffo_yield":      ptr(0.128),
 	})
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "MXRF11", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "MXRF11", defaultTax, now)
 	require.NoError(t, err)
 
 	text := app.RenderText(report)
@@ -373,7 +377,7 @@ func TestRenderWarnsWhenDataIsStale(t *testing.T) {
 	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
 	longAfterCollection := func() time.Time { return collectedAt.Add(30 * 24 * time.Hour) }
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", longAfterCollection)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, longAfterCollection)
 	require.NoError(t, err)
 	require.True(t, report.Header.Stale)
 	require.Contains(t, app.RenderText(report), "⚠ dado de 01/09 · rode 'goinvest sync'")
@@ -413,7 +417,7 @@ func TestShowAnchorsDividendYieldOnSelic(t *testing.T) {
 	referenceAt := time.Date(2026, 9, 16, 0, 0, 0, 0, time.UTC)
 	require.NoError(t, db.PutSelic(t.Context(), 0.14, referenceAt, collectedAt))
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
 	require.NoError(t, err)
 
 	require.NotNil(t, report.Header.SelicRate)
@@ -428,7 +432,7 @@ func TestShowAnchorsDividendYieldOnSelic(t *testing.T) {
 	require.Nil(t, lineOf(t, report, "roe").SelicDelta, "só o DY é ancorado")
 
 	text := app.RenderText(report)
-	require.Contains(t, text, "Selic: 14,00% (16/09/2026)")
+	require.Contains(t, text, "Selic: 14,00% bruto (16/09/2026)")
 	require.Contains(t, text, "DY−Selic: -8,00pp")
 }
 
@@ -438,7 +442,7 @@ func TestShowSelicUnknownIsNotEvaluated(t *testing.T) {
 	values["dy"] = ptr(0.06)
 	seed(t, db, "WEGE3", domain.ClassStock, values)
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
 	require.NoError(t, err)
 
 	require.Nil(t, report.Header.SelicRate)
@@ -446,7 +450,7 @@ func TestShowSelicUnknownIsNotEvaluated(t *testing.T) {
 	require.Nil(t, lineOf(t, report, "dy").SelicDelta)
 
 	text := app.RenderText(report)
-	require.Contains(t, text, "Selic: desconhecida")
+	require.Contains(t, text, "Selic: — (Selic desconhecida; rode 'goinvest sync')")
 	require.NotContains(t, text, "DY−Selic")
 }
 
@@ -457,7 +461,7 @@ func TestShowAnchorIsAbsentWhenDividendYieldIsAbsent(t *testing.T) {
 	seed(t, db, "WEGE3", domain.ClassStock, values)
 	require.NoError(t, db.PutSelic(t.Context(), 0.14, collectedAt, collectedAt))
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
 	require.NoError(t, err)
 
 	require.Nil(t, lineOf(t, report, "dy").SelicDelta)
@@ -511,7 +515,7 @@ func TestShow_BankSentinel(t *testing.T) {
 	values["ev_ebitda"] = nil
 	seedBank(t, db, values)
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "ITUB4", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "ITUB4", defaultTax, now)
 	require.NoError(t, err)
 
 	line := lineOf(t, report, "ev_ebitda")
@@ -527,7 +531,7 @@ func TestShow_BankSentinelDoesNotTouchOtherSegments(t *testing.T) {
 	seed(t, db, "WEGE3", domain.ClassStock, values)
 	setIdentity(t, db, "WEGE3", "Bens Industriais", "Máquinas e Equipamentos", "Motores. Compressores e Outros")
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
 	require.NoError(t, err)
 
 	line := lineOf(t, report, "ev_ebitda")
@@ -540,7 +544,7 @@ func TestShow_EBITStructurallyAbsent(t *testing.T) {
 	seedBank(t, db, wege3Values())
 	seedDetail(t, db, "ITUB4", map[domain.MetricID]*float64{"lucro_liquido": ptr(30e9)})
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "ITUB4", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "ITUB4", defaultTax, now)
 	require.NoError(t, err)
 
 	line := lineOf(t, report, "ebit")
@@ -552,7 +556,7 @@ func TestShow_EBITNeverCollected(t *testing.T) {
 	db := openTemp(t)
 	seedBank(t, db, wege3Values())
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "ITUB4", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "ITUB4", defaultTax, now)
 	require.NoError(t, err)
 
 	require.False(t, hasLine(report, "ebit"),
@@ -565,7 +569,7 @@ func TestShow_NegativeEquity(t *testing.T) {
 	values["patrim_liq"] = ptr(-1_000_000_000)
 	seed(t, db, "WEGE3", domain.ClassStock, values)
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
 	require.NoError(t, err)
 
 	line := lineOf(t, report, "pvp")
@@ -578,7 +582,7 @@ func TestShow_PositiveEquityKeepsThePriceToBookValue(t *testing.T) {
 	db := openTemp(t)
 	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
 	require.NoError(t, err)
 
 	line := lineOf(t, report, "pvp")
@@ -606,7 +610,7 @@ func TestShow_LineViewCarriesReferenceAt(t *testing.T) {
 	}}))
 	require.NoError(t, db.FinishRun(t.Context(), runID, "ok", 1, ""))
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
 	require.NoError(t, err)
 
 	require.Nil(t, lineOf(t, report, "pl").ReferenceAt)
@@ -619,7 +623,7 @@ func TestShowExpectedReturnDecomposition(t *testing.T) {
 	db := openTemp(t)
 	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
 	require.NoError(t, err)
 
 	require.NotNil(t, report.ExpectedReturn)
@@ -643,7 +647,7 @@ func TestShowExpectedReturnNotApplicableForFII(t *testing.T) {
 		"dy":      ptr(0.132),
 	})
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "MXRF11", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "MXRF11", defaultTax, now)
 	require.NoError(t, err)
 
 	require.NotNil(t, report.ExpectedReturn)
@@ -657,7 +661,7 @@ func TestShowExpectedReturnNotApplicableWhenLossMaking(t *testing.T) {
 	values["pl"] = ptr(-3.0)
 	seed(t, db, "WEGE3", domain.ClassStock, values)
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
 	require.NoError(t, err)
 
 	require.NotNil(t, report.ExpectedReturn)
@@ -671,7 +675,7 @@ func TestShowGoldenOutputBank(t *testing.T) {
 	seedBank(t, db, values)
 	seedDetail(t, db, "ITUB4", map[domain.MetricID]*float64{"lucro_liquido": ptr(35e9)})
 
-	report, err := app.Show(t.Context(), db, loadCatalog(t), "ITUB4", now)
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "ITUB4", defaultTax, now)
 	require.NoError(t, err)
 
 	text := app.RenderText(report)
@@ -760,4 +764,73 @@ func TestShowDYMedianAndAtypicalYear(t *testing.T) {
 	require.Contains(t, text, "ano 2025 concentrado")
 	require.Contains(t, text, "DY 12m:")
 	require.Contains(t, text, "DY mediano 5a:")
+}
+
+func TestShowOpportunityCostAllThreeAnchors(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
+
+	require.NoError(t, db.PutSelic(t.Context(), 0.14, collectedAt, collectedAt))
+	require.NoError(t, db.PutCDI(t.Context(), 0.13, collectedAt, collectedAt))
+	require.NoError(t, db.PutTesouroIPCA10y(t.Context(), 0.07, collectedAt, collectedAt))
+	require.NoError(t, db.PutFocusIPCA12m(t.Context(), 0.045, collectedAt, collectedAt))
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
+	require.NoError(t, err)
+
+	text := app.RenderText(report)
+	require.Contains(t, text, "Custo de oportunidade")
+	require.Contains(t, text, "Selic: 14,00% bruto")
+	require.Contains(t, text, "CDI: 13,00% bruto")
+	require.Contains(t, text, "Tesouro IPCA+ (~10 anos): 11,50% bruto")
+	require.Contains(t, text, "IPCA+ 7,00% com inflação esperada de 4,50% = 11,50% nominal")
+}
+
+func TestShowOpportunityCostAnchorMissing(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
+
+	require.NoError(t, db.PutSelic(t.Context(), 0.14, collectedAt, collectedAt))
+	require.NoError(t, db.PutCDI(t.Context(), 0.13, collectedAt, collectedAt))
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
+	require.NoError(t, err)
+
+	text := app.RenderText(report)
+	require.Contains(t, text, "Selic: 14,00% bruto")
+	require.Contains(t, text, "CDI: 13,00% bruto")
+	require.Contains(t, text, "Tesouro IPCA+ (~10 anos): — (Tesouro IPCA+ (~10 anos) desconhecida; rode 'goinvest sync')")
+}
+
+func TestShowOpportunityCostFocusMissing(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
+
+	require.NoError(t, db.PutSelic(t.Context(), 0.14, collectedAt, collectedAt))
+	require.NoError(t, db.PutTesouroIPCA10y(t.Context(), 0.07, collectedAt, collectedAt))
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
+	require.NoError(t, err)
+
+	text := app.RenderText(report)
+	require.Contains(t, text, "Tesouro IPCA+ (~10 anos): — (Tesouro IPCA+ desconhecido: falta a expectativa de inflação (Focus) para nominalizar)")
+	require.NotContains(t, text, "7,00% bruto")
+}
+
+func TestShowTaxPremiseFromConfigFile(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
+
+	tax := config.Result{
+		FromFile:   true,
+		Path:       "/tmp/x/config.toml",
+		Tributacao: config.Tributacao{AliquotaAtivo: 0.10, AliquotaRendaFixa: 0.15},
+	}
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", tax, now)
+	require.NoError(t, err)
+
+	text := app.RenderText(report)
+	require.Contains(t, text, "10,00%")
+	require.Contains(t, text, "config em /tmp/x/config.toml")
 }
