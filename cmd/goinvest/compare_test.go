@@ -61,7 +61,7 @@ func TestCompareCmd_JSONFlag(t *testing.T) {
 
 	var doc map[string]any
 	require.NoError(t, json.Unmarshal(out.Bytes(), &doc))
-	require.Equal(t, float64(1), doc["schema_version"])
+	require.Equal(t, float64(2), doc["schema_version"])
 }
 
 func TestCompareCmd_TextIsDefault(t *testing.T) {
