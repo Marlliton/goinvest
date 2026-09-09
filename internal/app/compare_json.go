@@ -8,7 +8,7 @@ import (
 	"github.com/marlliton/goinvest/internal/domain"
 )
 
-const compareSchemaVersion = 1
+const compareSchemaVersion = 2
 
 const (
 	statusPresent       = "presente"
@@ -55,13 +55,23 @@ type metricDoc struct {
 }
 
 type bazinDoc struct {
-	Ceiling             float64   `json:"ceiling"`
-	CurrentPrice        float64   `json:"current_price"`
-	PremiumDiscount     float64   `json:"premium_discount"`
-	YearsUsed           int       `json:"years_used"`
-	Years               []yearDoc `json:"years"`
-	AtypicalYears       []int     `json:"atypical_years"`
-	NotApplicableReason string    `json:"not_applicable_reason"`
+	Ceiling             float64    `json:"ceiling"`
+	CurrentPrice        float64    `json:"current_price"`
+	PremiumDiscount     float64    `json:"premium_discount"`
+	YearsUsed           int        `json:"years_used"`
+	Years               []yearDoc  `json:"years"`
+	AtypicalYears       []int      `json:"atypical_years"`
+	Gordon              *gordonDoc `json:"gordon"`
+	MedianDividendYield *float64   `json:"median_dividend_yield"`
+	TwelveMonthYield    *float64   `json:"twelve_month_yield"`
+	NotApplicableReason string     `json:"not_applicable_reason"`
+}
+
+type gordonDoc struct {
+	Ceiling             float64 `json:"ceiling"`
+	RequiredReturn      float64 `json:"required_return"`
+	ImpliedGrowth       float64 `json:"implied_growth"`
+	NotApplicableReason string  `json:"not_applicable_reason"`
 }
 
 type yearDoc struct {
@@ -174,6 +184,9 @@ func bazinDocOf(v *BazinView) *bazinDoc {
 		YearsUsed:           v.YearsUsed,
 		Years:               make([]yearDoc, 0, len(v.Years)),
 		AtypicalYears:       v.AtypicalYears,
+		Gordon:              gordonDocOf(v.Gordon),
+		MedianDividendYield: v.MedianDividendYield,
+		TwelveMonthYield:    v.TwelveMonthYield,
 		NotApplicableReason: v.NotApplicableReason,
 	}
 	if doc.AtypicalYears == nil {
@@ -183,6 +196,18 @@ func bazinDocOf(v *BazinView) *bazinDoc {
 		doc.Years = append(doc.Years, yearDoc{Year: y.Year, Total: y.Total})
 	}
 	return doc
+}
+
+func gordonDocOf(v *GordonView) *gordonDoc {
+	if v == nil {
+		return nil
+	}
+	return &gordonDoc{
+		Ceiling:             v.Ceiling,
+		RequiredReturn:      v.RequiredReturn,
+		ImpliedGrowth:       v.ImpliedGrowth,
+		NotApplicableReason: v.NotApplicableReason,
+	}
 }
 
 func hasKey(cells map[domain.MetricID]MetricCell, id domain.MetricID) bool {

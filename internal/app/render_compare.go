@@ -119,10 +119,19 @@ func compareHighlights(col CompareColumn) string {
 	var b strings.Builder
 
 	if col.Bazin != nil && col.Bazin.NotApplicableReason == "" {
-		fmt.Fprintf(&b, "\n%s · %s: %s · ágio/deságio %s%%\n",
-			col.Ticker, bazinLabel,
-			formatValue(col.Bazin.Ceiling, domain.UnitBRL),
-			formatSignedBR(col.Bazin.PremiumDiscount*100, 2))
+		if col.Bazin.Gordon != nil && col.Bazin.Gordon.NotApplicableReason == "" {
+			lo, hi := min(col.Bazin.Ceiling, col.Bazin.Gordon.Ceiling), max(col.Bazin.Ceiling, col.Bazin.Gordon.Ceiling)
+			fmt.Fprintf(&b, "\n%s · Faixa: %s (Bazin) a %s (Gordon) · cotação %s · ágio/deságio %s%%\n",
+				col.Ticker,
+				formatValue(lo, domain.UnitBRL), formatValue(hi, domain.UnitBRL),
+				formatValue(col.Bazin.CurrentPrice, domain.UnitBRL),
+				formatSignedBR(col.Bazin.PremiumDiscount*100, 2))
+		} else {
+			fmt.Fprintf(&b, "\n%s · %s: %s · ágio/deságio %s%%\n",
+				col.Ticker, bazinLabel,
+				formatValue(col.Bazin.Ceiling, domain.UnitBRL),
+				formatSignedBR(col.Bazin.PremiumDiscount*100, 2))
+		}
 	}
 
 	fired := false

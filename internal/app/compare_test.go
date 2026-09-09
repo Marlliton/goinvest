@@ -196,6 +196,44 @@ func TestCompare_CarriesSelicBazinAndAlerts(t *testing.T) {
 	require.Equal(t, evaluate.StatusFired, alertIn(t, bbas.Alerts, "ALERTA-01").Status)
 }
 
+func TestCompare_ShowsGordonRangeAlongsideBazin(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "BBAS3", domain.ClassStock, map[domain.MetricID]*float64{
+		"cotacao":      ptr(24.00),
+		"pl":           ptr(8.0),
+		"dy":           ptr(0.06),
+		"roe":          ptr(0.18),
+		"cresc_rec_5a": ptr(0.05),
+	})
+	seedStocks(t, db, "ROMI3", "KEPL3")
+	require.NoError(t, db.PutSelic(t.Context(), 0.14, collectedAt, collectedAt))
+	seedBazinYears(t, db, "BBAS3", 2021, 2025, 1.20)
+
+	report, err := app.Compare(t.Context(), db, loadCatalog(t),
+		[]string{"BBAS3", "ROMI3", "KEPL3"}, now)
+	require.NoError(t, err)
+
+	text := app.RenderCompareText(report)
+	require.Contains(t, text, "Faixa:")
+	require.Contains(t, text, "(Gordon)")
+}
+
+func TestCompare_FIIKeepsOnlyBazinHighlight(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "MXRF11", domain.ClassFII, map[domain.MetricID]*float64{
+		"cotacao": ptr(9.87), "pvp": ptr(1.02), "dy": ptr(0.132),
+	})
+	require.NoError(t, db.PutSelic(t.Context(), 0.14, collectedAt, collectedAt))
+	seedBazinYears(t, db, "MXRF11", 2021, 2025, 0.80)
+
+	report, err := app.Compare(t.Context(), db, loadCatalog(t), []string{"MXRF11"}, now)
+	require.NoError(t, err)
+
+	text := app.RenderCompareText(report)
+	require.NotContains(t, text, "Faixa:")
+	require.NotContains(t, text, "Gordon")
+}
+
 func TestCompare_RunsWithoutTerminal(t *testing.T) {
 	db := openTemp(t)
 	seedStocks(t, db, "WEGE3", "ROMI3", "KEPL3")
