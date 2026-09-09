@@ -138,7 +138,7 @@ func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string
 		h.PeerGroupLabel, h.PeerGroupN = peerGroup(asset)
 	}
 
-	alerts := evaluate.Detect(alertInput(cat, asset, data.merged, data.percentiles, h, data.hasDetail))
+	alerts := evaluate.Detect(alertInput(cat, asset, data.merged, data.percentiles, h, data.hasDetail, data.events, now()))
 
 	expectedReturn := expectedReturnView(asset.Class, data.merged)
 
@@ -265,7 +265,7 @@ func focusIPCA12m(ctx context.Context, db *store.DB) (macroRate, error) {
 	return macroRate{Rate: rate, ReferenceAt: at}, nil
 }
 
-func alertInput(cat *catalog.Catalog, asset domain.Asset, merged domain.MetricSet, percentiles map[domain.MetricID]store.AssetPercentile, h HeaderView, hasDetail bool) evaluate.Input {
+func alertInput(cat *catalog.Catalog, asset domain.Asset, merged domain.MetricSet, percentiles map[domain.MetricID]store.AssetPercentile, h HeaderView, hasDetail bool, events []domain.DividendEvent, now time.Time) evaluate.Input {
 	in := evaluate.Input{
 		Class:     asset.Class,
 		Metrics:   merged,
@@ -278,6 +278,9 @@ func alertInput(cat *catalog.Catalog, asset domain.Asset, merged domain.MetricSe
 	}
 	if ebit, ok := cat.Metric(ebitID); ok {
 		in.EBITNotApplicableReason = ebit.NotApplicable[originSector]
+	}
+	if share, ok := bazin.CurrentYearConcentration(events, now); ok {
+		in.CurrentYearConcentration = &share
 	}
 	return in
 }
@@ -297,6 +300,8 @@ var alertAnchors = map[string]domain.MetricID{
 	"ALERTA-03": "lucro_liquido",
 	"ALERTA-04": "rend_distribuido",
 	"ALERTA-05": "vacancia_media",
+	"ALERTA-08": dividendYieldID,
+	"ALERTA-09": domain.MetricID("pl"),
 }
 
 func marksFor(alerts []evaluate.Finding, id domain.MetricID) []string {

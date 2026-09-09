@@ -148,7 +148,7 @@ func column(cat *catalog.Catalog, data assetData, h CompareHeader, dropped map[d
 	col := CompareColumn{
 		Ticker: asset.Ticker,
 		Cells:  map[domain.MetricID]MetricCell{},
-		Alerts: evaluate.Detect(alertInput(cat, asset, data.merged, data.percentiles, view, data.hasDetail)),
+		Alerts: evaluate.Detect(alertInput(cat, asset, data.merged, data.percentiles, view, data.hasDetail, data.events, now)),
 	}
 	if asset.IsActive {
 		col.PeerGroupLabel, _ = peerGroup(asset)
