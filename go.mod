@@ -20,6 +20,7 @@ require (
 require (
 	cel.dev/expr v0.25.2 // indirect
 	filippo.io/edwards25519 v1.2.0 // indirect
+	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/andybalholm/cascadia v1.3.4 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect

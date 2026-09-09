@@ -12,6 +12,7 @@ import (
 	_ "github.com/marlliton/goinvest/internal/bazin"
 	_ "github.com/marlliton/goinvest/internal/catalog"
 	_ "github.com/marlliton/goinvest/internal/collect"
+	_ "github.com/marlliton/goinvest/internal/config"
 	_ "github.com/marlliton/goinvest/internal/derive"
 	_ "github.com/marlliton/goinvest/internal/domain"
 	_ "github.com/marlliton/goinvest/internal/evaluate"
@@ -47,19 +48,19 @@ func TestCatalogHasNoInfraImports(t *testing.T) {
 // fontes.
 func TestDeriveHasNoInfraImports(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/derive",
-		append(forbiddenForCore, modulePath+"/internal/catalog"))
+		append(forbiddenForCore, modulePath+"/internal/catalog", modulePath+"/internal/config"))
 }
 
 func TestBazinHasNoInfraImports(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/bazin",
-		append(forbiddenForCore, modulePath+"/internal/catalog"))
+		append(forbiddenForCore, modulePath+"/internal/catalog", modulePath+"/internal/config"))
 }
 
 // O texto do catálogo chega pronto no Input: a alternativa seria a regra e a
 // redação da regra evoluírem em dois lugares.
 func TestEvaluateHasNoInfraImports(t *testing.T) {
 	requireNoImports(t, modulePath+"/internal/evaluate",
-		append(forbiddenForCore, modulePath+"/internal/catalog"))
+		append(forbiddenForCore, modulePath+"/internal/catalog", modulePath+"/internal/config"))
 }
 
 func TestIdentityHasNoInfraImports(t *testing.T) {
