@@ -30,11 +30,11 @@ func TestLoadEmbeddedTrapText(t *testing.T) {
 	c, err := Load()
 	require.NoError(t, err)
 
-	for _, id := range []string{"ALERTA-01", "ALERTA-02", "ALERTA-03", "ALERTA-04", "ALERTA-05"} {
+	for _, id := range []string{"ALERTA-01", "ALERTA-02", "ALERTA-03", "ALERTA-04", "ALERTA-05", "ALERTA-08", "ALERTA-09"} {
 		_, ok := c.TrapText[id]
 		require.True(t, ok, "alerta %s sem entrada em traps.yaml", id)
 	}
-	require.Len(t, c.TrapText, 5)
+	require.Len(t, c.TrapText, 7)
 }
 
 func TestCatalogMetricLookup(t *testing.T) {

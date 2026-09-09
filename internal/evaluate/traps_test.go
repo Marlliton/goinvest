@@ -208,7 +208,65 @@ func TestDetect_VacancyBelowMedianYield(t *testing.T) {
 	require.Equal(t, evaluate.StatusOK, findingOf(t, evaluate.Detect(in), "ALERTA-05").Status)
 }
 
-func TestDetect_AlwaysFiveFindings(t *testing.T) {
+func TestDetect_ProfitLoss_Fires(t *testing.T) {
+	got := findingOf(t, evaluate.Detect(stock(map[domain.MetricID]float64{"pl": -3.0})), "ALERTA-09")
+	require.Equal(t, evaluate.StatusFired, got.Status)
+	require.InDelta(t, -3.0, got.Numbers["pl"], 1e-9)
+	require.NotEmpty(t, got.Rule)
+}
+
+func TestDetect_ProfitLoss_OK(t *testing.T) {
+	got := findingOf(t, evaluate.Detect(stock(map[domain.MetricID]float64{"pl": 8.0})), "ALERTA-09")
+	require.Equal(t, evaluate.StatusOK, got.Status)
+	require.InDelta(t, 8.0, got.Numbers["pl"], 1e-9)
+}
+
+func TestDetect_ProfitLoss_NotEvaluated(t *testing.T) {
+	got := findingOf(t, evaluate.Detect(stock(nil)), "ALERTA-09")
+	require.Equal(t, evaluate.StatusNotEvaluated, got.Status)
+	require.NotEmpty(t, got.Reason)
+}
+
+func TestDetect_ProfitLoss_NotApplicableForFII(t *testing.T) {
+	got := findingOf(t, evaluate.Detect(fii("Logística", map[domain.MetricID]float64{"pl": -3.0})), "ALERTA-09")
+	require.Equal(t, evaluate.StatusNotApplicable, got.Status)
+}
+
+func TestDetect_DividendYieldSuspicion_Fires(t *testing.T) {
+	in := evaluate.Input{Class: domain.ClassStock, CurrentYearConcentration: ptr(0.7)}
+	got := findingOf(t, evaluate.Detect(in), "ALERTA-08")
+	require.Equal(t, evaluate.StatusFired, got.Status)
+	require.InDelta(t, 0.7, got.Numbers["concentracao_ano_corrente"], 1e-9)
+	require.NotEmpty(t, got.Rule)
+}
+
+func TestDetect_DividendYieldSuspicion_OK(t *testing.T) {
+	in := evaluate.Input{Class: domain.ClassStock, CurrentYearConcentration: ptr(0.3)}
+	got := findingOf(t, evaluate.Detect(in), "ALERTA-08")
+	require.Equal(t, evaluate.StatusOK, got.Status)
+	require.InDelta(t, 0.3, got.Numbers["concentracao_ano_corrente"], 1e-9)
+}
+
+func TestDetect_DividendYieldSuspicion_NotEvaluated(t *testing.T) {
+	got := findingOf(t, evaluate.Detect(stock(nil)), "ALERTA-08")
+	require.Equal(t, evaluate.StatusNotEvaluated, got.Status)
+	require.NotEmpty(t, got.Reason)
+}
+
+// FII entra na avaliação como a ação: nenhum classGate restringe o ALERTA-08.
+func TestDetect_DividendYieldSuspicion_AppliesToFII(t *testing.T) {
+	in := evaluate.Input{Class: domain.ClassFII, CurrentYearConcentration: ptr(0.7)}
+	got := findingOf(t, evaluate.Detect(in), "ALERTA-08")
+	require.NotEqual(t, evaluate.StatusNotApplicable, got.Status)
+	require.Equal(t, evaluate.StatusFired, got.Status)
+
+	inOK := evaluate.Input{Class: domain.ClassFII, CurrentYearConcentration: ptr(0.3)}
+	gotOK := findingOf(t, evaluate.Detect(inOK), "ALERTA-08")
+	require.NotEqual(t, evaluate.StatusNotApplicable, gotOK.Status)
+	require.Equal(t, evaluate.StatusOK, gotOK.Status)
+}
+
+func TestDetect_AlwaysSevenFindings(t *testing.T) {
 	for _, in := range []evaluate.Input{
 		{},
 		stock(nil),
@@ -216,9 +274,9 @@ func TestDetect_AlwaysFiveFindings(t *testing.T) {
 		stock(map[domain.MetricID]float64{"payout": 1.23}),
 	} {
 		got := evaluate.Detect(in)
-		require.Len(t, got, 5)
+		require.Len(t, got, 7)
 		require.Equal(t,
-			[]string{"ALERTA-01", "ALERTA-02", "ALERTA-03", "ALERTA-04", "ALERTA-05"},
+			[]string{"ALERTA-01", "ALERTA-02", "ALERTA-03", "ALERTA-04", "ALERTA-05", "ALERTA-08", "ALERTA-09"},
 			ids(got), "a ordem é parte do contrato")
 		for _, f := range got {
 			require.NotEmpty(t, f.Status)

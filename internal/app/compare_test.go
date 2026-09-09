@@ -192,7 +192,7 @@ func TestCompare_CarriesSelicBazinAndAlerts(t *testing.T) {
 	require.InDelta(t, 20.0, bbas.Bazin.Ceiling, 1e-9)
 	require.InDelta(t, 0.20, bbas.Bazin.PremiumDiscount, 1e-9)
 
-	require.Len(t, bbas.Alerts, 5)
+	require.Len(t, bbas.Alerts, 7)
 	require.Equal(t, evaluate.StatusFired, alertIn(t, bbas.Alerts, "ALERTA-01").Status)
 }
 
