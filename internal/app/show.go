@@ -361,7 +361,7 @@ const growthID5y = domain.MetricID("cresc_rec_5a")
 
 func gordonView(class domain.AssetClass, merged domain.MetricSet, price float64, selicRate *float64) *GordonView {
 	if class == domain.ClassFII {
-		return &GordonView{NotApplicableReason: "Gordon depende de ROE e retenção, que não existem para FII (D-101)"}
+		return &GordonView{NotApplicableReason: "Gordon depende de ROE e retenção, que não existem para FII"}
 	}
 
 	dec, ok := derive.Decompose(merged)

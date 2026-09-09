@@ -747,7 +747,7 @@ func TestShowGordonNotApplicableForFII(t *testing.T) {
 	require.Empty(t, report.Bazin.NotApplicableReason)
 	require.NotZero(t, report.Bazin.Ceiling)
 	require.NotNil(t, report.Bazin.Gordon)
-	require.Contains(t, report.Bazin.Gordon.NotApplicableReason, "D-101")
+	require.Contains(t, report.Bazin.Gordon.NotApplicableReason, "não existem para FII")
 }
 
 func TestShowDYMedianAndAtypicalYear(t *testing.T) {
