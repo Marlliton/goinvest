@@ -47,6 +47,7 @@ func TestDecomposeNotApplicable(t *testing.T) {
 		{"pl negativo (prejuízo)", ptr(-3), ptr(0.03), ptr(0.20), ptr(0.45)},
 		{"roe ausente", ptr(15), ptr(0.03), nil, ptr(0.45)},
 		{"payout ausente", ptr(15), ptr(0.03), ptr(0.20), nil},
+		{"payout acima de 100%", ptr(15), ptr(0.09), ptr(0.20), ptr(1.35)},
 	}
 
 	for _, tc := range cases {

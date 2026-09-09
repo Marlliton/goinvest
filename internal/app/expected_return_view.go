@@ -15,7 +15,10 @@ type ExpectedReturnView struct {
 	NotApplicableReason string
 }
 
-const plID = domain.MetricID("pl")
+const (
+	plID     = domain.MetricID("pl")
+	payoutID = domain.MetricID("payout")
+)
 
 func expectedReturnView(class domain.AssetClass, merged domain.MetricSet) *ExpectedReturnView {
 	if class == domain.ClassFII {
@@ -38,6 +41,9 @@ func expectedReturnView(class domain.AssetClass, merged domain.MetricSet) *Expec
 
 	if pl, has := presentValue(merged, plID); has && pl <= 0 {
 		return &ExpectedReturnView{NotApplicableReason: "Prejuízo no período: não há lucro para decompor em retorno esperado"}
+	}
+	if payout, has := presentValue(merged, payoutID); has && payout > 1 {
+		return &ExpectedReturnView{NotApplicableReason: "Distribuiu mais do que lucrou no período (payout acima de 100%): não há lucro retido para sustentar crescimento"}
 	}
 	return &ExpectedReturnView{NotApplicableReason: "P/L, DY, ROE ou payout não disponível"}
 }

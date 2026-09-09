@@ -655,6 +655,25 @@ func TestShowExpectedReturnNotApplicableForFII(t *testing.T) {
 	require.Zero(t, report.ExpectedReturn.TotalReturn)
 }
 
+func TestShowExpectedReturnNotApplicableWhenPayoutExceedsEarnings(t *testing.T) {
+	db := openTemp(t)
+	values := wege3Values()
+	values["dy"] = ptr(0.0388)
+	values["pl"] = ptr(34.72)
+	seed(t, db, "WEGE3", domain.ClassStock, values)
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
+	require.NoError(t, err)
+	require.NotNil(t, report.ExpectedReturn)
+	require.Contains(t, report.ExpectedReturn.NotApplicableReason, "payout acima de 100%")
+	require.Zero(t, report.ExpectedReturn.TotalReturn,
+		"retorno esperado negativo por retenção negativa não pode sair como número")
+
+	text := app.RenderText(report)
+	require.NotContains(t, text, "Retorno esperado total: -",
+		"o modelo não projeta encolhimento perpétuo a partir de um payout pontual acima de 100%")
+}
+
 func TestShowExpectedReturnNotApplicableWhenLossMaking(t *testing.T) {
 	db := openTemp(t)
 	values := wege3Values()

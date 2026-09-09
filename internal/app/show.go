@@ -366,6 +366,9 @@ func gordonView(class domain.AssetClass, merged domain.MetricSet, price float64,
 
 	dec, ok := derive.Decompose(merged)
 	if !ok {
+		if payout, has := presentValue(merged, payoutID); has && payout > 1 {
+			return &GordonView{NotApplicableReason: "distribuiu mais do que lucrou no período (payout acima de 100%): sem lucro retido, o crescimento do modelo não se sustenta"}
+		}
 		return &GordonView{NotApplicableReason: "crescimento implícito não calculável: P/L, DY, ROE ou payout ausente ou empresa com prejuízo"}
 	}
 	if selicRate == nil {

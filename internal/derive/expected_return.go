@@ -27,6 +27,12 @@ func Decompose(m domain.MetricSet) (Decomposition, bool) {
 	if pl <= 0 {
 		return Decomposition{}, false
 	}
+	// g = b × ROE pressupõe retenção entre 0 e 1 (Damodaran, "Estimating Growth").
+	// Distribuir mais do que se lucrou torna b negativo, e o modelo passa a projetar
+	// encolhimento perpétuo: calculável, mas sem significado.
+	if payout > 1 {
+		return Decomposition{}, false
+	}
 
 	retained := 1 - payout
 	growth := roe * retained
