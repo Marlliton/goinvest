@@ -681,3 +681,83 @@ func TestShowGoldenOutputBank(t *testing.T) {
 	require.NotContains(t, text, "EV/EBITDA: —",
 		"o que a fonte nunca publicaria não pode sair como ausência comum")
 }
+
+func TestShowGordonCeilingWithSensitivity(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "BBAS3", domain.ClassStock, map[domain.MetricID]*float64{
+		"cotacao":      ptr(24.00),
+		"pl":           ptr(8.0),
+		"dy":           ptr(0.06),
+		"roe":          ptr(0.18),
+		"cresc_rec_5a": ptr(0.05),
+	})
+	require.NoError(t, db.PutSelic(t.Context(), 0.14, collectedAt, collectedAt))
+	seedBazinYears(t, db, "BBAS3", 2021, 2025, 1.20)
+
+	report := bazinReport(t, db, "BBAS3")
+	require.NotNil(t, report.Bazin.Gordon)
+	require.Empty(t, report.Bazin.Gordon.NotApplicableReason)
+
+	payout := 0.06 * 8.0
+	g := 0.18 * (1 - payout)
+	required := 0.14 + 0.06
+	dividendPerShare := 0.06 * 24.00
+	wantCeiling := dividendPerShare / (required - g)
+	require.InDelta(t, wantCeiling, report.Bazin.Gordon.Ceiling, 1e-9)
+	require.GreaterOrEqual(t, len(report.Bazin.Gordon.Sensitivity), 2)
+
+	text := app.RenderText(report)
+	require.Contains(t, text, "Faixa:")
+	require.Contains(t, text, "Gordon:")
+}
+
+func TestShowGordonNotApplicableWhenGrowthExceedsRequired(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "BBAS3", domain.ClassStock, map[domain.MetricID]*float64{
+		"cotacao": ptr(24.00),
+		"pl":      ptr(10.0),
+		"dy":      ptr(0.01),
+		"roe":     ptr(0.30),
+	})
+	require.NoError(t, db.PutSelic(t.Context(), 0.14, collectedAt, collectedAt))
+	seedBazinYears(t, db, "BBAS3", 2021, 2025, 1.20)
+
+	report := bazinReport(t, db, "BBAS3")
+	require.NotNil(t, report.Bazin.Gordon)
+	require.Contains(t, report.Bazin.Gordon.NotApplicableReason, "estoura")
+
+	require.Contains(t, app.RenderText(report), "Gordon não aplicável")
+}
+
+func TestShowGordonNotApplicableForFII(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "MXRF11", domain.ClassFII, map[domain.MetricID]*float64{
+		"cotacao": ptr(9.87),
+		"pvp":     ptr(1.02),
+		"dy":      ptr(0.132),
+	})
+	require.NoError(t, db.PutSelic(t.Context(), 0.14, collectedAt, collectedAt))
+	seedBazinYears(t, db, "MXRF11", 2021, 2025, 0.80)
+
+	report := bazinReport(t, db, "MXRF11")
+	require.Empty(t, report.Bazin.NotApplicableReason)
+	require.NotZero(t, report.Bazin.Ceiling)
+	require.NotNil(t, report.Bazin.Gordon)
+	require.Contains(t, report.Bazin.Gordon.NotApplicableReason, "D-101")
+}
+
+func TestShowDYMedianAndAtypicalYear(t *testing.T) {
+	db := seedBBAS3(t, openTemp(t), true)
+	seedBazinYears(t, db, "BBAS3", 2021, 2024, 1.20)
+	seedDividends(t, db, "BBAS3",
+		event(exOn(2025, time.March, 10), domain.DividendCash, 1.10, 1),
+		event(exOn(2025, time.September, 10), domain.DividendCash, 0.10, 1))
+
+	report := bazinReport(t, db, "BBAS3")
+	require.NotNil(t, report.Bazin.MedianDividendYield)
+
+	text := app.RenderText(report)
+	require.Contains(t, text, "ano 2025 concentrado")
+	require.Contains(t, text, "DY 12m:")
+	require.Contains(t, text, "DY mediano 5a:")
+}
