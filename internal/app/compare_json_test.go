@@ -99,14 +99,14 @@ func TestRenderCompareJSON_CarriesProvenance(t *testing.T) {
 	require.Equal(t, collectedAt.UTC(), parsed.UTC())
 }
 
-func TestRenderCompareJSON_AllFiveAlerts(t *testing.T) {
+func TestRenderCompareJSON_AllSevenAlerts(t *testing.T) {
 	db := openTemp(t)
 	seedStocks(t, db, "WEGE3", "ROMI3", "KEPL3")
 
 	col := firstColumn(t, decodeJSON(t, compareOf(t, db, "WEGE3", "ROMI3", "KEPL3")))
 	alerts, ok := col["alerts"].([]any)
 	require.True(t, ok, "alerts ausente")
-	require.Len(t, alerts, 5, "o não avaliado também é contrato")
+	require.Len(t, alerts, 7, "o não avaliado também é contrato")
 
 	for _, a := range alerts {
 		require.NotEmpty(t, a.(map[string]any)["status"])

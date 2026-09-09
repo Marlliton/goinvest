@@ -72,7 +72,7 @@ func TestShow_Alerts_AlwaysPopulated(t *testing.T) {
 	for _, ticker := range []string{"WEGE3", "MXRF11"} {
 		report, err := app.Show(t.Context(), db, loadCatalog(t), ticker, now)
 		require.NoError(t, err)
-		require.Len(t, report.Alerts, 5, ticker)
+		require.Len(t, report.Alerts, 7, ticker)
 		for _, f := range report.Alerts {
 			require.NotEmpty(t, f.Status, "%s/%s", ticker, f.ID)
 		}
