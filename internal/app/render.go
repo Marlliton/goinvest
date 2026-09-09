@@ -88,6 +88,7 @@ func RenderText(r Report) string {
 		}
 	}
 
+	b.WriteString(expectedReturnText(r.ExpectedReturn))
 	if r.Bazin != nil {
 		b.WriteString("\n" + bazinText(*r.Bazin))
 	}
@@ -144,6 +145,30 @@ var alertNumberFormats = map[string]struct {
 	"vacancia_media":       {"vacância", domain.UnitPercent},
 	"limiar":               {"limiar do segmento", domain.UnitPercent},
 	"dy_percentil":         {"percentil do DY no segmento", domain.UnitPercent},
+}
+
+const expectedReturnLabel = "Retorno esperado"
+
+func expectedReturnText(v *ExpectedReturnView) string {
+	if v == nil {
+		return ""
+	}
+	if v.NotApplicableReason != "" {
+		return fmt.Sprintf("\n%s: não aplicável (%s)\n", expectedReturnLabel, v.NotApplicableReason)
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "\n%s\n", expectedReturnLabel)
+	fmt.Fprintf(&b, "  Lucro/preço: %s · Distribuído (DY): %s · Retido: %s\n",
+		formatValue(v.EarningsYield, domain.UnitPercent),
+		formatValue(v.Distributed, domain.UnitPercent),
+		formatValue(v.Retained, domain.UnitPercent))
+	fmt.Fprintf(&b, "  Crescimento implícito (g = ROE × retenção): %s\n",
+		formatValue(v.ImpliedGrowth, domain.UnitPercent))
+	fmt.Fprintf(&b, "  Retorno esperado total: %s · Payback: %s anos (P/L lido como tempo)\n",
+		formatValue(v.TotalReturn, domain.UnitPercent),
+		formatBR(v.PaybackYears, 1))
+	return b.String()
 }
 
 const bazinLabel = "Preço-teto (Bazin)"

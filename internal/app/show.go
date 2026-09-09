@@ -77,12 +77,13 @@ type BazinView struct {
 }
 
 type Report struct {
-	Ticker string
-	Class  domain.AssetClass
-	Header HeaderView
-	Blocks []BlockView
-	Bazin  *BazinView
-	Alerts []evaluate.Finding
+	Ticker         string
+	Class          domain.AssetClass
+	Header         HeaderView
+	Blocks         []BlockView
+	Bazin          *BazinView
+	ExpectedReturn *ExpectedReturnView
+	Alerts         []evaluate.Finding
 }
 
 func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string, now func() time.Time) (Report, error) {
@@ -121,12 +122,13 @@ func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string
 	alerts := evaluate.Detect(alertInput(cat, asset, data.merged, data.percentiles, h, data.hasDetail))
 
 	return Report{
-		Ticker: asset.Ticker,
-		Class:  asset.Class,
-		Header: h,
-		Blocks: blocks(cat, asset, data.merged, data.percentiles, h, data.hasDetail, alerts),
-		Bazin:  bazinView(data.events, data.merged, h, asset.Ticker, now()),
-		Alerts: alerts,
+		Ticker:         asset.Ticker,
+		Class:          asset.Class,
+		Header:         h,
+		Blocks:         blocks(cat, asset, data.merged, data.percentiles, h, data.hasDetail, alerts),
+		Bazin:          bazinView(data.events, data.merged, h, asset.Ticker, now()),
+		ExpectedReturn: expectedReturnView(asset.Class, data.merged),
+		Alerts:         alerts,
 	}, nil
 }
 

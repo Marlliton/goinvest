@@ -615,6 +615,55 @@ func TestShow_LineViewCarriesReferenceAt(t *testing.T) {
 	require.Equal(t, referenceAt, ebit.ReferenceAt.UTC())
 }
 
+func TestShowExpectedReturnDecomposition(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	require.NoError(t, err)
+
+	require.NotNil(t, report.ExpectedReturn)
+	v := report.ExpectedReturn
+	require.Empty(t, v.NotApplicableReason)
+	require.InDelta(t, 1.0/30.0, v.EarningsYield, 1e-9)
+	require.InDelta(t, 0.012, v.Distributed, 1e-9)
+	require.InDelta(t, 1-0.012*30.0, v.Retained, 1e-9)
+	require.InDelta(t, 0.25*(1-0.012*30.0), v.ImpliedGrowth, 1e-9)
+	require.InDelta(t, 0.012+0.25*(1-0.012*30.0), v.TotalReturn, 1e-9)
+	require.InDelta(t, 30.0, v.PaybackYears, 1e-9)
+
+	require.Contains(t, app.RenderText(report), "Retorno esperado")
+}
+
+func TestShowExpectedReturnNotApplicableForFII(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "MXRF11", domain.ClassFII, map[domain.MetricID]*float64{
+		"cotacao": ptr(9.87),
+		"pvp":     ptr(1.02),
+		"dy":      ptr(0.132),
+	})
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "MXRF11", now)
+	require.NoError(t, err)
+
+	require.NotNil(t, report.ExpectedReturn)
+	require.NotEmpty(t, report.ExpectedReturn.NotApplicableReason)
+	require.Zero(t, report.ExpectedReturn.TotalReturn)
+}
+
+func TestShowExpectedReturnNotApplicableWhenLossMaking(t *testing.T) {
+	db := openTemp(t)
+	values := wege3Values()
+	values["pl"] = ptr(-3.0)
+	seed(t, db, "WEGE3", domain.ClassStock, values)
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", now)
+	require.NoError(t, err)
+
+	require.NotNil(t, report.ExpectedReturn)
+	require.Contains(t, report.ExpectedReturn.NotApplicableReason, "Prejuízo")
+}
+
 func TestShowGoldenOutputBank(t *testing.T) {
 	db := openTemp(t)
 	values := wege3Values()

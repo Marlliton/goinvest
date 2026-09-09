@@ -23,4 +23,6 @@ Dividendos
   Dividend Yield: 13,20%
   FFO Yield: 12,80%
 
+Retorno esperado: não aplicável (FII distribui por obrigação legal e não retém lucro: retenção e crescimento implícito não têm o que medir)
+
 Preço-teto (Bazin): não aplicável (nenhum provento coletado; rode 'goinvest detalhar MXRF11')
