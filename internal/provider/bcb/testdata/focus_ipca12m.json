@@ -1,0 +1,9 @@
+{
+  "@odata.context": "https://olinda.bcb.gov.br/olinda/servico/Expectativas/versao/v1/odata/$metadata#ExpectativasMercadoInflacao12Meses",
+  "value": [
+    {"Indicador": "IPCA", "Data": "2026-09-01", "Mediana": 4.5000, "Suavizada": "N", "baseCalculo": 0},
+    {"Indicador": "IPCA", "Data": "2026-08-25", "Mediana": 4.3500, "Suavizada": "S", "baseCalculo": 1},
+    {"Indicador": "IPCA", "Data": "2026-09-05", "Mediana": 4.2891, "Suavizada": "S", "baseCalculo": 0},
+    {"Indicador": "IPCA", "Data": "2026-08-20", "Mediana": 4.1000, "Suavizada": "S", "baseCalculo": 0}
+  ]
+}
