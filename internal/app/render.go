@@ -192,10 +192,51 @@ func bazinText(v BazinView) string {
 	}
 	b.WriteString("\n")
 
+	if v.Gordon != nil {
+		if v.Gordon.NotApplicableReason != "" {
+			fmt.Fprintf(&b, "  Faixa: Bazin %s — Gordon não aplicável (%s)\n",
+				formatValue(v.Ceiling, domain.UnitBRL), v.Gordon.NotApplicableReason)
+		} else {
+			lo, hi := min(v.Ceiling, v.Gordon.Ceiling), max(v.Ceiling, v.Gordon.Ceiling)
+			fmt.Fprintf(&b, "  Faixa: %s (Bazin) a %s (Gordon) — cotação de hoje %s, %s\n",
+				formatValue(lo, domain.UnitBRL), formatValue(hi, domain.UnitBRL),
+				formatValue(v.CurrentPrice, domain.UnitBRL), rangePosition(v.CurrentPrice, lo, hi))
+			fmt.Fprintf(&b, "  Gordon: Ke %s · g %s\n",
+				formatValue(v.Gordon.RequiredReturn, domain.UnitPercent),
+				formatValue(v.Gordon.ImpliedGrowth, domain.UnitPercent))
+			for _, s := range v.Gordon.Sensitivity {
+				fmt.Fprintf(&b, "  sensibilidade (%s, g=%s): %s\n",
+					s.Label, formatValue(s.Growth, domain.UnitPercent), formatValue(s.Ceiling, domain.UnitBRL))
+			}
+		}
+	}
+	if v.TwelveMonthYield != nil || v.MedianDividendYield != nil {
+		fmt.Fprintf(&b, "  DY 12m: %s · DY mediano 5a: %s\n",
+			optPercent(v.TwelveMonthYield), optPercent(v.MedianDividendYield))
+	}
+
 	for _, y := range v.Years {
 		fmt.Fprintf(&b, "  %d: %s\n", y.Year, formatValue(y.Total, domain.UnitBRL))
 	}
 	return b.String()
+}
+
+func rangePosition(price, lo, hi float64) string {
+	switch {
+	case price < lo:
+		return "abaixo da faixa"
+	case price > hi:
+		return "acima da faixa"
+	default:
+		return "dentro da faixa"
+	}
+}
+
+func optPercent(v *float64) string {
+	if v == nil {
+		return markAbsent
+	}
+	return formatValue(*v, domain.UnitPercent)
 }
 
 func legend(sawAbsent, sawNotApplicable, sawDerived, sawFallback, sawSmallerPeerN bool) string {

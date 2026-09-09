@@ -181,6 +181,6 @@ func column(cat *catalog.Catalog, data assetData, h CompareHeader, dropped map[d
 		delta := yield - *h.SelicRate
 		col.SelicDelta = &delta
 	}
-	col.Bazin = bazinView(data.events, data.merged, view, asset.Ticker, now)
+	col.Bazin = bazinView(data.events, data.merged, view, asset.Ticker, asset.Class, now)
 	return col
 }
