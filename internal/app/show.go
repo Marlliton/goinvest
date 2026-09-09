@@ -12,6 +12,7 @@ import (
 
 	"github.com/marlliton/goinvest/internal/bazin"
 	"github.com/marlliton/goinvest/internal/catalog"
+	"github.com/marlliton/goinvest/internal/config"
 	"github.com/marlliton/goinvest/internal/derive"
 	"github.com/marlliton/goinvest/internal/domain"
 	"github.com/marlliton/goinvest/internal/evaluate"
@@ -94,16 +95,17 @@ type BazinView struct {
 }
 
 type Report struct {
-	Ticker         string
-	Class          domain.AssetClass
-	Header         HeaderView
-	Blocks         []BlockView
-	Bazin          *BazinView
-	ExpectedReturn *ExpectedReturnView
-	Alerts         []evaluate.Finding
+	Ticker          string
+	Class           domain.AssetClass
+	Header          HeaderView
+	Blocks          []BlockView
+	Bazin           *BazinView
+	ExpectedReturn  *ExpectedReturnView
+	OpportunityCost *OpportunityCostView
+	Alerts          []evaluate.Finding
 }
 
-func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string, now func() time.Time) (Report, error) {
+func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string, tax config.Result, now func() time.Time) (Report, error) {
 	data, found, err := loadAsset(ctx, db, ticker)
 	if err != nil {
 		return Report{}, err
@@ -138,14 +140,44 @@ func Show(ctx context.Context, db *store.DB, cat *catalog.Catalog, ticker string
 
 	alerts := evaluate.Detect(alertInput(cat, asset, data.merged, data.percentiles, h, data.hasDetail))
 
+	expectedReturn := expectedReturnView(asset.Class, data.merged)
+
+	cdiRate, err := cdi(ctx, db)
+	if err != nil {
+		return Report{}, err
+	}
+	ipca10yRate, err := tesouroIPCA10y(ctx, db)
+	if err != nil {
+		return Report{}, err
+	}
+	focusRate, err := focusIPCA12m(ctx, db)
+	if err != nil {
+		return Report{}, err
+	}
+
+	var distributed, growth *float64
+	if asset.Class == domain.ClassFII {
+		if dy, ok := presentValue(data.merged, dividendYieldID); ok {
+			distributed = &dy
+		}
+	} else if expectedReturn.NotApplicableReason == "" {
+		d, g := expectedReturn.Distributed, expectedReturn.ImpliedGrowth
+		distributed, growth = &d, &g
+	}
+
+	opportunityCost := opportunityCostView(
+		macroRate{Rate: h.SelicRate, ReferenceAt: h.SelicAt},
+		cdiRate, ipca10yRate, focusRate, distributed, growth, tax)
+
 	return Report{
-		Ticker:         asset.Ticker,
-		Class:          asset.Class,
-		Header:         h,
-		Blocks:         blocks(cat, asset, data.merged, data.percentiles, h, data.hasDetail, alerts),
-		Bazin:          bazinView(data.events, data.merged, h, asset.Ticker, asset.Class, now()),
-		ExpectedReturn: expectedReturnView(asset.Class, data.merged),
-		Alerts:         alerts,
+		Ticker:          asset.Ticker,
+		Class:           asset.Class,
+		Header:          h,
+		Blocks:          blocks(cat, asset, data.merged, data.percentiles, h, data.hasDetail, alerts),
+		Bazin:           bazinView(data.events, data.merged, h, asset.Ticker, asset.Class, now()),
+		ExpectedReturn:  expectedReturn,
+		OpportunityCost: &opportunityCost,
+		Alerts:          alerts,
 	}, nil
 }
 
@@ -207,6 +239,30 @@ func loadAsset(ctx context.Context, db *store.DB, ticker string) (assetData, boo
 func selic(ctx context.Context, db *store.DB) (rate *float64, at *time.Time, found bool, err error) {
 	rate, at, _, found, err = db.GetSelic(ctx)
 	return rate, at, found, err
+}
+
+func cdi(ctx context.Context, db *store.DB) (macroRate, error) {
+	rate, at, _, found, err := db.GetCDI(ctx)
+	if err != nil || !found {
+		return macroRate{}, err
+	}
+	return macroRate{Rate: rate, ReferenceAt: at}, nil
+}
+
+func tesouroIPCA10y(ctx context.Context, db *store.DB) (macroRate, error) {
+	rate, at, _, found, err := db.GetTesouroIPCA10y(ctx)
+	if err != nil || !found {
+		return macroRate{}, err
+	}
+	return macroRate{Rate: rate, ReferenceAt: at}, nil
+}
+
+func focusIPCA12m(ctx context.Context, db *store.DB) (macroRate, error) {
+	rate, at, _, found, err := db.GetFocusIPCA12m(ctx)
+	if err != nil || !found {
+		return macroRate{}, err
+	}
+	return macroRate{Rate: rate, ReferenceAt: at}, nil
 }
 
 func alertInput(cat *catalog.Catalog, asset domain.Asset, merged domain.MetricSet, percentiles map[domain.MetricID]store.AssetPercentile, h HeaderView, hasDetail bool) evaluate.Input {
