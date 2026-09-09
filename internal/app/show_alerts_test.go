@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/marlliton/goinvest/internal/app"
 	"github.com/marlliton/goinvest/internal/domain"
@@ -130,6 +131,64 @@ func seedFIIPeers(t *testing.T, db *store.DB, sector string, dyByTicker map[stri
 	}
 	require.NoError(t, db.RecomputeSectorStats(t.Context(),
 		[]store.MetricRule{{MetricID: "dy"}}, collectedAt))
+}
+
+func TestShow_ProfitLossAlert_Fires(t *testing.T) {
+	db := openTemp(t)
+	values := wege3Values()
+	values["pl"] = ptr(-5.0)
+	seed(t, db, "WEGE3", domain.ClassStock, values)
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
+	require.NoError(t, err)
+
+	fired := alertOf(t, report, "ALERTA-09")
+	require.Equal(t, evaluate.StatusFired, fired.Status)
+	require.InDelta(t, -5.0, fired.Numbers["pl"], 1e-9)
+	require.Contains(t, app.RenderText(report), "ALERTA-09")
+}
+
+func TestShow_ProfitLossAlert_NotApplicableForFII(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "MXRF11", domain.ClassFII, map[domain.MetricID]*float64{
+		"cotacao": ptr(9.87), "pvp": ptr(1.02), "dy": ptr(0.132),
+	})
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "MXRF11", defaultTax, now)
+	require.NoError(t, err)
+
+	got := alertOf(t, report, "ALERTA-09")
+	require.Equal(t, evaluate.StatusNotApplicable, got.Status)
+}
+
+// fixedNow cai em 2026: um provento de março responde por 10/11 do ano.
+func TestShow_DividendConcentrationAlert_Fires(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
+	seedDividends(t, db, "WEGE3",
+		event(exOn(2026, time.March, 10), domain.DividendCash, 1.00, 1),
+		event(exOn(2026, time.June, 10), domain.DividendCash, 0.10, 1))
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
+	require.NoError(t, err)
+
+	fired := alertOf(t, report, "ALERTA-08")
+	require.Equal(t, evaluate.StatusFired, fired.Status)
+	require.InDelta(t, 1.00/1.10, fired.Numbers["concentracao_ano_corrente"], 1e-9)
+	require.Contains(t, app.RenderText(report), "ALERTA-08")
+}
+
+func TestShow_DividendConcentrationAlert_NotEvaluatedWithoutCurrentYearEvents(t *testing.T) {
+	db := openTemp(t)
+	seed(t, db, "WEGE3", domain.ClassStock, wege3Values())
+	seedDividends(t, db, "WEGE3",
+		event(exOn(2025, time.March, 10), domain.DividendCash, 1.00, 1))
+
+	report, err := app.Show(t.Context(), db, loadCatalog(t), "WEGE3", defaultTax, now)
+	require.NoError(t, err)
+
+	got := alertOf(t, report, "ALERTA-08")
+	require.Equal(t, evaluate.StatusNotEvaluated, got.Status)
 }
 
 func splitLines(s string) []string {

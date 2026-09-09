@@ -196,6 +196,21 @@ func TestCompare_CarriesSelicBazinAndAlerts(t *testing.T) {
 	require.Equal(t, evaluate.StatusFired, alertIn(t, bbas.Alerts, "ALERTA-01").Status)
 }
 
+func TestCompare_FiresProfitLossAndDividendAlerts(t *testing.T) {
+	db := openTemp(t)
+	values := wege3Values()
+	values["pl"] = ptr(-5.0)
+	seed(t, db, "BBAS3", domain.ClassStock, values)
+	seedStocks(t, db, "ROMI3", "KEPL3")
+
+	report, err := app.Compare(t.Context(), db, loadCatalog(t),
+		[]string{"BBAS3", "ROMI3", "KEPL3"}, now)
+	require.NoError(t, err)
+
+	bbas := columnOf(t, tableOf(t, report, domain.ClassStock), "BBAS3")
+	require.Equal(t, evaluate.StatusFired, alertIn(t, bbas.Alerts, "ALERTA-09").Status)
+}
+
 func TestCompare_ShowsGordonRangeAlongsideBazin(t *testing.T) {
 	db := openTemp(t)
 	seed(t, db, "BBAS3", domain.ClassStock, map[domain.MetricID]*float64{

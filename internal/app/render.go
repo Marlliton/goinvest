@@ -134,17 +134,19 @@ var alertNumberFormats = map[string]struct {
 	label string
 	unit  domain.Unit
 }{
-	"payout":               {"payout", domain.UnitPercent},
-	"pvp":                  {"P/VP", domain.UnitRatio},
-	"roe":                  {"ROE", domain.UnitPercent},
-	"ke":                   {"retorno exigido", domain.UnitPercent},
-	"lucro_liquido":        {"Lucro Líquido", domain.UnitBRL},
-	"ebit":                 {"EBIT", domain.UnitBRL},
-	"venda_sobre_receita":  {"venda de ativos ÷ receita", domain.UnitPercent},
-	"rendimento_sobre_ffo": {"rendimento ÷ FFO", domain.UnitPercent},
-	"vacancia_media":       {"vacância", domain.UnitPercent},
-	"limiar":               {"limiar do segmento", domain.UnitPercent},
-	"dy_percentil":         {"percentil do DY no segmento", domain.UnitPercent},
+	"payout":                    {"payout", domain.UnitPercent},
+	"pvp":                       {"P/VP", domain.UnitRatio},
+	"roe":                       {"ROE", domain.UnitPercent},
+	"ke":                        {"retorno exigido", domain.UnitPercent},
+	"lucro_liquido":             {"Lucro Líquido", domain.UnitBRL},
+	"ebit":                      {"EBIT", domain.UnitBRL},
+	"venda_sobre_receita":       {"venda de ativos ÷ receita", domain.UnitPercent},
+	"rendimento_sobre_ffo":      {"rendimento ÷ FFO", domain.UnitPercent},
+	"vacancia_media":            {"vacância", domain.UnitPercent},
+	"limiar":                    {"limiar do segmento", domain.UnitPercent},
+	"dy_percentil":              {"percentil do DY no segmento", domain.UnitPercent},
+	"pl":                        {"P/L", domain.UnitRatio},
+	"concentracao_ano_corrente": {"provento concentrado no ano", domain.UnitPercent},
 }
 
 func opportunityCostText(v *OpportunityCostView) string {
